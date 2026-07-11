@@ -1,5 +1,6 @@
 /vendor/
 .env
+git.local.env
 database/*.sqlite
 composer.phar
 composer-setup.php

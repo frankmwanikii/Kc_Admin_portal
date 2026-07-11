@@ -1,0 +1,187 @@
+/* Connect With Us — card grid (portal home) */
+.connect-section {
+    width: 100%;
+    max-width: none;
+    --color-navy: #0d486f;
+    --color-orange: #e87722;
+    --color-orange-glow: rgba(232, 119, 34, 0.28);
+    --color-white: #ffffff;
+    --color-gray-200: #d8e0e8;
+    --color-gray-500: #6b7c8f;
+    --color-section-title: #0d486f;
+    --font-heading: 'Sora', system-ui, sans-serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --space-sm: 1rem;
+    --space-md: 1.5rem;
+    --space-lg: 2.5rem;
+    --radius-md: 16px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 2px 8px rgba(13, 72, 111, 0.08);
+    --shadow-md: 0 8px 30px rgba(13, 72, 111, 0.12);
+    --transition-base: 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    --transition-slow: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    background-color: var(--color-white);
+    background-image:
+        linear-gradient(180deg, #e4ecf3 0%, #edf2f6 10%, #f5f8fa 22%, var(--color-white) 40%),
+        radial-gradient(ellipse at 15% 85%, rgba(52, 171, 225, 0.05) 0%, transparent 45%);
+    overflow: hidden;
+}
+
+.connect-section-header {
+    margin-bottom: var(--space-lg);
+    padding-inline: var(--space-md);
+    text-align: center;
+}
+
+.connect-section-title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.75rem, 4vw, 2.35rem);
+    font-weight: 700;
+    color: var(--color-section-title);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.connect-section-title::after {
+    content: '';
+    display: block;
+    width: 48px;
+    height: 3px;
+    margin: 0.75rem auto 0;
+    background: var(--color-orange);
+    border-radius: 2px;
+}
+
+.connect-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1rem;
+    width: 100%;
+    padding-inline: var(--space-md);
+    padding-bottom: 0.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+
+.connect-grid::-webkit-scrollbar {
+    display: none;
+}
+
+.connect-card {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 calc(100% - 2.5rem);
+    min-width: calc(100% - 2.5rem);
+    scroll-snap-align: center;
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-top: 3px solid var(--color-orange);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.connect-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.connect-card-img-wrap {
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+}
+
+.connect-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-slow);
+}
+
+.connect-card:hover .connect-card-img {
+    transform: scale(1.05);
+}
+
+.connect-card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-md) var(--space-md) var(--space-lg);
+    flex: 1;
+}
+
+.connect-card-title {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 0.35rem;
+}
+
+.connect-card-desc {
+    font-size: 0.95rem;
+    color: var(--color-gray-500);
+    margin-bottom: var(--space-md);
+    flex: 1;
+}
+
+.connect-card-btn {
+    display: inline-block;
+    width: 100%;
+    max-width: 200px;
+    padding: 0.85rem 1.5rem;
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-white);
+    text-align: center;
+    background: var(--color-orange);
+    border: 1px solid var(--color-orange);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 12px var(--color-orange-glow);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.connect-card-btn:hover {
+    background: var(--color-navy);
+    border-color: var(--color-navy);
+}
+
+@media (min-width: 768px) {
+    .connect-grid {
+        gap: 1rem;
+        padding-inline: var(--space-lg);
+        scroll-padding-inline: var(--space-lg);
+    }
+
+    .connect-card {
+        flex: 0 0 calc((100% - 1rem) / 2);
+        min-width: calc((100% - 1rem) / 2);
+    }
+}
+
+@media (min-width: 992px) {
+    .connect-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: clamp(1.25rem, 2vw, 2rem);
+        padding-inline: clamp(1.25rem, 3vw, 2.5rem);
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        overflow-x: visible;
+        scroll-snap-type: none;
+    }
+
+    .connect-card {
+        flex: unset;
+        min-width: 0;
+        scroll-snap-align: unset;
+    }
+}

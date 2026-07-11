@@ -39,10 +39,23 @@ class Installer
 
         self::createDatabase($host, $port, $database, $username, $password);
 
+        $formsDb = trim($config['forms_db_name'] ?? '');
+        if ($formsDb !== '') {
+            $formsUser = trim($config['forms_db_username'] ?? $username);
+            $formsPass = $config['forms_db_password'] ?? $password;
+            self::createDatabase(
+                trim($config['forms_db_host'] ?? $host),
+                trim($config['forms_db_port'] ?? $port),
+                $formsDb,
+                $formsUser,
+                $formsPass
+            );
+        }
+
         $appUrl = rtrim($config['app_url'], '/');
 
         $env = new EnvService();
-        $env->setMany([
+        $envValues = [
             'APP_NAME' => $config['church_name'] . ' MIS',
             'APP_URL' => $appUrl,
             'APP_INSTALLED' => 'true',
@@ -54,10 +67,29 @@ class Installer
             'DB_DATABASE_NAME' => $database,
             'CHURCH_NAME' => $config['church_name'],
             'MAIL_FROM_NAME' => $config['church_name'],
-        ]);
+        ];
+
+        $formsDb = trim($config['forms_db_name'] ?? '');
+        if ($formsDb !== '') {
+            $envValues['FORMS_DB_HOST'] = trim($config['forms_db_host'] ?? $host);
+            $envValues['FORMS_DB_PORT'] = trim($config['forms_db_port'] ?? $port);
+            $envValues['FORMS_DB_DATABASE_NAME'] = $formsDb;
+            $envValues['FORMS_DB_USERNAME'] = trim($config['forms_db_username'] ?? $username);
+            $envValues['FORMS_DB_PASSWORD'] = $config['forms_db_password'] ?? $password;
+        }
+
+        $env->setMany($envValues);
 
         Database::reset();
         self::migrate();
+
+        if ($formsDb !== '') {
+            $formsSql = file_get_contents(dirname(__DIR__, 2) . '/database/shared-form-submissions.sql');
+            if ($formsSql !== false) {
+                Database::formsConnection()->exec($formsSql);
+            }
+        }
+
         self::seed($config['admin_email'], $config['admin_password']);
     }
 

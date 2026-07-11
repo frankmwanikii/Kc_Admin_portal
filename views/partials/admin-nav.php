@@ -1,12 +1,10 @@
 <?php
 $links = [
     ['/admin', 'Dashboard', 'layout-dashboard'],
-    ['/admin/households', 'Households', 'home'],
-    ['/admin/attendance', 'Attendance', 'clipboard-check'],
-    ['/admin/finance', 'Finance & Giving', 'wallet'],
-    ['/admin/ministries', 'Ministries', 'users'],
+    ['/admin/members', 'Members', 'users'],
+    ['/admin/inventory', 'Inventory', 'package'],
+    ['/admin/finance', 'Finance', 'wallet'],
     ['/admin/communications', 'Communications', 'megaphone'],
-    ['/admin/onboarding-qr', 'QR Onboarding', 'qr-code'],
     ['/admin/settings', 'Settings', 'settings'],
 ];
 $current = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);

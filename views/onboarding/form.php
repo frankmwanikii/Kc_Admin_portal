@@ -63,10 +63,10 @@ if (!empty($initial['gender']) && !in_array($initial['gender'], $knownGenders, t
         to { opacity: 1; transform: scale(1) rotate(0deg); }
     }
     .kc-ms-panel { scrollbar-width: thin; scrollbar-color: rgba(53,175,230,0.5) transparent; }
-    html, body { height: auto; min-height: 100%; overflow-y: auto; }
+    html, body { height: 100%; min-height: 100%; overflow-y: auto; }
 </style>
 
-<div class="min-h-full flex flex-col"
+<div class="min-h-dvh flex flex-col"
      x-data="onboardingFlow(<?= htmlspecialchars(json_encode($initial, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($childrenInitial, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($ministryInitial, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES) ?>)"
      x-cloak
      @keydown.window="handleKey($event)">
@@ -84,8 +84,8 @@ if (!empty($initial['gender']) && !in_array($initial['gender'], $knownGenders, t
         </div>
     </div>
 
-    <div class="flex-1 flex flex-col justify-start px-4 pt-16 max-w-lg mx-auto w-full transition-[padding] duration-300"
-         :class="ministryOpen ? 'pb-56' : (current?.type === 'review' ? 'pb-36' : 'pb-32')">
+    <main class="flex-1 flex flex-col justify-center px-4 pt-20 pb-10">
+        <div class="w-full max-w-lg mx-auto">
         <?php if (!empty($error)): ?>
         <div class="mb-4 p-3 rounded-xl bg-red-500/20 text-red-100 text-sm border border-red-400/30 kc-q-in">
             <?= htmlspecialchars($error) ?>
@@ -276,25 +276,24 @@ if (!empty($initial['gender']) && !in_array($initial['gender'], $knownGenders, t
                     </div>
                 </template>
             </div>
-        </form>
-    </div>
 
-    <div class="fixed bottom-0 left-0 right-0 z-30 px-4 pb-6 pt-4 bg-gradient-to-t from-[#0b486d] to-transparent">
-        <div class="max-w-lg mx-auto flex items-center gap-3">
-            <button type="button" x-show="qi > 0" @click="back()"
-                class="px-4 py-3 rounded-xl text-white/60 hover:text-white text-sm font-medium transition">
-                &#8592; Back
-            </button>
-            <button type="button" x-show="current?.type !== 'review'" @click="forward()"
-                class="flex-1 py-4 rounded-xl bg-[#35afe6] hover:bg-[#2da0d9] text-white font-bold text-lg shadow-lg shadow-[#35afe6]/30 transition-all active:scale-[0.98]">
-                OK &#8629;
-            </button>
-            <button type="submit" form="onboard-form" x-show="current?.type === 'review'"
-                class="flex-1 py-4 rounded-xl bg-gradient-to-r from-[#35afe6] to-[#0b486d] text-white font-bold text-lg shadow-lg transition-all active:scale-[0.98]">
-                🎊 Join the family
-            </button>
+            <div class="mt-8 flex items-center gap-3">
+                <button type="button" x-show="qi > 0" @click="back()"
+                    class="px-4 py-3 rounded-xl text-white/60 hover:text-white text-sm font-medium transition">
+                    &#8592; Back
+                </button>
+                <button type="button" x-show="current?.type !== 'review'" @click="forward()"
+                    class="flex-1 py-4 rounded-xl bg-[#35afe6] hover:bg-[#2da0d9] text-white font-bold text-lg shadow-lg shadow-[#35afe6]/30 transition-all active:scale-[0.98]">
+                    OK &#8629;
+                </button>
+                <button type="submit" x-show="current?.type === 'review'"
+                    class="flex-1 py-4 rounded-xl bg-gradient-to-r from-[#35afe6] to-[#0b486d] text-white font-bold text-lg shadow-lg transition-all active:scale-[0.98]">
+                    🎊 Join the family
+                </button>
+            </div>
+        </form>
         </div>
-    </div>
+    </main>
 </div>
 
 <script>
@@ -571,7 +570,7 @@ function onboardingFlow(saved, childrenSaved, ministrySaved) {
         scrollMinistryPanelIntoView() {
             const panel = this.$refs.ministryPanel;
             if (!panel) return;
-            const footerGap = 130;
+            const footerGap = 24;
             const rect = panel.getBoundingClientRect();
             const overflow = rect.bottom - (window.innerHeight - footerGap);
             if (overflow > 0) {

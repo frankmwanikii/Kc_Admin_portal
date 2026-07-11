@@ -29,8 +29,14 @@ tailwind.config = {
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<?php foreach ($pageStyles ?? [] as $href): ?>
+<link rel="stylesheet" href="<?= htmlspecialchars((string) $href) ?>">
+<?php endforeach; ?>
 <style>
     [x-cloak] { display: none !important; }
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
 </style>
+<?php foreach ($pageScripts ?? [] as $src): ?>
+<script defer src="<?= htmlspecialchars((string) $src) ?>"></script>
+<?php endforeach; ?>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>

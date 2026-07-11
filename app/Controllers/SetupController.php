@@ -31,6 +31,11 @@ class SetupController
                 'admin_email' => 'admin@church.local',
                 'admin_password' => '',
                 'app_url' => $defaultUrl,
+                'forms_db_host' => '127.0.0.1',
+                'forms_db_port' => '3306',
+                'forms_db_name' => 'kingdomcity_forms',
+                'forms_db_username' => 'root',
+                'forms_db_password' => '',
             ],
             'data' => [],
             'error' => null,
@@ -53,6 +58,11 @@ class SetupController
             'admin_email' => trim($_POST['admin_email'] ?? ''),
             'admin_password' => $_POST['admin_password'] ?? '',
             'app_url' => rtrim(trim($_POST['app_url'] ?? ''), '/'),
+            'forms_db_host' => trim($_POST['forms_db_host'] ?? ''),
+            'forms_db_port' => trim($_POST['forms_db_port'] ?? ''),
+            'forms_db_name' => trim($_POST['forms_db_name'] ?? ''),
+            'forms_db_username' => trim($_POST['forms_db_username'] ?? ''),
+            'forms_db_password' => $_POST['forms_db_password'] ?? '',
         ];
 
         $error = $this->validate($data);

@@ -8,7 +8,6 @@ use App\Core\Auth;
 use App\Core\Database;
 use App\Core\View;
 use App\Models\User;
-use App\Services\QrService;
 
 class AuthController
 {
@@ -72,14 +71,8 @@ class AuthController
     /** @param array<string, mixed> $extra */
     private function loginViewData(array $extra = []): array
     {
-        $token = 'church-onboard-2026';
-        $qr = new QrService();
-        $onboardingUrl = $qr->onboardingUrl($token);
-
         return array_merge([
             'title' => 'Sign In',
-            'onboardingUrl' => $onboardingUrl,
-            'qrDataUri' => $qr->generateDataUri($onboardingUrl),
         ], $extra);
     }
 }

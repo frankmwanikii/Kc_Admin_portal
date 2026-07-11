@@ -43,6 +43,34 @@ Sign in with the admin email and password you chose during setup. Demo member ac
 2. New members scan and complete the registration form
 3. They receive an email with a secure 48-hour portal access link
 
+## Push to GitHub
+
+Git needs your name and email **once per repo** before Cursor can commit.
+
+1. Copy `git.local.env.example` → `git.local.env` (already created on this machine if you ran setup).
+2. Edit `git.local.env` with your GitHub name and email.
+3. Run:
+
+```bash
+bash scripts/setup-git.sh
+```
+
+4. Create an empty repo on GitHub, then add its URL to `git.local.env`:
+
+```bash
+GITHUB_REPO_URL="https://github.com/your-user/kingdomcity-mis.git"
+```
+
+Run `bash scripts/setup-git.sh` again to register `origin`.
+
+5. Commit in Cursor, then push — or from terminal:
+
+```bash
+git push -u origin main
+```
+
+This sets identity **only for this project** (not your global Git config).
+
 ## Configuration
 
 Edit `.env` for:

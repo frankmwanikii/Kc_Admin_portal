@@ -6,7 +6,6 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\View;
-use App\Services\QrService;
 
 class HomeController
 {
@@ -16,14 +15,6 @@ class HomeController
             View::redirect(Auth::isAdmin() ? '/admin' : '/portal');
         }
 
-        $token = 'church-onboard-2026';
-        $qr = new QrService();
-        $onboardingUrl = $qr->onboardingUrl($token);
-
-        View::render('home', [
-            'title' => 'Welcome',
-            'onboardingUrl' => $onboardingUrl,
-            'qrDataUri' => $qr->generateDataUri($onboardingUrl),
-        ]);
+        View::redirect('/login');
     }
 }

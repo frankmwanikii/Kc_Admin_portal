@@ -14,12 +14,15 @@ class SmsService
         $status = 'sent';
         $providerRef = null;
 
-        if ($provider === 'africas_talking' && !empty($_ENV['SMS_API_KEY'])) {
+        if ($provider === 'twilio' && !empty($_ENV['TWILIO_ACCOUNT_SID']) && !empty($_ENV['TWILIO_AUTH_TOKEN'])) {
+            $result = $this->sendViaTwilio($phone, $message);
+            $status = $result['success'] ? 'sent' : 'failed';
+            $providerRef = $result['ref'] ?? null;
+        } elseif ($provider === 'africas_talking' && !empty($_ENV['SMS_API_KEY'])) {
             $result = $this->sendViaAfricasTalking($phone, $message);
             $status = $result['success'] ? 'sent' : 'failed';
             $providerRef = $result['ref'] ?? null;
         } else {
-            // Development: log SMS instead of sending
             error_log("SMS to {$phone}: {$message}");
             $providerRef = 'DEV-' . uniqid();
         }
@@ -36,6 +39,7 @@ class SmsService
         $church = $_ENV['CHURCH_NAME'] ?? 'Grace Church';
         $formatted = number_format($amount, 2);
         $message = "Dear {$name}, thank you for your {$fund} of KES {$formatted} to {$church}. Ref: {$ref}. God bless you!";
+
         return $this->send($phone, $message, $memberId, 'giving_ack');
     }
 
@@ -47,9 +51,57 @@ class SmsService
                 $sent++;
             }
         }
+
         return $sent;
     }
 
+    public static function providerLabel(): string
+    {
+        $provider = $_ENV['SMS_PROVIDER'] ?? 'log';
+
+        return match ($provider) {
+            'twilio' => 'Twilio',
+            'africas_talking' => "Africa's Talking",
+            default => 'Development (log only)',
+        };
+    }
+
+    /** @return array{success: bool, ref: ?string} */
+    private function sendViaTwilio(string $phone, string $message): array
+    {
+        $sid = $_ENV['TWILIO_ACCOUNT_SID'] ?? '';
+        $token = $_ENV['TWILIO_AUTH_TOKEN'] ?? '';
+        $from = $_ENV['TWILIO_FROM_NUMBER'] ?? '';
+
+        if ($sid === '' || $token === '' || $from === '') {
+            return ['success' => false, 'ref' => null];
+        }
+
+        $ch = curl_init('https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode($sid) . '/Messages.json');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_USERPWD => $sid . ':' . $token,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+            CURLOPT_POSTFIELDS => http_build_query([
+                'To' => $phone,
+                'From' => $from,
+                'Body' => $message,
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $data = json_decode($response ?: '{}', true);
+
+        return [
+            'success' => $httpCode >= 200 && $httpCode < 300 && !empty($data['sid']),
+            'ref' => $data['sid'] ?? null,
+        ];
+    }
+
+    /** @return array{success: bool, ref: ?string} */
     private function sendViaAfricasTalking(string $phone, string $message): array
     {
         $username = $_ENV['SMS_USERNAME'] ?? 'sandbox';
@@ -76,6 +128,7 @@ class SmsService
         curl_close($ch);
 
         $data = json_decode($response ?: '{}', true);
+
         return [
             'success' => ($data['SMSMessageData']['Recipients'][0]['status'] ?? '') === 'Success',
             'ref' => $data['SMSMessageData']['Recipients'][0]['messageId'] ?? null,

@@ -252,3 +252,16 @@ CREATE TABLE IF NOT EXISTS settings (
     setting_value TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS visitor_feedback (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    spouse_name VARCHAR(150) NULL,
+    children_names TEXT NULL,
+    phone VARCHAR(30) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    review TEXT NULL,
+    how_heard_about_us VARCHAR(100) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

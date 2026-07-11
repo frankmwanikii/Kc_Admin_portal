@@ -10,10 +10,12 @@ use PDOException;
 class Database
 {
     private static ?PDO $instance = null;
+    private static ?PDO $formsInstance = null;
 
     public static function reset(): void
     {
         self::$instance = null;
+        self::$formsInstance = null;
     }
 
     public static function isMysql(): bool
@@ -55,5 +57,38 @@ class Database
         }
 
         return self::$instance;
+    }
+
+    /** Shared forms DB (website + portal member registrations). Falls back to main DB if not configured. */
+    public static function formsConnection(): PDO
+    {
+        $formsDb = trim($_ENV['FORMS_DB_DATABASE_NAME'] ?? '');
+        if ($formsDb === '') {
+            return self::connection();
+        }
+
+        if (self::$formsInstance === null) {
+            try {
+                $dsn = sprintf(
+                    'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+                    $_ENV['FORMS_DB_HOST'] ?? $_ENV['DB_HOST'] ?? '127.0.0.1',
+                    $_ENV['FORMS_DB_PORT'] ?? $_ENV['DB_PORT'] ?? '3306',
+                    $formsDb
+                );
+                self::$formsInstance = new PDO(
+                    $dsn,
+                    $_ENV['FORMS_DB_USERNAME'] ?? $_ENV['DB_USERNAME'] ?? 'root',
+                    $_ENV['FORMS_DB_PASSWORD'] ?? $_ENV['DB_PASSWORD'] ?? '',
+                    [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    ]
+                );
+            } catch (PDOException $e) {
+                throw new \RuntimeException('Forms database connection failed: ' . $e->getMessage());
+            }
+        }
+
+        return self::$formsInstance;
     }
 }

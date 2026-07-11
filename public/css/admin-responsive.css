@@ -1,0 +1,464 @@
+/**
+ * Admin portal — mobile & tablet layout
+ * Loaded on all admin pages via layouts/admin.php
+ */
+
+/* ── Shell: prevent page-level horizontal scroll ── */
+.admin-app {
+    overflow-x: hidden;
+}
+
+.admin-app > .flex-1 {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.admin-app main {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* ── Hub / finance page containers ── */
+.admin-hub-page,
+.arrears-page,
+.comms-layout,
+.settings-layout,
+.admin-dashboard {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.arrears-card,
+.finance-table-card,
+.settings-card,
+.comms-composer {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* ── Horizontal table scroll ── */
+.arrears-table-scroll {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: manipulation;
+}
+
+.arrears-table-scroll > table {
+    width: max-content;
+    min-width: 100%;
+}
+
+.finance-table-caption-scroll-hint {
+    display: none;
+    margin-left: auto;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+@media (max-width: 1023px) {
+    .finance-table-caption-scroll-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+}
+
+/* ── Tab navigation (finance, statement) ── */
+.admin-tab-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-tab-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.admin-tab-nav > a,
+.admin-tab-nav > button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* ── Toolbars ── */
+@media (max-width: 639px) {
+    .arrears-toolbar-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .arrears-toolbar-left {
+        width: 100%;
+    }
+
+    .arrears-search {
+        max-width: none;
+        flex: 1 1 100%;
+    }
+
+    .arrears-btn-new,
+    .arrears-btn-outline {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .arrears-title {
+        font-size: 1.25rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .admin-hub-page,
+    .arrears-page {
+        padding: 1rem 0.75rem 1.25rem;
+        border-radius: 0.75rem;
+    }
+
+    .finance-table-caption {
+        padding: 0.85rem 1rem;
+    }
+
+    .arrears-table {
+        min-width: 640px;
+    }
+
+    .weekly-table {
+        min-width: 720px;
+    }
+
+    .reconciliation-table {
+        min-width: 680px;
+    }
+
+    .arrears-table tbody td,
+    .finance-table-card .arrears-table thead th {
+        padding: 0.75rem 0.85rem;
+        font-size: 0.8125rem;
+    }
+
+    .finance-table-card .arrears-table thead th {
+        font-size: 0.625rem;
+    }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    .arrears-table {
+        min-width: 700px;
+    }
+
+    .weekly-table {
+        min-width: 780px;
+    }
+}
+
+/* ── Settings ── */
+@media (max-width: 767px) {
+    .settings-layout {
+        gap: 0.85rem;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .settings-hero {
+        padding: 1rem;
+        border-radius: 0.75rem;
+    }
+
+    .settings-hero h2 {
+        font-size: 1.0625rem;
+    }
+
+    .settings-hero p {
+        font-size: 0.8125rem;
+    }
+
+    .settings-nav-wrap {
+        position: relative;
+    }
+
+    .settings-nav-wrap::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 1.5rem;
+        pointer-events: none;
+        background: linear-gradient(to left, #fff, transparent);
+        border-radius: 0 0.875rem 0.875rem 0;
+    }
+
+    .settings-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        padding: 0.35rem 1.25rem 0.35rem 0.35rem;
+        scroll-snap-type: x proximity;
+    }
+
+    .settings-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .settings-nav-btn {
+        scroll-snap-align: start;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.75rem;
+    }
+
+    .settings-card-body {
+        padding: 1rem;
+    }
+
+    .settings-card-header {
+        padding: 0.85rem 1rem;
+    }
+
+    .settings-card-header p,
+    .settings-card-header--split p {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .settings-logo-preview {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .settings-logo-mode {
+        max-width: none;
+    }
+
+    .settings-file-input {
+        padding: 0.15rem 0;
+    }
+
+    .settings-file-input::file-selector-button {
+        display: block;
+        width: 100%;
+        margin: 0 0 0.65rem;
+        text-align: center;
+    }
+
+    .settings-form {
+        gap: 1rem;
+    }
+
+    .settings-form-actions {
+        position: sticky;
+        bottom: 0.75rem;
+        z-index: 5;
+        padding-top: 0.25rem;
+    }
+
+    .settings-layout .finance-btn-primary {
+        display: flex;
+        width: 100%;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+
+    .settings-provider-badge {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .settings-provider-panel {
+        padding: 0.85rem;
+    }
+}
+
+/* ── Dashboard ── */
+@media (max-width: 639px) {
+    .admin-dashboard {
+        gap: 1.5rem !important;
+    }
+
+    .admin-dashboard .h-64,
+    .admin-dashboard .h-52,
+    .admin-dashboard .h-56 {
+        height: 12rem;
+    }
+
+    .admin-dashboard-chart-legend {
+        flex-wrap: wrap;
+        gap: 0.5rem 0.75rem;
+    }
+}
+
+/* ── Communications ── */
+@media (max-width: 639px) {
+    .comms-composer-header,
+    .comms-composer-body {
+        padding: 1rem 1.15rem;
+    }
+
+    .comms-composer-header h2 {
+        font-size: 1rem;
+    }
+
+    .comms-history-row {
+        flex-direction: column;
+        gap: 0.65rem;
+        padding: 0.85rem 1rem;
+    }
+
+    .comms-history-row > .text-right {
+        text-align: left;
+        display: flex;
+        align-items: baseline;
+        gap: 0.35rem;
+    }
+
+    .comms-history-row > .text-right p:first-child {
+        font-size: 1rem;
+    }
+}
+
+/* ── Member profile ── */
+@media (max-width: 639px) {
+    .member-profile-page {
+        padding: 0;
+    }
+
+    .member-profile-hero {
+        padding: 1.25rem 1.15rem;
+        border-radius: 0.75rem;
+    }
+
+    .member-profile-name {
+        font-size: 1.5rem;
+    }
+
+    .member-profile-action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .member-profile-card-header,
+    .member-profile-section-title,
+    .member-profile-detail-row {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+/* ── Statement tab ── */
+@media (max-width: 767px) {
+    .statement-toolbar-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .statement-toolbar-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .statement-toolbar-actions .arrears-btn-outline,
+    .statement-toolbar-actions .arrears-btn-new {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .statement-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .statement-view-toggle {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .statement-period-form {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .statement-period-form .arrears-year-select,
+    .statement-period-form input[type="month"] {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .finance-statement {
+        padding: 1rem 0.85rem;
+        border-radius: 0.75rem;
+    }
+
+    .finance-statement-summary {
+        grid-template-columns: 1fr !important;
+    }
+
+    .finance-statement-table--activity {
+        min-width: 520px;
+    }
+
+    .finance-statement-table--arrears {
+        min-width: 580px;
+    }
+}
+
+/* ── Modals on small screens ── */
+@media (max-width: 639px) {
+    .finance-modal-header {
+        padding: 1rem 1.15rem;
+    }
+
+    .finance-modal-body {
+        padding: 1rem 1.15rem;
+    }
+
+    .finance-modal-footer {
+        padding: 0.85rem 1.15rem 1.15rem;
+    }
+
+    .finance-modal-title {
+        font-size: 1.0625rem;
+    }
+}
+
+/* ── Dropdown menus on touch devices ── */
+@media (max-width: 1023px) {
+    .arrears-dropdown--fixed {
+        max-width: calc(100vw - 1rem);
+    }
+}
+
+/* ── Safe areas (notched phones) ── */
+@supports (padding: max(0px)) {
+    .admin-app main {
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+
+    @media (min-width: 640px) {
+        .admin-app main {
+            padding-left: max(1.5rem, env(safe-area-inset-left));
+            padding-right: max(1.5rem, env(safe-area-inset-right));
+        }
+    }
+}

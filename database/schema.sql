@@ -223,3 +223,16 @@ CREATE INDEX IF NOT EXISTS idx_members_email ON members(email);
 CREATE INDEX IF NOT EXISTS idx_attendance_member ON attendance_records(member_id);
 CREATE INDEX IF NOT EXISTS idx_contributions_member ON contributions(member_id);
 CREATE INDEX IF NOT EXISTS idx_contributions_date ON contributions(contribution_date);
+
+CREATE TABLE IF NOT EXISTS visitor_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    spouse_name VARCHAR(150),
+    children_names TEXT,
+    phone VARCHAR(30) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    review TEXT,
+    how_heard_about_us VARCHAR(100),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

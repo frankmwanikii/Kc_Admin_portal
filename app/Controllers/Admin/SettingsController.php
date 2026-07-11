@@ -5,25 +5,49 @@ declare(strict_types=1);
 namespace App\Controllers\Admin;
 
 use App\Core\Auth;
+use App\Core\Database;
 use App\Core\View;
 use App\Services\EnvService;
 use App\Services\SettingsService;
 
 class SettingsController
 {
-    public function index(): void
+    /** @return array<string, mixed> */
+    private function viewData(array $overrides = []): array
     {
-        Auth::requireAdmin();
-
-        View::render('admin/settings/index', [
+        return array_merge([
             'title' => 'Settings',
             'churchName' => SettingsService::churchName(),
             'churchAddress' => SettingsService::churchAddress(),
             'churchPhone' => SettingsService::churchPhone(),
             'logoUrl' => SettingsService::get('church_logo_url', ''),
             'currentLogo' => SettingsService::logoUrl(),
+            'success' => null,
+            'error' => null,
+            'smsProvider' => $_ENV['SMS_PROVIDER'] ?? 'log',
+            'smsProviderLabel' => \App\Services\SmsService::providerLabel(),
+            'smsUsername' => $_ENV['SMS_USERNAME'] ?? '',
+            'smsApiKey' => $_ENV['SMS_API_KEY'] ?? '',
+            'smsSenderId' => $_ENV['SMS_SENDER_ID'] ?? '',
+            'twilioAccountSid' => $_ENV['TWILIO_ACCOUNT_SID'] ?? '',
+            'twilioAuthToken' => $_ENV['TWILIO_AUTH_TOKEN'] ?? '',
+            'twilioFromNumber' => $_ENV['TWILIO_FROM_NUMBER'] ?? '',
+            'twilioWhatsappFrom' => $_ENV['TWILIO_WHATSAPP_FROM'] ?? '',
+            'formsDbHost' => $_ENV['FORMS_DB_HOST'] ?? $_ENV['DB_HOST'] ?? '127.0.0.1',
+            'formsDbPort' => $_ENV['FORMS_DB_PORT'] ?? $_ENV['DB_PORT'] ?? '3306',
+            'formsDbName' => $_ENV['FORMS_DB_DATABASE_NAME'] ?? '',
+            'formsDbUsername' => $_ENV['FORMS_DB_USERNAME'] ?? '',
+            'formsDbStatus' => \App\Services\FormSubmissionService::formsDatabaseStatus(),
+        ], $overrides);
+    }
+
+    public function index(): void
+    {
+        Auth::requireAdmin();
+
+        View::render('admin/settings/index', $this->viewData([
             'success' => $_GET['saved'] ?? null,
-        ], 'layouts/admin');
+        ]), 'layouts/admin');
     }
 
     public function update(): void
@@ -38,15 +62,13 @@ class SettingsController
             ? trim($_POST['church_logo_url'])
             : (SettingsService::get('church_logo_url', '') ?? '');
         if ($logoUrl !== '' && !filter_var($logoUrl, FILTER_VALIDATE_URL)) {
-            View::render('admin/settings/index', [
-                'title' => 'Settings',
+            View::render('admin/settings/index', $this->viewData([
                 'churchName' => trim($_POST['church_name'] ?? ''),
                 'churchAddress' => trim($_POST['church_address'] ?? ''),
                 'churchPhone' => trim($_POST['church_phone'] ?? ''),
                 'logoUrl' => $logoUrl,
-                'currentLogo' => SettingsService::logoUrl(),
                 'error' => 'Please enter a valid logo URL.',
-            ], 'layouts/admin');
+            ]), 'layouts/admin');
             return;
         }
         SettingsService::set('church_logo_url', $logoUrl);
@@ -58,15 +80,13 @@ class SettingsController
 
         $uploadError = $this->logoUploadError($_FILES['church_logo'] ?? null);
         if ($uploadError !== null) {
-            View::render('admin/settings/index', [
-                'title' => 'Settings',
+            View::render('admin/settings/index', $this->viewData([
                 'churchName' => trim($_POST['church_name'] ?? ''),
                 'churchAddress' => trim($_POST['church_address'] ?? ''),
                 'churchPhone' => trim($_POST['church_phone'] ?? ''),
                 'logoUrl' => $logoUrl,
-                'currentLogo' => SettingsService::logoUrl(),
                 'error' => $uploadError,
-            ], 'layouts/admin');
+            ]), 'layouts/admin');
             return;
         }
 
@@ -75,26 +95,81 @@ class SettingsController
                 $this->handleLogoUpload($_FILES['church_logo']);
             }
         } catch (\Throwable $e) {
-            View::render('admin/settings/index', [
-                'title' => 'Settings',
+            View::render('admin/settings/index', $this->viewData([
                 'churchName' => trim($_POST['church_name'] ?? ''),
                 'churchAddress' => trim($_POST['church_address'] ?? ''),
                 'churchPhone' => trim($_POST['church_phone'] ?? ''),
                 'logoUrl' => $logoUrl,
-                'currentLogo' => SettingsService::logoUrl(),
                 'error' => $e->getMessage(),
-            ], 'layouts/admin');
+            ]), 'layouts/admin');
             return;
         }
 
         try {
             $env = new EnvService();
-            $env->setMany([
+            $envUpdates = [
                 'CHURCH_NAME' => SettingsService::churchName(),
                 'CHURCH_ADDRESS' => SettingsService::churchAddress(),
                 'CHURCH_PHONE' => SettingsService::churchPhone(),
                 'MAIL_FROM_NAME' => SettingsService::churchName(),
-            ]);
+            ];
+
+            $smsProvider = $_POST['sms_provider'] ?? 'log';
+            if (!in_array($smsProvider, ['log', 'africas_talking', 'twilio'], true)) {
+                $smsProvider = 'log';
+            }
+            $envUpdates['SMS_PROVIDER'] = $smsProvider;
+
+            $smsUsername = trim($_POST['sms_username'] ?? '');
+            if ($smsUsername !== '') {
+                $envUpdates['SMS_USERNAME'] = $smsUsername;
+            }
+
+            $smsSenderId = trim($_POST['sms_sender_id'] ?? '');
+            if ($smsSenderId !== '') {
+                $envUpdates['SMS_SENDER_ID'] = $smsSenderId;
+            }
+
+            $smsApiKey = trim($_POST['sms_api_key'] ?? '');
+            if ($smsApiKey !== '') {
+                $envUpdates['SMS_API_KEY'] = $smsApiKey;
+            }
+
+            $twilioSid = trim($_POST['twilio_account_sid'] ?? '');
+            if ($twilioSid !== '') {
+                $envUpdates['TWILIO_ACCOUNT_SID'] = $twilioSid;
+            }
+
+            $twilioFrom = trim($_POST['twilio_from_number'] ?? '');
+            if ($twilioFrom !== '') {
+                $envUpdates['TWILIO_FROM_NUMBER'] = $twilioFrom;
+            }
+
+            $twilioWhatsappFrom = trim($_POST['twilio_whatsapp_from'] ?? '');
+            if ($twilioWhatsappFrom !== '') {
+                $envUpdates['TWILIO_WHATSAPP_FROM'] = $twilioWhatsappFrom;
+            }
+
+            $twilioToken = trim($_POST['twilio_auth_token'] ?? '');
+            if ($twilioToken !== '') {
+                $envUpdates['TWILIO_AUTH_TOKEN'] = $twilioToken;
+            }
+
+            $formsDbName = trim($_POST['forms_db_name'] ?? '');
+            $envUpdates['FORMS_DB_HOST'] = trim($_POST['forms_db_host'] ?? $_ENV['DB_HOST'] ?? '127.0.0.1');
+            $envUpdates['FORMS_DB_PORT'] = trim($_POST['forms_db_port'] ?? $_ENV['DB_PORT'] ?? '3306');
+            $envUpdates['FORMS_DB_DATABASE_NAME'] = $formsDbName;
+            $formsDbUser = trim($_POST['forms_db_username'] ?? '');
+            if ($formsDbUser !== '') {
+                $envUpdates['FORMS_DB_USERNAME'] = $formsDbUser;
+            }
+            $formsDbPassword = $_POST['forms_db_password'] ?? '';
+            if ($formsDbPassword !== '') {
+                $envUpdates['FORMS_DB_PASSWORD'] = $formsDbPassword;
+            }
+
+            $env->setMany($envUpdates);
+            Database::reset();
         } catch (\Throwable) {
             // Settings are stored in the database; .env sync is optional.
         }

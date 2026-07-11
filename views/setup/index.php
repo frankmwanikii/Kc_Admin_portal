@@ -53,6 +53,43 @@ $d = array_merge($defaults ?? [], $data ?? []);
                 </div>
             </div>
 
+            <!-- Shared forms database (website) -->
+            <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="font-semibold text-church-800">Website Forms Database</h2>
+                        <p class="text-xs text-slate-500">Shared with Kc_website — Connect With Us submissions appear in admin Members</p>
+                    </div>
+                </div>
+
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Forms DB host</label>
+                        <input type="text" name="forms_db_host" value="<?= htmlspecialchars($d['forms_db_host'] ?? $d['db_host'] ?? '127.0.0.1') ?>" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-church-500 outline-none text-base">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Forms DB port</label>
+                        <input type="text" name="forms_db_port" value="<?= htmlspecialchars($d['forms_db_port'] ?? $d['db_port'] ?? '3306') ?>" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-church-500 outline-none text-base">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Forms database name</label>
+                        <input type="text" name="forms_db_name" value="<?= htmlspecialchars($d['forms_db_name'] ?? 'kingdomcity_forms') ?>" placeholder="kingdomcity_forms" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-church-500 outline-none text-base">
+                        <p class="text-xs text-slate-400 mt-1">Must match <code class="text-church-600">Kc_website/includes/database-config.php</code></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Forms DB username</label>
+                        <input type="text" name="forms_db_username" value="<?= htmlspecialchars($d['forms_db_username'] ?? $d['db_username'] ?? '') ?>" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-church-500 outline-none text-base">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Forms DB password</label>
+                        <input type="password" name="forms_db_password" value="<?= htmlspecialchars($d['forms_db_password'] ?? '') ?>" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-church-500 outline-none text-base" placeholder="Leave empty if same as main DB">
+                    </div>
+                </div>
+            </div>
+
             <!-- Church & Admin -->
             <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
                 <div class="flex items-center gap-3 mb-6">

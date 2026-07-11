@@ -2,8 +2,9 @@
 <html lang="en" class="h-full">
 <head>
     <?php require __DIR__ . '/../partials/head.php'; ?>
+    <link rel="stylesheet" href="/css/admin-responsive.css">
 </head>
-<body class="min-h-full bg-slate-50 font-sans antialiased lg:flex" x-data="{ sidebarOpen: false }">
+<body class="min-h-full bg-slate-50 font-sans antialiased lg:flex admin-app" x-data="{ sidebarOpen: false }">
     <!-- Mobile sidebar overlay -->
     <div x-show="sidebarOpen" x-cloak @click="sidebarOpen=false" class="fixed inset-0 bg-black/40 z-40 lg:hidden"></div>
 
@@ -38,7 +39,7 @@
             </button>
             <h1 class="text-lg font-semibold text-church-800 truncate"><?= htmlspecialchars($title ?? '') ?></h1>
         </header>
-        <main class="p-4 sm:p-6 lg:p-8 max-w-7xl">
+        <main class="p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
             <?= $content ?>
         </main>
     </div>
