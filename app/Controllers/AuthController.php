@@ -16,20 +16,20 @@ class AuthController
         if (Auth::check()) {
             View::redirect(Auth::isAdmin() ? '/admin' : '/portal');
         }
-        View::render('auth/login', $this->loginViewData());
+        View::render('auth/login', $this->loginViewData(), 'layouts/guest');
     }
 
     public function login(): void
     {
-        $email = trim($_POST['email'] ?? '');
+        $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        $user = User::findByEmail($email);
+        $user = User::findByUsername($username);
         if (!$user || !password_verify($password, $user->password)) {
             View::render('auth/login', $this->loginViewData([
-                'error' => 'Invalid email or password.',
-                'email' => $email,
-            ]));
+                'error' => 'Invalid username or password.',
+                'username' => $username,
+            ]), 'layouts/guest');
             return;
         }
 
@@ -52,7 +52,7 @@ class AuthController
         if (!$user) {
             View::render('auth/login', $this->loginViewData([
                 'error' => 'This link has expired or is invalid. Please sign in with your credentials.',
-            ]));
+            ]), 'layouts/guest');
             return;
         }
 
@@ -73,6 +73,7 @@ class AuthController
     {
         return array_merge([
             'title' => 'Sign In',
+            'pageStyles' => ['/css/auth-login.css'],
         ], $extra);
     }
 }

@@ -9,7 +9,14 @@ $formsDbStatus = $formsDbStatus ?? [];
 
 <div class="admin-hub-page" x-data="memberTable(<?= htmlspecialchars($membersJson, ENT_QUOTES) ?>, <?= htmlspecialchars($formTypeLabelsJson, ENT_QUOTES) ?>)">
     <h2 class="arrears-title">Members</h2>
-    <p class="finance-tab-hint">Website Connect With Us submissions — Join, New Here, New Beginning, and Kingdom Groups.</p>
+    <p class="finance-tab-hint">Website Connect With Us submissions — Join, New Here, New Beginning, and Kingdom Groups. You can also add members manually.</p>
+
+    <?php if (!empty($success)): ?>
+    <div class="admin-alert admin-alert--success mb-4">Member added successfully.</div>
+    <?php endif; ?>
+    <?php if (!empty($error)): ?>
+    <div class="admin-alert admin-alert--error mb-4"><?= htmlspecialchars(is_string($error) ? $error : 'Could not add member.') ?></div>
+    <?php endif; ?>
 
     <?php if (!empty($formsDbStatus['warning'])): ?>
     <div class="admin-alert admin-alert--error mb-4"><?= htmlspecialchars($formsDbStatus['warning']) ?></div>
@@ -38,6 +45,7 @@ $formsDbStatus = $formsDbStatus ?? [];
                 </template>
             </select>
         </div>
+        <button type="button" @click="openAddForm()" class="arrears-btn-new">+ Add member</button>
     </div>
 
     <div class="arrears-card finance-table-card">
@@ -63,7 +71,7 @@ $formsDbStatus = $formsDbStatus ?? [];
                     <tr x-show="filteredRows.length === 0">
                         <td colspan="7" class="arrears-empty">
                             <span x-show="search.trim() || statusFilter || formTypeFilter">No members match your filters.</span>
-                            <span x-show="!search.trim() && !statusFilter && !formTypeFilter">No member registrations yet. Submissions from the website Connect With Us forms will appear here.</span>
+                            <span x-show="!search.trim() && !statusFilter && !formTypeFilter">No members yet. Click <strong>+ Add member</strong> or wait for Connect With Us form submissions.</span>
                         </td>
                     </tr>
                     <template x-for="m in paginatedRows" :key="m.id">
@@ -79,8 +87,7 @@ $formsDbStatus = $formsDbStatus ?? [];
                             <td class="arrears-muted hidden lg:table-cell capitalize" x-text="m.campus_id || '—'"></td>
                             <td class="arrears-muted hidden sm:table-cell" x-text="formatMemberDate(m.created_at)"></td>
                             <td class="arrears-actions ft-td-actions"
-                                :class="openMenu === m.id && 'weekly-actions--open'"
-                                @click.outside="openMenu = null">
+                                :class="openMenu === m.id && 'weekly-actions--open'">
                                 <button type="button"
                                         class="arrears-view-btn"
                                         @click.stop="toggleMenu(m.id, $event)"
@@ -89,15 +96,6 @@ $formsDbStatus = $formsDbStatus ?? [];
                                     View
                                     <i data-lucide="chevron-down"></i>
                                 </button>
-                                <div x-show="openMenu === m.id"
-                                     x-cloak
-                                     class="arrears-dropdown">
-                                    <a :href="'/admin/members/' + m.id" class="arrears-dropdown-item">View profile</a>
-                                    <a :href="'/admin/communications?member=' + m.id" class="arrears-dropdown-item">Send message</a>
-                                    <form :action="'/admin/members/' + m.id + '/delete'" method="post" onsubmit="return confirm('Delete this member registration? This cannot be undone.')">
-                                        <button type="submit" class="arrears-dropdown-item arrears-dropdown-item--danger">Delete member</button>
-                                    </form>
-                                </div>
                             </td>
                         </tr>
                     </template>
@@ -111,6 +109,85 @@ $formsDbStatus = $formsDbStatus ?? [];
         $navLabel = 'Members pages';
         require __DIR__ . '/../partials/table-pagination.php';
         ?>
+    </div>
+
+    <template x-teleport="body">
+        <div x-show="openMenu"
+             x-cloak
+             @click.outside="openMenu = null; activeMember = null"
+             @keydown.escape.window="openMenu = null; activeMember = null"
+             class="arrears-dropdown arrears-dropdown--fixed arrears-dropdown--teleport"
+             :style="'top:' + menuPos.top + 'px;left:' + menuPos.left + 'px'">
+            <template x-if="activeMember">
+                <div>
+                    <a :href="'/admin/members/' + activeMember.id" class="arrears-dropdown-item">View profile</a>
+                    <a :href="'/admin/communications?member=' + activeMember.id" class="arrears-dropdown-item">Send message</a>
+                    <button type="button"
+                            @click="confirmDelete(activeMember)"
+                            class="arrears-dropdown-item arrears-dropdown-item--danger">
+                        Delete member
+                    </button>
+                </div>
+            </template>
+        </div>
+    </template>
+
+    <div x-show="showForm" x-cloak class="finance-modal-overlay" @keydown.escape.window="closeAddForm()">
+        <div class="finance-modal-backdrop" @click="closeAddForm()"></div>
+        <div class="finance-modal finance-modal--wide" role="dialog" aria-modal="true" aria-labelledby="member-form-title">
+            <div class="finance-modal-header">
+                <div>
+                    <p class="finance-modal-eyebrow">Members</p>
+                    <h2 id="member-form-title" class="finance-modal-title">Add member</h2>
+                </div>
+                <button type="button" class="finance-modal-close" @click="closeAddForm()" aria-label="Close">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form method="post" action="/admin/members">
+                <div class="finance-modal-body finance-modal-body--grid">
+                    <div class="finance-field" style="grid-column: 1 / -1;">
+                        <label class="finance-label" for="member-name">Full name</label>
+                        <input type="text" id="member-name" name="name" required class="finance-input" placeholder="e.g. Jane Wanjiku" x-model="form.name">
+                    </div>
+                    <div class="finance-field">
+                        <label class="finance-label" for="member-phone">Phone</label>
+                        <input type="tel" id="member-phone" name="phone" class="finance-input" placeholder="+254…" x-model="form.phone">
+                    </div>
+                    <div class="finance-field">
+                        <label class="finance-label" for="member-email">Email</label>
+                        <input type="email" id="member-email" name="email" class="finance-input" placeholder="name@example.com" x-model="form.email">
+                    </div>
+                    <div class="finance-field">
+                        <label class="finance-label" for="member-campus">Campus</label>
+                        <select id="member-campus" name="campus" class="finance-input" x-model="form.campus">
+                            <option value="nanyuki">Nanyuki</option>
+                            <option value="nairobi">Nairobi</option>
+                        </select>
+                    </div>
+                    <div class="finance-field">
+                        <label class="finance-label" for="member-form-type">Registration type</label>
+                        <select id="member-form-type" name="form_type" class="finance-input" x-model="form.form_type">
+                            <option value="manual">Added manually</option>
+                            <option value="join">Join Our Church Family</option>
+                            <option value="new-here">New Here</option>
+                            <option value="new-beginning">New Beginning</option>
+                            <option value="kingdom-groups">Kingdom Groups</option>
+                        </select>
+                    </div>
+                    <div class="finance-field" style="grid-column: 1 / -1;">
+                        <label class="finance-label" for="member-notes">Notes</label>
+                        <textarea id="member-notes" name="notes" rows="2" class="finance-input finance-textarea" placeholder="Optional notes…" x-model="form.notes"></textarea>
+                    </div>
+                </div>
+                <div class="finance-modal-footer">
+                    <div class="finance-modal-actions">
+                        <button type="button" class="finance-btn-secondary" @click="closeAddForm()">Cancel</button>
+                        <button type="submit" class="finance-btn-primary">Save member</button>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 

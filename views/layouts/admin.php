@@ -3,14 +3,15 @@
 <head>
     <?php require __DIR__ . '/../partials/head.php'; ?>
     <link rel="stylesheet" href="/css/admin-responsive.css">
+    <link rel="stylesheet" href="/css/admin-sidebar.css">
 </head>
 <body class="min-h-full bg-slate-50 font-sans antialiased lg:flex admin-app" x-data="{ sidebarOpen: false }">
     <!-- Mobile sidebar overlay -->
     <div x-show="sidebarOpen" x-cloak @click="sidebarOpen=false" class="fixed inset-0 bg-black/40 z-40 lg:hidden"></div>
 
     <!-- Sidebar -->
-    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 w-72 bg-church-900 text-white transform lg:translate-x-0 transition-transform duration-200 flex flex-col shrink-0 min-h-screen">
-        <div class="p-5 border-b border-white/10">
+    <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="admin-sidebar fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 w-72 bg-church-900 text-white transform lg:translate-x-0 transition-transform duration-200 flex flex-col shrink-0 min-h-screen">
+        <div class="admin-sidebar__brand p-5 border-b border-white/10">
             <div class="flex items-center gap-3">
                 <?php $size = 'md'; $logoBg = 'white'; require __DIR__ . '/../partials/church-logo.php'; ?>
                 <div class="min-w-0">
@@ -19,15 +20,15 @@
                 </div>
             </div>
         </div>
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav class="admin-sidebar__nav flex-1 p-3 overflow-y-auto">
             <?php require __DIR__ . '/../partials/admin-nav.php'; ?>
         </nav>
-        <div class="p-4 border-t border-white/10">
-            <a href="/logout" class="group flex items-center gap-3 text-sm text-white/55 hover:text-white transition px-3 py-2.5 rounded-xl hover:bg-white/10">
-                <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-white/5 text-white/70 group-hover:bg-white/10 group-hover:text-white transition-colors">
+        <div class="admin-sidebar__footer p-3 border-t border-white/10">
+            <a href="/logout" class="admin-side-nav__link admin-side-nav__link--muted">
+                <span class="admin-side-nav__icon">
                     <i data-lucide="log-out" class="w-[18px] h-[18px]"></i>
                 </span>
-                Sign out
+                <span class="admin-side-nav__label">Sign out</span>
             </a>
         </div>
     </aside>

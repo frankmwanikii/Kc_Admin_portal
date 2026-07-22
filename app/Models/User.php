@@ -10,6 +10,7 @@ class User extends Model
 
     public int $id;
     public ?int $member_id;
+    public ?string $username = null;
     public string $email;
     public string $password;
     public string $role;
@@ -22,6 +23,17 @@ class User extends Model
     public static function findByEmail(string $email): ?self
     {
         $stmt = self::query('SELECT * FROM users WHERE email = ?', [$email]);
+        $row = $stmt->fetch();
+        return $row ? self::hydrate($row) : null;
+    }
+
+    public static function findByUsername(string $username): ?self
+    {
+        $username = trim($username);
+        if ($username === '') {
+            return null;
+        }
+        $stmt = self::query('SELECT * FROM users WHERE username = ?', [$username]);
         $row = $stmt->fetch();
         return $row ? self::hydrate($row) : null;
     }
@@ -44,6 +56,12 @@ class User extends Model
     public function fullName(): string
     {
         $member = $this->member();
-        return $member ? $member->fullName() : $this->email;
+        if ($member) {
+            return $member->fullName();
+        }
+        if (!empty($this->username)) {
+            return $this->username;
+        }
+        return $this->email;
     }
 }

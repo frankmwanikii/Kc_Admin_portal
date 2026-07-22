@@ -64,8 +64,7 @@ $itemsJson = json_encode(array_values($items ?? []), JSON_HEX_TAG | JSON_HEX_APO
                             <td class="arrears-muted hidden md:table-cell" x-text="item.location || '—'"></td>
                             <td class="arrears-muted hidden lg:table-cell text-xs" x-text="item.notes || '—'"></td>
                             <td class="arrears-actions ft-td-actions"
-                                :class="openMenu == item.id && 'weekly-actions--open'"
-                                @click.outside="openMenu = null; activeItem = null">
+                                :class="openMenu == item.id && 'weekly-actions--open'">
                                 <button type="button"
                                         class="arrears-view-btn"
                                         @click.stop="toggleMenu(item.id, $event)"
@@ -103,11 +102,11 @@ $itemsJson = json_encode(array_values($items ?? []), JSON_HEX_TAG | JSON_HEX_APO
                             class="arrears-dropdown-item">
                         Edit item
                     </button>
-                    <form :action="'/admin/inventory/' + activeItem.id + '/delete'"
-                          method="post"
-                          onsubmit="return confirm('Remove this item from inventory?')">
-                        <button type="submit" class="arrears-dropdown-item arrears-dropdown-item--danger">Delete item</button>
-                    </form>
+                    <button type="button"
+                            @click="confirmDelete(activeItem)"
+                            class="arrears-dropdown-item arrears-dropdown-item--danger">
+                        Delete item
+                    </button>
                 </div>
             </template>
         </div>

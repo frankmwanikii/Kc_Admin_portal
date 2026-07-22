@@ -18,7 +18,35 @@ class MemberController
             'members' => FormSubmissionService::membersList(),
             'formsDbStatus' => FormSubmissionService::formsDatabaseStatus(),
             'formTypeLabels' => FormSubmissionService::formTypeLabels(),
+            'success' => $_GET['added'] ?? null,
+            'error' => $_GET['error'] ?? null,
         ], 'layouts/admin');
+    }
+
+    public function store(): void
+    {
+        Auth::requireAdmin();
+
+        $name = trim($_POST['name'] ?? '');
+        if ($name === '') {
+            View::redirect('/admin/members?error=' . urlencode('Full name is required.'));
+        }
+
+        $email = trim($_POST['email'] ?? '');
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            View::redirect('/admin/members?error=' . urlencode('Please enter a valid email address.'));
+        }
+
+        FormSubmissionService::createManual([
+            'name' => $name,
+            'email' => $email,
+            'phone' => trim($_POST['phone'] ?? ''),
+            'campus' => trim($_POST['campus'] ?? 'nanyuki'),
+            'notes' => trim($_POST['notes'] ?? ''),
+            'form_type' => trim($_POST['form_type'] ?? 'manual'),
+        ]);
+
+        View::redirect('/admin/members?added=1');
     }
 
     public function show(string $id): void

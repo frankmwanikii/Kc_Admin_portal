@@ -233,6 +233,7 @@ class SettingsController
         }
 
         SettingsService::set('church_logo_path', 'uploads/branding/' . $filename);
+        SettingsService::set('church_logo_url', '');
     }
 
     private function removeUploadedLogo(): void

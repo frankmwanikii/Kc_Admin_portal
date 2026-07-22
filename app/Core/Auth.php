@@ -11,9 +11,21 @@ class Auth
     public static function start(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
+            $sessionDir = dirname(__DIR__, 2) . '/storage/sessions';
+            if (!is_dir($sessionDir)) {
+                mkdir($sessionDir, 0755, true);
+            }
+            if (is_writable($sessionDir)) {
+                session_save_path($sessionDir);
+            }
+
+            $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
             session_set_cookie_params([
                 'lifetime' => 0,
                 'path' => '/',
+                'secure' => $secure,
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);

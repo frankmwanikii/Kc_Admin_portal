@@ -93,8 +93,13 @@ class SettingsService
     public static function logoUrl(): ?string
     {
         $uploaded = self::get('church_logo_path');
-        if ($uploaded && is_file(dirname(__DIR__, 2) . '/public/' . $uploaded)) {
-            return rtrim($_ENV['APP_URL'] ?? '', '/') . '/' . ltrim($uploaded, '/');
+        if ($uploaded) {
+            $relative = '/' . ltrim($uploaded, '/');
+            $full = dirname(__DIR__, 2) . '/public/' . ltrim($uploaded, '/');
+            if (is_file($full)) {
+                // Relative path works on any host; mtime busts browser cache after re-upload.
+                return $relative . '?v=' . filemtime($full);
+            }
         }
 
         $external = trim(self::get('church_logo_url', '') ?? '');

@@ -33,6 +33,7 @@ use App\Controllers\Admin\MemberController;
 use App\Controllers\Admin\MinistryController;
 
 use App\Controllers\Admin\SettingsController;
+use App\Controllers\Admin\StaffController;
 
 
 
@@ -98,11 +99,23 @@ $router->get('/admin', [DashboardController::class, 'index']);
 
 $router->get('/admin/members', [MemberController::class, 'index']);
 
+$router->post('/admin/members', [MemberController::class, 'store']);
+
 $router->get('/admin/members/{id}', [MemberController::class, 'show']);
 
 $router->post('/admin/members/{id}/status', [MemberController::class, 'updateStatus']);
 
 $router->post('/admin/members/{id}/delete', [MemberController::class, 'delete']);
+
+
+
+$router->get('/admin/staff', [StaffController::class, 'index']);
+
+$router->post('/admin/staff', [StaffController::class, 'store']);
+
+$router->post('/admin/staff/{id}', [StaffController::class, 'update']);
+
+$router->post('/admin/staff/{id}/delete', [StaffController::class, 'delete']);
 
 
 

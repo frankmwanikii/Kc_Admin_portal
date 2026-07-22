@@ -20,6 +20,7 @@ $boxClass = $variant === 'light'
     : 'bg-gradient-to-br from-church-500 to-church-800 text-white shadow-lg shadow-church-800/30';
 $imgWrapClass = match ($logoBg) {
     'white' => 'bg-white p-1.5 shadow-sm ring-1 ring-white/20',
+    'none' => '',
     default => $imgClass ?? 'bg-white/10',
 };
 ?>

@@ -146,8 +146,15 @@ class FinanceController
                 break;
         }
 
+        $pageTitles = [
+            'dashboard' => 'Finance overview',
+            'bills' => 'Bills',
+            'ledger' => 'Ledger',
+            'reports' => 'Reports',
+        ];
+
         View::render('admin/finance/index', array_merge([
-            'title' => 'Finance',
+            'title' => $pageTitles[$tab] ?? 'Finance',
             'tab' => $tab,
             'ledgerSub' => $ledgerSub,
             'year' => $year,

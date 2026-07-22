@@ -1,0 +1,129 @@
+/* Admin sidebar — sectioned navigation */
+
+.admin-side-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.admin-side-nav__section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.admin-side-nav__heading {
+    margin: 0;
+    padding: 0.35rem 0.85rem 0.45rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(173, 226, 245, 0.55);
+}
+
+.admin-side-nav__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.admin-side-nav__link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 550;
+    color: rgba(255, 255, 255, 0.58);
+    text-decoration: none;
+    transition:
+        color 0.15s ease,
+        background 0.15s ease;
+}
+
+.admin-side-nav__link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-side-nav__link--active {
+    color: #fff;
+    background: rgba(53, 175, 230, 0.16);
+    box-shadow: inset 3px 0 0 #35afe6;
+}
+
+.admin-side-nav__link--active .admin-side-nav__icon {
+    background: rgba(53, 175, 230, 0.22);
+    color: #7dd0ef;
+}
+
+.admin-side-nav__link--active .admin-side-nav__label {
+    color: #fff;
+    font-weight: 650;
+}
+
+.admin-side-nav__link--muted {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.admin-side-nav__link--muted:hover {
+    color: #fff;
+}
+
+.admin-side-nav__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 0.65rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+    flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-side-nav__link:hover .admin-side-nav__icon {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.admin-side-nav__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-side-nav__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #35afe6;
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.admin-sidebar__nav {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(173, 226, 245, 0.25) transparent;
+}
+
+.admin-sidebar__nav::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-sidebar__nav::-webkit-scrollbar-thumb {
+    background: rgba(173, 226, 245, 0.25);
+    border-radius: 999px;
+}

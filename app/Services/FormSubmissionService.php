@@ -12,7 +12,7 @@ class FormSubmissionService
     private static bool $tableChecked = false;
 
     /** Connect With Us forms from Kc_website — all appear in admin Members. */
-    public const MEMBER_FORM_TYPES = ['join', 'new-beginning', 'new-here', 'kingdom-groups'];
+    public const MEMBER_FORM_TYPES = ['join', 'new-beginning', 'new-here', 'kingdom-groups', 'manual'];
 
     /** @return array<string, string> */
     public static function formTypeLabels(): array
@@ -22,6 +22,7 @@ class FormSubmissionService
             'new-beginning' => 'New Beginning',
             'new-here' => 'New Here',
             'kingdom-groups' => 'Kingdom Groups',
+            'manual' => 'Added manually',
         ];
     }
 
@@ -156,6 +157,47 @@ class FormSubmissionService
         ]);
 
         return (int) self::db()->lastInsertId();
+    }
+
+    /**
+     * Create a member registration from the admin UI.
+     *
+     * @param array{name?: string, email?: string, phone?: string, campus?: string, notes?: string, form_type?: string} $data
+     */
+    public static function createManual(array $data): int
+    {
+        $formType = strtolower(trim((string) ($data['form_type'] ?? 'manual')));
+        if (!in_array($formType, self::MEMBER_FORM_TYPES, true)) {
+            $formType = 'manual';
+        }
+
+        $name = trim((string) ($data['name'] ?? ''));
+        $email = trim((string) ($data['email'] ?? ''));
+        $phone = trim((string) ($data['phone'] ?? ''));
+        $notes = trim((string) ($data['notes'] ?? ''));
+        $campus = self::normalizeCampus((string) ($data['campus'] ?? 'nanyuki'));
+
+        $payload = [
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'campus' => $campus,
+            'campus_label' => ucfirst($campus),
+            'form_title' => 'Added manually',
+            'source' => 'admin_manual',
+        ];
+        if ($notes !== '') {
+            $payload['admin_notes'] = $notes;
+        }
+
+        $id = self::record($formType, $payload, [
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+            'user_agent' => 'admin-manual',
+        ]);
+
+        self::updateStatus($id, 'reviewed', $notes !== '' ? $notes : null);
+
+        return $id;
     }
 
     /** @return list<array<string, mixed>> */

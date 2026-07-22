@@ -123,6 +123,17 @@
                 statusFilter: '',
                 formTypeFilter: '',
                 openMenu: null,
+                menuPos: { top: 0, left: 0 },
+                activeMember: null,
+                showForm: false,
+                form: {
+                    name: '',
+                    phone: '',
+                    email: '',
+                    campus: 'nanyuki',
+                    form_type: 'manual',
+                    notes: '',
+                },
 
                 get filteredRows() {
                     let list = this.rows;
@@ -151,6 +162,79 @@
 
                 ...pagination,
                 ...tableInit('page', 'filteredRows'),
+
+                init() {
+                    this.$watch('filteredRows', () => this.clampPage('page', this.filteredRows));
+                    this.$watch('search', () => {
+                        this.page = 1;
+                        this.$nextTick(() => window.lucide?.createIcons());
+                    });
+                    this.$watch('statusFilter', () => { this.page = 1; });
+                    this.$watch('formTypeFilter', () => { this.page = 1; });
+                    this.$watch('page', () => this.$nextTick(() => window.lucide?.createIcons()));
+                    this.$nextTick(() => window.lucide?.createIcons());
+
+                    this._closeMenuOnScroll = () => {
+                        if (this.openMenu) {
+                            this.openMenu = null;
+                            this.activeMember = null;
+                        }
+                    };
+                    window.addEventListener('scroll', this._closeMenuOnScroll, true);
+                },
+
+                toggleMenu(id, event) {
+                    if (this.openMenu === id) {
+                        this.openMenu = null;
+                        this.activeMember = null;
+                        return;
+                    }
+                    this.activeMember = this.rows.find((m) => m.id == id) || null;
+                    const btn = event?.currentTarget;
+                    if (btn) {
+                        const rect = btn.getBoundingClientRect();
+                        const width = 168;
+                        this.menuPos = {
+                            top: rect.bottom + 6,
+                            left: Math.min(
+                                Math.max(8, rect.right - width),
+                                window.innerWidth - width - 8
+                            ),
+                        };
+                    }
+                    this.openMenu = id;
+                    this.$nextTick(() => window.lucide?.createIcons());
+                },
+
+                confirmDelete(member) {
+                    if (!member?.id) return;
+                    if (!confirm('Delete this member registration? This cannot be undone.')) return;
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/admin/members/' + member.id + '/delete';
+                    form.style.display = 'none';
+                    document.body.appendChild(form);
+                    form.submit();
+                },
+
+                openAddForm() {
+                    this.openMenu = null;
+                    this.activeMember = null;
+                    this.form = {
+                        name: '',
+                        phone: '',
+                        email: '',
+                        campus: 'nanyuki',
+                        form_type: 'manual',
+                        notes: '',
+                    };
+                    this.showForm = true;
+                    this.$nextTick(() => window.lucide?.createIcons());
+                },
+
+                closeAddForm() {
+                    this.showForm = false;
+                },
 
                 formatMemberDate(value) {
                     if (!value) return '—';
@@ -270,6 +354,17 @@
                     this.$nextTick(() => window.lucide?.createIcons());
                 },
 
+                confirmDelete(item) {
+                    if (!item?.id) return;
+                    if (!confirm('Remove this item from inventory?')) return;
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/admin/inventory/' + item.id + '/delete';
+                    form.style.display = 'none';
+                    document.body.appendChild(form);
+                    form.submit();
+                },
+
                 closeAddForm() {
                     this.showForm = false;
                     this.editingItem = null;
@@ -304,6 +399,177 @@
                         return;
                     }
                     this.activeItem = this.rows.find((item) => item.id == id) || null;
+                    const btn = event?.currentTarget;
+                    if (btn) {
+                        const rect = btn.getBoundingClientRect();
+                        const width = 168;
+                        this.menuPos = {
+                            top: rect.bottom + 6,
+                            left: Math.min(
+                                Math.max(8, rect.right - width),
+                                window.innerWidth - width - 8
+                            ),
+                        };
+                    }
+                    this.openMenu = id;
+                    this.$nextTick(() => window.lucide?.createIcons());
+                },
+            };
+        });
+
+        Alpine.data('staffTable', (rows) => {
+            const pagination = paginationMethods('tablePerPage');
+            return {
+                rows: rows || [],
+                page: 1,
+                tablePerPage: 10,
+                search: '',
+                departmentFilter: '',
+                statusFilter: '',
+                openMenu: null,
+                menuPos: { top: 0, left: 0 },
+                activePerson: null,
+                showForm: false,
+                editingPerson: null,
+                form: {
+                    name: '',
+                    role_title: '',
+                    department: '',
+                    phone: '',
+                    email: '',
+                    status: 'active',
+                    notes: '',
+                },
+
+                get filteredRows() {
+                    let list = this.rows;
+                    const q = this.search.trim().toLowerCase();
+                    if (q) {
+                        list = list.filter((person) =>
+                            (person.name || '').toLowerCase().includes(q)
+                            || (person.role_title || '').toLowerCase().includes(q)
+                            || (person.department || '').toLowerCase().includes(q)
+                            || (person.phone || '').toLowerCase().includes(q)
+                            || (person.email || '').toLowerCase().includes(q)
+                            || (person.notes || '').toLowerCase().includes(q)
+                        );
+                    }
+                    if (this.departmentFilter) {
+                        list = list.filter((person) => (person.department || '') === this.departmentFilter);
+                    }
+                    if (this.statusFilter) {
+                        list = list.filter((person) => (person.status || 'active') === this.statusFilter);
+                    }
+                    return list;
+                },
+
+                get departments() {
+                    const set = new Set();
+                    this.rows.forEach((person) => {
+                        if (person.department) set.add(person.department);
+                    });
+                    return Array.from(set).sort();
+                },
+
+                get paginatedRows() {
+                    return this.paginate(this.filteredRows, this.page);
+                },
+
+                resetForm() {
+                    this.form = {
+                        name: '',
+                        role_title: '',
+                        department: '',
+                        phone: '',
+                        email: '',
+                        status: 'active',
+                        notes: '',
+                    };
+                },
+
+                openAddForm() {
+                    this.editingPerson = null;
+                    this.resetForm();
+                    this.showForm = true;
+                    this.$nextTick(() => window.lucide?.createIcons());
+                },
+
+                openEditForm(person) {
+                    this.editingPerson = person;
+                    this.form = {
+                        name: person.name || '',
+                        role_title: person.role_title || '',
+                        department: person.department || '',
+                        phone: person.phone || '',
+                        email: person.email || '',
+                        status: person.status || 'active',
+                        notes: person.notes || '',
+                    };
+                    this.openMenu = null;
+                    this.activePerson = null;
+                    this.showForm = true;
+                    this.$nextTick(() => window.lucide?.createIcons());
+                },
+
+                confirmDelete(person) {
+                    if (!person?.id) return;
+                    if (!confirm('Remove this staff member?')) return;
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/admin/staff/' + person.id + '/delete';
+                    form.style.display = 'none';
+                    document.body.appendChild(form);
+                    form.submit();
+                },
+
+                closeAddForm() {
+                    this.showForm = false;
+                    this.editingPerson = null;
+                    this.resetForm();
+                },
+
+                statusLabel(status) {
+                    if (status === 'on_leave') return 'On leave';
+                    if (status === 'inactive') return 'Inactive';
+                    return 'Active';
+                },
+
+                statusClass(status) {
+                    if (status === 'on_leave') return 'admin-status-pill admin-status-pill--reviewed';
+                    if (status === 'inactive') return 'admin-status-pill admin-status-pill--archived';
+                    return 'admin-status-pill admin-status-pill--new';
+                },
+
+                ...pagination,
+                ...tableInit('page', 'filteredRows'),
+
+                init() {
+                    this.$watch('filteredRows', () => this.clampPage('page', this.filteredRows));
+                    this.$watch('search', () => {
+                        this.page = 1;
+                        this.$nextTick(() => window.lucide?.createIcons());
+                    });
+                    this.$watch('departmentFilter', () => { this.page = 1; });
+                    this.$watch('statusFilter', () => { this.page = 1; });
+                    this.$watch('page', () => this.$nextTick(() => window.lucide?.createIcons()));
+                    this.$nextTick(() => window.lucide?.createIcons());
+
+                    this._closeMenuOnScroll = () => {
+                        if (this.openMenu) {
+                            this.openMenu = null;
+                            this.activePerson = null;
+                        }
+                    };
+                    window.addEventListener('scroll', this._closeMenuOnScroll, true);
+                },
+
+                toggleMenu(id, event) {
+                    if (this.openMenu === id) {
+                        this.openMenu = null;
+                        this.activePerson = null;
+                        return;
+                    }
+                    this.activePerson = this.rows.find((person) => person.id == id) || null;
                     const btn = event?.currentTarget;
                     if (btn) {
                         const rect = btn.getBoundingClientRect();

@@ -30,10 +30,38 @@ abstract class Model
     protected static function hydrate(array $row): static
     {
         $model = new static();
+        $reflection = new \ReflectionClass($model);
+
         foreach ($row as $key => $value) {
-            $model->$key = $value;
+            if (!$reflection->hasProperty($key)) {
+                continue;
+            }
+
+            $property = $reflection->getProperty($key);
+            $property->setValue($model, static::castPropertyValue($property, $value));
         }
+
         return $model;
+    }
+
+    private static function castPropertyValue(\ReflectionProperty $property, mixed $value): mixed
+    {
+        $type = $property->getType();
+        if (!$type instanceof \ReflectionNamedType) {
+            return $value;
+        }
+
+        if ($value === null || ($type->allowsNull() && $value === '')) {
+            return null;
+        }
+
+        return match ($type->getName()) {
+            'int' => (int) $value,
+            'float' => (float) $value,
+            'bool' => filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? (bool) (int) $value,
+            'string' => (string) $value,
+            default => $value,
+        };
     }
 
     protected static function query(string $sql, array $params = []): PDOStatement
