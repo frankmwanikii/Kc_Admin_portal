@@ -4,13 +4,18 @@ use App\Services\FormSubmissionService;
 
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $financeTab = strtolower((string) ($_GET['tab'] ?? 'dashboard'));
+$financeSub = strtolower((string) ($_GET['sub'] ?? ''));
 if (in_array($financeTab, ['arrears'], true)) {
     $financeTab = 'bills';
 }
 if (in_array($financeTab, ['weekly', 'collections'], true)) {
     $financeTab = 'ledger';
 }
-if (in_array($financeTab, ['reconciliation', 'statement'], true)) {
+// Legacy Reports subtabs → top-level Finance items
+if ($financeTab === 'reports' && in_array($financeSub, ['budget', 'reconciliation'], true)) {
+    $financeTab = $financeSub;
+}
+if ($financeTab === 'statement') {
     $financeTab = 'reports';
 }
 if ($currentPath === '/admin/finance' && $financeTab === '') {
@@ -68,12 +73,6 @@ $sections = [
             'active' => $currentPath === '/admin/finance' && $financeTab === 'dashboard',
         ],
         [
-            'href' => '/admin/finance/sunday',
-            'label' => 'Record Sunday',
-            'icon' => 'calendar-plus',
-            'active' => str_starts_with($currentPath, '/admin/finance/sunday'),
-        ],
-        [
             'href' => '/admin/finance?tab=bills',
             'label' => 'Bills',
             'icon' => 'receipt',
@@ -84,6 +83,18 @@ $sections = [
             'label' => 'Ledger',
             'icon' => 'table-2',
             'active' => $currentPath === '/admin/finance' && $financeTab === 'ledger',
+        ],
+        [
+            'href' => '/admin/finance?tab=reconciliation',
+            'label' => 'Reconciliation',
+            'icon' => 'scale',
+            'active' => $currentPath === '/admin/finance' && $financeTab === 'reconciliation',
+        ],
+        [
+            'href' => '/admin/finance?tab=budget',
+            'label' => 'Budget',
+            'icon' => 'target',
+            'active' => $currentPath === '/admin/finance' && $financeTab === 'budget',
         ],
         [
             'href' => '/admin/finance?tab=reports',
@@ -103,20 +114,26 @@ $sections = [
 ];
 ?>
 <div class="admin-side-nav">
-<?php foreach ($sections as $sectionLabel => $links): ?>
-    <div class="admin-side-nav__section">
+<?php
+$sectionIndex = 0;
+foreach ($sections as $sectionLabel => $links):
+    $sectionIndex++;
+?>
+    <div class="admin-side-nav__section<?= $sectionIndex > 1 ? ' admin-side-nav__section--divided' : '' ?>">
         <p class="admin-side-nav__heading"><?= htmlspecialchars($sectionLabel) ?></p>
         <div class="admin-side-nav__list">
             <?php foreach ($links as $link):
                 $active = !empty($link['active']);
                 $badge = $link['badge'] ?? null;
+                $label = (string) ($link['label'] ?? '');
             ?>
             <a href="<?= htmlspecialchars($link['href']) ?>"
-               class="admin-side-nav__link <?= $active ? 'admin-side-nav__link--active' : '' ?>">
-                <span class="admin-side-nav__icon">
-                    <i data-lucide="<?= htmlspecialchars($link['icon']) ?>" class="w-[18px] h-[18px]"></i>
+               class="admin-side-nav__link <?= $active ? 'admin-side-nav__link--active' : '' ?>"
+               title="<?= htmlspecialchars($label) ?>">
+                <span class="admin-side-nav__icon" aria-hidden="true">
+                    <i data-lucide="<?= htmlspecialchars($link['icon']) ?>" class="w-5 h-5"></i>
                 </span>
-                <span class="admin-side-nav__label"><?= htmlspecialchars($link['label']) ?></span>
+                <span class="admin-side-nav__label"><?= htmlspecialchars($label) ?></span>
                 <?php if ($badge !== null): ?>
                 <span class="admin-side-nav__badge"><?= (int) $badge > 99 ? '99+' : (int) $badge ?></span>
                 <?php endif; ?>

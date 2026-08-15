@@ -2,6 +2,7 @@
 <html lang="en" class="h-full">
 <head>
     <?php require __DIR__ . '/../partials/head.php'; ?>
+    <link rel="stylesheet" href="/css/app-copyright.css">
 </head>
 <body class="h-full bg-slate-50 font-sans antialiased" x-data="{ menuOpen: false }">
     <!-- Top bar -->
@@ -50,5 +51,6 @@
             <?= $content ?>
         </main>
     </div>
+    <?php $copyrightVariant = 'app-copyright--member'; require __DIR__ . '/../partials/app-copyright.php'; ?>
 </body>
 </html>

@@ -8,6 +8,7 @@
     overflow-x: hidden;
 }
 
+.admin-app > .admin-main,
 .admin-app > .flex-1 {
     min-width: 0;
     max-width: 100%;

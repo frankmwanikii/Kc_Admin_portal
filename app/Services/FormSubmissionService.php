@@ -160,32 +160,58 @@ class FormSubmissionService
     }
 
     /**
-     * Create a member registration from the admin UI.
+     * Create a member registration from the admin UI (full Connect form payload).
      *
-     * @param array{name?: string, email?: string, phone?: string, campus?: string, notes?: string, form_type?: string} $data
+     * @param array<string, mixed> $data
      */
     public static function createManual(array $data): int
     {
-        $formType = strtolower(trim((string) ($data['form_type'] ?? 'manual')));
-        if (!in_array($formType, self::MEMBER_FORM_TYPES, true)) {
-            $formType = 'manual';
+        $formType = strtolower(trim((string) ($data['form_type'] ?? 'join')));
+        if (!in_array($formType, ['join', 'new-here', 'new-beginning', 'kingdom-groups', 'manual'], true)) {
+            $formType = 'join';
+        }
+        if ($formType === 'manual') {
+            $formType = 'join';
         }
 
-        $name = trim((string) ($data['name'] ?? ''));
-        $email = trim((string) ($data['email'] ?? ''));
-        $phone = trim((string) ($data['phone'] ?? ''));
-        $notes = trim((string) ($data['notes'] ?? ''));
+        $notes = trim((string) ($data['notes'] ?? $data['admin_notes'] ?? ''));
         $campus = self::normalizeCampus((string) ($data['campus'] ?? 'nanyuki'));
 
-        $payload = [
-            'name' => $name,
-            'email' => $email,
-            'phone' => $phone,
-            'campus' => $campus,
-            'campus_label' => ucfirst($campus),
-            'form_title' => 'Added manually',
-            'source' => 'admin_manual',
+        $skipKeys = [
+            'notes', 'admin_notes', 'form_type', '_hp', 'campus_label', 'form_title', 'source',
         ];
+        $payload = [];
+        foreach ($data as $key => $value) {
+            $key = (string) $key;
+            if (in_array($key, $skipKeys, true) || str_starts_with($key, '_')) {
+                continue;
+            }
+            if (is_array($value)) {
+                $clean = array_values(array_filter(array_map(
+                    static fn ($v) => is_string($v) ? trim($v) : $v,
+                    $value
+                ), static fn ($v) => $v !== '' && $v !== null));
+                if ($clean !== []) {
+                    $payload[$key] = $clean;
+                }
+                continue;
+            }
+            if (is_string($value)) {
+                $value = trim($value);
+            }
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            $payload[$key] = $value;
+        }
+
+        $payload['name'] = trim((string) ($payload['name'] ?? $data['name'] ?? ''));
+        $payload['email'] = trim((string) ($payload['email'] ?? $data['email'] ?? ''));
+        $payload['phone'] = trim((string) ($payload['phone'] ?? $data['phone'] ?? ''));
+        $payload['campus'] = $campus;
+        $payload['campus_label'] = ucfirst($campus);
+        $payload['form_title'] = self::formTypeLabel($formType);
+        $payload['source'] = 'admin_manual';
         if ($notes !== '') {
             $payload['admin_notes'] = $notes;
         }

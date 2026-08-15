@@ -9,16 +9,9 @@ if ($tabKey === 'arrears') {
 if (in_array($tabKey, ['weekly', 'collections'], true)) {
     $tabKey = 'ledger';
 }
-if (in_array($tabKey, ['reconciliation', 'statement'], true)) {
+if ($tabKey === 'statement') {
     $tabKey = 'reports';
 }
-
-$tabDashboard = $tabKey === 'dashboard';
-$tabBills = $tabKey === 'bills';
-$tabLedger = $tabKey === 'ledger';
-$tabReports = $tabKey === 'reports';
-$reportSub = $reportSub ?? (($_GET['sub'] ?? '') === 'statement' ? 'statement' : 'reconciliation');
-$ledgerSub = $ledgerSub ?? (($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses');
 
 $sectionMeta = match ($tabKey) {
     'bills' => [
@@ -29,9 +22,17 @@ $sectionMeta = match ($tabKey) {
         'title' => 'Ledger',
         'sub' => 'Weekly expenses and collections for each Sunday.',
     ],
+    'reconciliation' => [
+        'title' => 'Reconciliation',
+        'sub' => 'Compare collections against expenses for the month.',
+    ],
+    'budget' => [
+        'title' => 'Budget',
+        'sub' => 'Set planned amounts and track budget vs actual.',
+    ],
     'reports' => [
         'title' => 'Reports',
-        'sub' => 'Reconciliation, statements, and budget vs actual.',
+        'sub' => 'Generate and download financial statements.',
     ],
     default => [
         'title' => 'Finance overview',
@@ -44,31 +45,5 @@ $sectionMeta = match ($tabKey) {
         <p class="fin-hero__eyebrow">Finance</p>
         <h2 class="fin-hero__title"><?= htmlspecialchars($sectionMeta['title']) ?></h2>
         <p class="fin-hero__sub"><?= htmlspecialchars($sectionMeta['sub']) ?></p>
-    </div>
-    <div class="fin-hero__actions">
-        <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month) ?>" class="fin-btn fin-btn--primary fin-btn--lg">
-            <i data-lucide="calendar-plus" class="w-5 h-5"></i>
-            Record Sunday
-        </a>
-        <form method="get" class="fin-year-form">
-            <input type="hidden" name="tab" value="<?= htmlspecialchars($tabKey) ?>">
-            <?php if ($tabLedger || ($tabReports && $reportSub === 'statement')): ?>
-            <input type="hidden" name="month" value="<?= htmlspecialchars($month) ?>">
-            <?php endif; ?>
-            <?php if ($tabReports && $reportSub === 'statement'): ?>
-            <input type="hidden" name="sub" value="statement">
-            <input type="hidden" name="view" value="<?= htmlspecialchars($_GET['view'] ?? 'monthly') ?>">
-            <?php elseif ($tabReports): ?>
-            <input type="hidden" name="sub" value="<?= htmlspecialchars($reportSub) ?>">
-            <?php endif; ?>
-            <?php if ($tabLedger): ?>
-            <input type="hidden" name="sub" value="<?= htmlspecialchars($ledgerSub) ?>">
-            <?php endif; ?>
-            <select name="year" onchange="this.form.submit()" class="fin-select fin-select--hero" aria-label="Budget year">
-                <?php for ($y = (int) date('Y') + 1; $y >= 2024; $y--): ?>
-                <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
-                <?php endfor; ?>
-            </select>
-        </form>
     </div>
 </header>

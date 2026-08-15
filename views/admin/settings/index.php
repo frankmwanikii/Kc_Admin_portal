@@ -1,10 +1,25 @@
 <link rel="stylesheet" href="/css/admin-finance.css">
 <link rel="stylesheet" href="/css/admin-hub.css">
+<link rel="stylesheet" href="/css/admin-profile.css">
 
-<div class="settings-layout" x-data="{ section: 'branding' }">
+<?php
+$smsProvider = $smsProvider ?? 'log';
+$smsEnabled = $smsProvider !== 'log';
+$logoModeDefault = !empty($logoUrl) ? 'url' : 'upload';
+?>
+
+<div class="settings-layout"
+     x-data="{
+         section: 'branding',
+         logoMode: '<?= $logoModeDefault ?>',
+         smsEnabled: <?= $smsEnabled ? 'true' : 'false' ?>,
+         smsProvider: '<?= htmlspecialchars($smsProvider, ENT_QUOTES) ?>',
+         removeLogo: false
+     }">
     <div class="settings-hero">
+        <p class="profile-hero__eyebrow">System</p>
         <h2>Church settings</h2>
-        <p>Manage branding, contact details, and SMS messaging providers (Twilio or Africa's Talking).</p>
+        <p>Manage branding, contact details, SMS providers, and the website forms database.</p>
     </div>
 
     <?php if (!empty($success)): ?>
@@ -16,14 +31,28 @@
 
     <div class="settings-nav-wrap">
         <div class="settings-nav" role="tablist" aria-label="Settings sections">
-            <button type="button" role="tab" class="settings-nav-btn" :class="section === 'branding' && 'settings-nav-btn--active'" @click="section = 'branding'">Branding</button>
-            <button type="button" role="tab" class="settings-nav-btn" :class="section === 'details' && 'settings-nav-btn--active'" @click="section = 'details'">Church details</button>
-            <button type="button" role="tab" class="settings-nav-btn" :class="section === 'messaging' && 'settings-nav-btn--active'" @click="section = 'messaging'">Messaging</button>
-            <button type="button" role="tab" class="settings-nav-btn" :class="section === 'website' && 'settings-nav-btn--active'" @click="section = 'website'">Forms DB</button>
+            <button type="button" role="tab" class="settings-nav-btn" :class="section === 'branding' && 'settings-nav-btn--active'" @click="section = 'branding'">
+                <i data-lucide="image" class="w-4 h-4"></i>
+                Branding
+            </button>
+            <button type="button" role="tab" class="settings-nav-btn" :class="section === 'details' && 'settings-nav-btn--active'" @click="section = 'details'">
+                <i data-lucide="building-2" class="w-4 h-4"></i>
+                Church details
+            </button>
+            <button type="button" role="tab" class="settings-nav-btn" :class="section === 'messaging' && 'settings-nav-btn--active'" @click="section = 'messaging'">
+                <i data-lucide="message-square" class="w-4 h-4"></i>
+                Messaging
+            </button>
+            <button type="button" role="tab" class="settings-nav-btn" :class="section === 'website' && 'settings-nav-btn--active'" @click="section = 'website'">
+                <i data-lucide="database" class="w-4 h-4"></i>
+                Forms DB
+            </button>
         </div>
     </div>
 
-    <form method="POST" action="/admin/settings" enctype="multipart/form-data" class="settings-form" x-data="{ logoMode: '<?= !empty($logoUrl) ? 'url' : 'upload' ?>' }">
+    <form method="POST" action="/admin/settings" enctype="multipart/form-data" class="settings-form">
+        <input type="hidden" name="sms_provider" :value="smsEnabled ? smsProvider : 'log'">
+
         <!-- Branding -->
         <div x-show="section === 'branding'" x-cloak class="settings-card">
             <div class="settings-card-header">
@@ -39,13 +68,21 @@
                     <div class="settings-logo-preview__body">
                         <p class="settings-logo-preview__title">Current logo</p>
                         <p class="settings-logo-preview__url"><?= htmlspecialchars($currentLogo) ?></p>
-                        <label class="settings-logo-preview__remove">
-                            <input type="checkbox" name="remove_logo" value="1" class="rounded text-red-600">
-                            Remove logo
+                        <label class="settings-switch settings-logo-preview__remove">
+                            <input type="checkbox" name="remove_logo" value="1" x-model="removeLogo">
+                            <span class="settings-switch__track" aria-hidden="true"><span class="settings-switch__thumb"></span></span>
+                            <span class="settings-switch__label">Remove logo</span>
                         </label>
                     </div>
                 </div>
                 <?php endif; ?>
+
+                <div class="settings-switch-row">
+                    <div class="settings-switch-row__copy">
+                        <strong>Logo source</strong>
+                        <span>Upload a file or paste an image URL</span>
+                    </div>
+                </div>
 
                 <div class="settings-logo-mode">
                     <button type="button"
@@ -112,63 +149,96 @@
                 <span class="settings-provider-badge">Active: <?= htmlspecialchars($smsProviderLabel ?? 'Development') ?></span>
             </div>
             <div class="settings-card-body space-y-4">
-                <div class="finance-field">
-                    <label class="finance-label" for="sms_provider">SMS provider</label>
-                    <select id="sms_provider" name="sms_provider" class="finance-input" x-data x-model="$el.value">
-                        <option value="log" <?= ($smsProvider ?? 'log') === 'log' ? 'selected' : '' ?>>Development (log only)</option>
-                        <option value="africas_talking" <?= ($smsProvider ?? '') === 'africas_talking' ? 'selected' : '' ?>>Africa's Talking</option>
-                        <option value="twilio" <?= ($smsProvider ?? '') === 'twilio' ? 'selected' : '' ?>>Twilio</option>
-                    </select>
-                </div>
+                <label class="settings-switch-row">
+                    <div class="settings-switch-row__copy">
+                        <strong>Enable live SMS</strong>
+                        <span>When off, messages are logged only (development mode)</span>
+                    </div>
+                    <span class="settings-switch">
+                        <input type="checkbox"
+                               x-model="smsEnabled"
+                               @change="if (smsEnabled && smsProvider === 'log') smsProvider = 'africas_talking'">
+                        <span class="settings-switch__track" aria-hidden="true"><span class="settings-switch__thumb"></span></span>
+                    </span>
+                </label>
 
-                <div class="settings-provider-panel settings-provider-panel--at">
-                    <p class="text-sm font-semibold text-church-800 mb-3">Africa's Talking</p>
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        <div class="finance-field">
-                            <label class="finance-label" for="sms_username">Username</label>
-                            <input type="text" id="sms_username" name="sms_username" value="<?= htmlspecialchars($smsUsername ?? '') ?>" class="finance-input" placeholder="sandbox or live username">
-                        </div>
-                        <div class="finance-field">
-                            <label class="finance-label" for="sms_sender_id">Sender ID</label>
-                            <input type="text" id="sms_sender_id" name="sms_sender_id" value="<?= htmlspecialchars($smsSenderId ?? '') ?>" class="finance-input" placeholder="CHURCH">
-                        </div>
-                        <div class="finance-field sm:col-span-2">
-                            <label class="finance-label" for="sms_api_key">API key</label>
-                            <input type="password" id="sms_api_key" name="sms_api_key" value="" class="finance-input" autocomplete="off" placeholder="<?= !empty($smsApiKey) ? '•••••••• (saved — leave blank to keep)' : 'Africa\'s Talking API key' ?>">
+                <div x-show="smsEnabled" x-cloak class="space-y-4">
+                    <div>
+                        <p class="finance-label mb-2">Provider</p>
+                        <div class="settings-provider-cards">
+                            <button type="button"
+                                    class="settings-provider-card"
+                                    :class="smsProvider === 'africas_talking' && 'settings-provider-card--active'"
+                                    @click="smsProvider = 'africas_talking'">
+                                <strong>Africa's Talking</strong>
+                                <span>Popular for Kenya &amp; East Africa SMS</span>
+                            </button>
+                            <button type="button"
+                                    class="settings-provider-card"
+                                    :class="smsProvider === 'twilio' && 'settings-provider-card--active'"
+                                    @click="smsProvider = 'twilio'">
+                                <strong>Twilio</strong>
+                                <span>SMS &amp; WhatsApp messaging</span>
+                            </button>
+                            <button type="button"
+                                    class="settings-provider-card"
+                                    :class="smsProvider === 'log' && 'settings-provider-card--active'"
+                                    @click="smsProvider = 'log'; smsEnabled = false">
+                                <strong>Log only</strong>
+                                <span>Safe for testing — no messages sent</span>
+                            </button>
                         </div>
                     </div>
-                </div>
 
-                <div class="settings-provider-panel settings-provider-panel--twilio">
-                    <p class="text-sm font-semibold text-church-800 mb-3">Twilio</p>
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        <div class="finance-field">
-                            <label class="finance-label" for="twilio_account_sid">Account SID</label>
-                            <input type="text" id="twilio_account_sid" name="twilio_account_sid" value="<?= htmlspecialchars($twilioAccountSid ?? '') ?>" class="finance-input">
+                    <div class="settings-provider-panel settings-provider-panel--at" x-show="smsProvider === 'africas_talking'" x-cloak>
+                        <p class="text-sm font-semibold text-church-800 mb-3">Africa's Talking credentials</p>
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div class="finance-field">
+                                <label class="finance-label" for="sms_username">Username</label>
+                                <input type="text" id="sms_username" name="sms_username" value="<?= htmlspecialchars($smsUsername ?? '') ?>" class="finance-input" placeholder="sandbox or live username">
+                            </div>
+                            <div class="finance-field">
+                                <label class="finance-label" for="sms_sender_id">Sender ID</label>
+                                <input type="text" id="sms_sender_id" name="sms_sender_id" value="<?= htmlspecialchars($smsSenderId ?? '') ?>" class="finance-input" placeholder="CHURCH">
+                            </div>
+                            <div class="finance-field sm:col-span-2">
+                                <label class="finance-label" for="sms_api_key">API key</label>
+                                <input type="password" id="sms_api_key" name="sms_api_key" value="" class="finance-input" autocomplete="off" placeholder="<?= !empty($smsApiKey) ? '•••••••• (saved — leave blank to keep)' : 'Africa\'s Talking API key' ?>">
+                            </div>
                         </div>
-                        <div class="finance-field">
-                            <label class="finance-label" for="twilio_from_number">SMS from number</label>
-                            <input type="text" id="twilio_from_number" name="twilio_from_number" value="<?= htmlspecialchars($twilioFromNumber ?? '') ?>" class="finance-input" placeholder="+1234567890">
-                        </div>
-                        <div class="finance-field sm:col-span-2">
-                            <label class="finance-label" for="twilio_whatsapp_from">WhatsApp from number</label>
-                            <input type="text" id="twilio_whatsapp_from" name="twilio_whatsapp_from" value="<?= htmlspecialchars($twilioWhatsappFrom ?? '') ?>" class="finance-input" placeholder="whatsapp:+14155238886">
-                            <p class="text-xs text-slate-400 mt-1">Twilio WhatsApp sender. Use format <code class="text-church-600">whatsapp:+254…</code> or just the number.</p>
-                        </div>
-                        <div class="finance-field sm:col-span-2">
-                            <label class="finance-label" for="twilio_auth_token">Auth token</label>
-                            <input type="password" id="twilio_auth_token" name="twilio_auth_token" value="" class="finance-input" autocomplete="off" placeholder="<?= !empty($twilioAuthToken) ? '•••••••• (saved — leave blank to keep)' : 'Twilio auth token' ?>">
+                    </div>
+
+                    <div class="settings-provider-panel settings-provider-panel--twilio" x-show="smsProvider === 'twilio'" x-cloak>
+                        <p class="text-sm font-semibold text-church-800 mb-3">Twilio credentials</p>
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div class="finance-field">
+                                <label class="finance-label" for="twilio_account_sid">Account SID</label>
+                                <input type="text" id="twilio_account_sid" name="twilio_account_sid" value="<?= htmlspecialchars($twilioAccountSid ?? '') ?>" class="finance-input">
+                            </div>
+                            <div class="finance-field">
+                                <label class="finance-label" for="twilio_from_number">SMS from number</label>
+                                <input type="text" id="twilio_from_number" name="twilio_from_number" value="<?= htmlspecialchars($twilioFromNumber ?? '') ?>" class="finance-input" placeholder="+1234567890">
+                            </div>
+                            <div class="finance-field sm:col-span-2">
+                                <label class="finance-label" for="twilio_whatsapp_from">WhatsApp from number</label>
+                                <input type="text" id="twilio_whatsapp_from" name="twilio_whatsapp_from" value="<?= htmlspecialchars($twilioWhatsappFrom ?? '') ?>" class="finance-input" placeholder="whatsapp:+14155238886">
+                                <p class="text-xs text-slate-400 mt-1">Use format <code class="text-church-600">whatsapp:+254…</code> or just the number.</p>
+                            </div>
+                            <div class="finance-field sm:col-span-2">
+                                <label class="finance-label" for="twilio_auth_token">Auth token</label>
+                                <input type="password" id="twilio_auth_token" name="twilio_auth_token" value="" class="finance-input" autocomplete="off" placeholder="<?= !empty($twilioAuthToken) ? '•••••••• (saved — leave blank to keep)' : 'Twilio auth token' ?>">
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Shared forms database (Kc_website) -->
+        <!-- Shared forms database -->
         <div x-show="section === 'website'" x-cloak class="settings-card">
             <div class="settings-card-header">
                 <h3>Website forms database</h3>
-                <p>Must match <code class="text-church-600">Kc_website/includes/database-config.php</code> so Connect With Us submissions appear in Members.</p>
+                <p>Must match the public website config so Connect With Us submissions appear in Members.</p>
             </div>
             <div class="settings-card-body space-y-4">
                 <?php $formsDbStatus = $formsDbStatus ?? []; ?>
@@ -210,7 +280,10 @@
         </div>
 
         <div class="settings-form-actions">
-            <button type="submit" class="finance-btn-primary px-8">Save settings</button>
+            <button type="submit" class="finance-btn-primary px-8">
+                <i data-lucide="save" class="w-4 h-4"></i>
+                Save settings
+            </button>
         </div>
     </form>
 </div>

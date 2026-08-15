@@ -134,51 +134,20 @@ $formsDbStatus = $formsDbStatus ?? [];
 
     <div x-show="showForm" x-cloak class="finance-modal-overlay" @keydown.escape.window="closeAddForm()">
         <div class="finance-modal-backdrop" @click="closeAddForm()"></div>
-        <div class="finance-modal finance-modal--wide" role="dialog" aria-modal="true" aria-labelledby="member-form-title">
+        <div class="finance-modal finance-modal--member" role="dialog" aria-modal="true" aria-labelledby="member-form-title">
             <div class="finance-modal-header">
                 <div>
                     <p class="finance-modal-eyebrow">Members</p>
                     <h2 id="member-form-title" class="finance-modal-title">Add member</h2>
+                    <p class="finance-modal-subtitle">Capture a full Connect With Us registration (Join, New Here, New Beginning, or Kingdom Groups).</p>
                 </div>
                 <button type="button" class="finance-modal-close" @click="closeAddForm()" aria-label="Close">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <form method="post" action="/admin/members">
-                <div class="finance-modal-body finance-modal-body--grid">
-                    <div class="finance-field" style="grid-column: 1 / -1;">
-                        <label class="finance-label" for="member-name">Full name</label>
-                        <input type="text" id="member-name" name="name" required class="finance-input" placeholder="e.g. Jane Wanjiku" x-model="form.name">
-                    </div>
-                    <div class="finance-field">
-                        <label class="finance-label" for="member-phone">Phone</label>
-                        <input type="tel" id="member-phone" name="phone" class="finance-input" placeholder="+254…" x-model="form.phone">
-                    </div>
-                    <div class="finance-field">
-                        <label class="finance-label" for="member-email">Email</label>
-                        <input type="email" id="member-email" name="email" class="finance-input" placeholder="name@example.com" x-model="form.email">
-                    </div>
-                    <div class="finance-field">
-                        <label class="finance-label" for="member-campus">Campus</label>
-                        <select id="member-campus" name="campus" class="finance-input" x-model="form.campus">
-                            <option value="nanyuki">Nanyuki</option>
-                            <option value="nairobi">Nairobi</option>
-                        </select>
-                    </div>
-                    <div class="finance-field">
-                        <label class="finance-label" for="member-form-type">Registration type</label>
-                        <select id="member-form-type" name="form_type" class="finance-input" x-model="form.form_type">
-                            <option value="manual">Added manually</option>
-                            <option value="join">Join Our Church Family</option>
-                            <option value="new-here">New Here</option>
-                            <option value="new-beginning">New Beginning</option>
-                            <option value="kingdom-groups">Kingdom Groups</option>
-                        </select>
-                    </div>
-                    <div class="finance-field" style="grid-column: 1 / -1;">
-                        <label class="finance-label" for="member-notes">Notes</label>
-                        <textarea id="member-notes" name="notes" rows="2" class="finance-input finance-textarea" placeholder="Optional notes…" x-model="form.notes"></textarea>
-                    </div>
+            <form method="post" action="/admin/members" x-ref="addMemberForm" @submit="onAddSubmit">
+                <div class="finance-modal-body finance-modal-body--grid finance-modal-body--member">
+                    <?php require __DIR__ . '/_add-form-fields.php'; ?>
                 </div>
                 <div class="finance-modal-footer">
                     <div class="finance-modal-actions">

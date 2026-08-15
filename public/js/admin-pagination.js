@@ -109,7 +109,10 @@
         };
     }
 
-    document.addEventListener('alpine:init', () => {
+    function registerPaginationAlpine() {
+        if (!window.Alpine || window.__kcPaginationAlpineRegistered) return;
+        window.__kcPaginationAlpineRegistered = true;
+
         Alpine.data('paginatedTable', (rows) => createPaginatedTable(rows));
 
         Alpine.data('memberTable', (rows, formTypeLabels) => {
@@ -126,14 +129,11 @@
                 menuPos: { top: 0, left: 0 },
                 activeMember: null,
                 showForm: false,
-                form: {
-                    name: '',
-                    phone: '',
-                    email: '',
-                    campus: 'nanyuki',
-                    form_type: 'manual',
-                    notes: '',
-                },
+                formType: 'join',
+                hasSpouse: '',
+                hasChildren: '',
+                hasDependents: '',
+                otherChurch: '',
 
                 get filteredRows() {
                     let list = this.rows;
@@ -172,6 +172,12 @@
                     this.$watch('statusFilter', () => { this.page = 1; });
                     this.$watch('formTypeFilter', () => { this.page = 1; });
                     this.$watch('page', () => this.$nextTick(() => window.lucide?.createIcons()));
+                    this.$watch('formType', () => {
+                        this.hasSpouse = '';
+                        this.hasChildren = '';
+                        this.hasDependents = '';
+                        this.otherChurch = '';
+                    });
                     this.$nextTick(() => window.lucide?.createIcons());
 
                     this._closeMenuOnScroll = () => {
@@ -220,20 +226,33 @@
                 openAddForm() {
                     this.openMenu = null;
                     this.activeMember = null;
-                    this.form = {
-                        name: '',
-                        phone: '',
-                        email: '',
-                        campus: 'nanyuki',
-                        form_type: 'manual',
-                        notes: '',
-                    };
+                    this.formType = 'join';
+                    this.hasSpouse = '';
+                    this.hasChildren = '';
+                    this.hasDependents = '';
+                    this.otherChurch = '';
                     this.showForm = true;
-                    this.$nextTick(() => window.lucide?.createIcons());
+                    this.$nextTick(() => {
+                        const form = this.$refs.addMemberForm;
+                        if (form) {
+                            form.reset();
+                            const typeSelect = form.querySelector('[name="form_type"]');
+                            if (typeSelect) typeSelect.value = 'join';
+                            this.formType = 'join';
+                        }
+                        window.lucide?.createIcons();
+                    });
                 },
 
                 closeAddForm() {
                     this.showForm = false;
+                },
+
+                onAddSubmit() {
+                    // Ensure Alpine formType is what gets posted if select was synced.
+                    const form = this.$refs.addMemberForm;
+                    const typeSelect = form?.querySelector('[name="form_type"]');
+                    if (typeSelect && this.formType) typeSelect.value = this.formType;
                 },
 
                 formatMemberDate(value) {
@@ -587,7 +606,13 @@
                 },
             };
         });
-    });
+
+    }
+
+    document.addEventListener('alpine:init', registerPaginationAlpine);
+    if (window.Alpine) {
+        registerPaginationAlpine();
+    }
 
     window.addEventListener('scroll', () => {
         document.querySelectorAll('.arrears-dropdown--fixed:not(.arrears-dropdown--teleport)').forEach((el) => {

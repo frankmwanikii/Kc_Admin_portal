@@ -1,7 +1,10 @@
 (function () {
     'use strict';
 
-    document.addEventListener('alpine:init', () => {
+    function registerCommsAlpine() {
+        if (!window.Alpine || window.__kcCommsAlpineRegistered) return;
+        window.__kcCommsAlpineRegistered = true;
+
         Alpine.data('commsComposer', (config) => ({
             audience: config.preselectMember ? 'individual' : 'all',
             memberId: config.preselectMember ? String(config.preselectMember) : '',
@@ -20,5 +23,10 @@
                 }
             },
         }));
-    });
+    }
+
+    document.addEventListener('alpine:init', registerCommsAlpine);
+    if (window.Alpine) {
+        registerCommsAlpine();
+    }
 })();

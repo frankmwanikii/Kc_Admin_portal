@@ -3,18 +3,25 @@ $fmt = static fn (float $n): string => number_format($n, 0);
 $tab = $tab ?? 'dashboard';
 if ($tab === 'arrears') $tab = 'bills';
 if ($tab === 'weekly' || $tab === 'collections') $tab = 'ledger';
-if ($tab === 'reconciliation' || $tab === 'statement') $tab = 'reports';
+if ($tab === 'statement') $tab = 'reports';
 $tabDashboard = $tab === 'dashboard';
 $tabBills = $tab === 'bills';
 $tabLedger = $tab === 'ledger';
+$tabReconciliation = $tab === 'reconciliation';
+$tabBudget = $tab === 'budget';
 $tabReports = $tab === 'reports';
 $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses';
-$reportSub = $_GET['sub'] ?? 'reconciliation';
-if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
-    $reportSub = 'reconciliation';
-}
 ?>
 <div class="fin-hub" x-cloak x-data="financeHub(<?= htmlspecialchars(json_encode($hubConfig ?? ['year' => (int) ($year ?? date('Y')), 'paymentMethods' => $paymentMethods ?? []]), ENT_QUOTES) ?>)">
+    <div class="fin-ajax-toast" x-show="toast" x-cloak x-transition.opacity role="status" aria-live="polite">
+        <template x-if="toast">
+            <div class="fin-ajax-toast__inner" :class="toast.type === 'error' ? 'fin-ajax-toast__inner--error' : 'fin-ajax-toast__inner--success'">
+                <i :data-lucide="toast.type === 'error' ? 'circle-alert' : 'circle-check'" class="w-4 h-4"></i>
+                <span x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+
     <?php require __DIR__ . '/_nav.php'; ?>
 
     <?php if ($tabDashboard): ?>
@@ -33,9 +40,13 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                        placeholder="Search arrears..."
                        aria-label="Search arrears">
                 <span class="arrears-count" x-text="filteredArrears.length + (filteredArrears.length === 1 ? ' arrear' : ' arrears')"></span>
-                <form method="get" class="inline-flex">
-                    <input type="hidden" name="tab" value="arrears">
-                    <select name="year" onchange="this.form.submit()" class="arrears-year-select" aria-label="Budget year">
+                <form method="get" class="inline-flex" @submit.prevent>
+                    <input type="hidden" name="tab" value="bills">
+                    <select name="year"
+                            :value="year"
+                            @change="changeFinanceYear(Number($event.target.value))"
+                            class="arrears-year-select"
+                            aria-label="Budget year">
                         <?php for ($y = (int) date('Y') + 1; $y >= 2024; $y--): ?>
                         <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
                         <?php endfor; ?>
@@ -221,8 +232,9 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                     <footer class="finance-modal-footer">
                         <form :action="'/admin/finance/arrears/' + viewRow.id + '/delete'"
                               method="post"
-                              onsubmit="return confirm('Delete this arrear entry?')"
+                              @submit.prevent="deleteArrearAjax(viewRow.id)"
                               class="finance-modal-delete-form">
+                            <input type="hidden" name="budget_year" :value="year">
                             <button type="submit" class="finance-btn-danger">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 Delete
@@ -369,6 +381,7 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
             <template x-if="editRow">
                 <form method="post"
                       :action="'/admin/finance/arrears/' + editRow.id"
+                      :key="'arrear-edit-' + editFormKey"
                       id="arrear-edit-form"
                       @submit.prevent="submitArrearEdit($event)">
                     <input type="hidden" name="budget_year" :value="editRow.budget_year">
@@ -406,7 +419,9 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                                     @change="onEditGroupChange()">
                                 <option value="">Select department…</option>
                                 <template x-for="grp in expenseGroups" :key="grp.slug">
-                                    <option :value="grp.slug" x-text="grp.label"></option>
+                                    <option :value="grp.slug"
+                                            :selected="editRow.expense_group === grp.slug"
+                                            x-text="grp.label"></option>
                                 </template>
                             </select>
                         </div>
@@ -422,7 +437,9 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                                         @change="onEditDepartmentChange()">
                                     <option value="">Select category…</option>
                                     <template x-for="dept in departmentsForGroup('ministry_departments')" :key="dept.id">
-                                        <option :value="dept.id" x-text="dept.label"></option>
+                                        <option :value="String(dept.id)"
+                                                :selected="String(editRow.department_id) === String(dept.id)"
+                                                x-text="dept.label"></option>
                                     </template>
                                 </select>
                             </div>
@@ -434,8 +451,10 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                                         class="finance-input"
                                         x-model="editRow.category_id">
                                     <option value="">Select expense item…</option>
-                                    <template x-for="cat in expenseItemsForDepartment(editRow.department_id)" :key="cat.id">
-                                        <option :value="cat.id" x-text="cat.label"></option>
+                                    <template x-for="cat in expenseItemsForDepartment(editRow.department_id, editRow.category_id)" :key="cat.id">
+                                        <option :value="String(cat.id)"
+                                                :selected="String(editRow.category_id) === String(cat.id)"
+                                                x-text="cat.label"></option>
                                     </template>
                                     <option value="__new__">+ Add custom category item…</option>
                                 </select>
@@ -454,7 +473,9 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                                         @change="onEditDepartmentChange()">
                                     <option value="">Select category…</option>
                                     <template x-for="dept in departmentsForGroup('admin_expenses')" :key="dept.id">
-                                        <option :value="dept.id" x-text="dept.label"></option>
+                                        <option :value="String(dept.id)"
+                                                :selected="String(editRow.department_id) === String(dept.id)"
+                                                x-text="dept.label"></option>
                                     </template>
                                 </select>
                             </div>
@@ -466,8 +487,10 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                                         class="finance-input"
                                         x-model="editRow.category_id">
                                     <option value="">Select expense item…</option>
-                                    <template x-for="cat in expenseItemsForDepartment(editRow.department_id)" :key="cat.id">
-                                        <option :value="cat.id" x-text="cat.label"></option>
+                                    <template x-for="cat in expenseItemsForDepartment(editRow.department_id, editRow.category_id)" :key="cat.id">
+                                        <option :value="String(cat.id)"
+                                                :selected="String(editRow.category_id) === String(cat.id)"
+                                                x-text="cat.label"></option>
                                     </template>
                                     <option value="__new__">+ Add custom category item…</option>
                                 </select>
@@ -784,20 +807,40 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
     </div>
 
     <?php elseif ($tabLedger): ?>
-    <div class="fin-ledger">
-        <div class="fin-subtabs no-print">
-            <a href="/admin/finance?tab=ledger&year=<?= (int) $year ?>&month=<?= htmlspecialchars($month) ?>&sub=expenses"
-               class="fin-subtabs__item <?= $ledgerSub === 'expenses' ? 'fin-subtabs__item--active' : '' ?>">Expenses</a>
-            <a href="/admin/finance?tab=ledger&year=<?= (int) $year ?>&month=<?= htmlspecialchars($month) ?>&sub=collections"
-               class="fin-subtabs__item <?= $ledgerSub === 'collections' ? 'fin-subtabs__item--active' : '' ?>">Collections</a>
-        </div>
-
-    <?php if ($ledgerSub === 'expenses'): ?>
     <?php
-    $sundays = $weekly['sundays'] ?? [];
+    $sundays = $weekly['sundays'] ?? ($weeklyCollections['sundays'] ?? []);
+    $collectionSundays = $weeklyCollections['sundays'] ?? $sundays;
+    if ($collectionSundays === [] && $sundays !== []) {
+        $collectionSundays = $sundays;
+    }
+    if ($sundays === [] && $collectionSundays !== []) {
+        $sundays = $collectionSundays;
+    }
     $monthLabel = date('F Y', strtotime($month . '-01'));
     ?>
-    <div class="arrears-page weekly-page fin-section">
+    <div class="fin-ledger">
+        <div class="fin-subtabs no-print" role="tablist" aria-label="Ledger view">
+            <button type="button"
+                    class="fin-subtabs__item"
+                    :class="ledgerSub === 'expenses' && 'fin-subtabs__item--active'"
+                    role="tab"
+                    :aria-selected="ledgerSub === 'expenses'"
+                    @click="setLedgerSub('expenses')">
+                <i data-lucide="wallet" aria-hidden="true"></i>
+                Expenses
+            </button>
+            <button type="button"
+                    class="fin-subtabs__item"
+                    :class="ledgerSub === 'collections' && 'fin-subtabs__item--active'"
+                    role="tab"
+                    :aria-selected="ledgerSub === 'collections'"
+                    @click="setLedgerSub('collections')">
+                <i data-lucide="hand-coins" aria-hidden="true"></i>
+                Collections
+            </button>
+        </div>
+
+    <div class="arrears-page weekly-page fin-section" x-show="ledgerSub === 'expenses'" x-cloak>
         <h2 class="arrears-title">Weekly Expenses</h2>
         <p class="finance-tab-hint">Money spent each Sunday — use Record Sunday to enter or update.</p>
 
@@ -809,15 +852,20 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                        placeholder="Search categories..."
                        aria-label="Search expense categories">
                 <span class="arrears-count" x-text="filteredWeekly.length + (filteredWeekly.length === 1 ? ' category' : ' categories')"></span>
-                <form method="get" class="inline-flex">
+                <form method="get" class="inline-flex" @submit.prevent>
                     <input type="hidden" name="tab" value="ledger">
-                    <input type="hidden" name="sub" value="expenses">
-                    <input type="hidden" name="year" value="<?= (int) $year ?>">
-                    <input type="month" name="month" value="<?= htmlspecialchars($month) ?>" onchange="this.form.submit()" class="arrears-year-select" aria-label="Budget month">
+                    <input type="hidden" name="sub" :value="ledgerSub" value="expenses">
+                    <input type="hidden" name="year" :value="year" value="<?= (int) $year ?>">
+                    <input type="month"
+                           name="month"
+                           :value="weeklyMonth"
+                           @change="changeLedgerMonth($event.target.value)"
+                           class="arrears-year-select"
+                           aria-label="Budget month">
                 </form>
             </div>
             <div class="weekly-toolbar-actions">
-                <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month) ?>" class="arrears-btn-new no-underline">Record Sunday</a>
+                <button type="button" @click="openSundayModal()" class="arrears-btn-new">Record Sunday</button>
                 <button type="button" @click="openCategoryForm()" class="arrears-btn-outline">Add category</button>
             </div>
         </div>
@@ -825,7 +873,7 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
         <div class="arrears-card finance-table-card">
             <div class="finance-table-caption">
                 <span class="finance-table-caption-label">Weekly expenses</span>
-                <span class="finance-table-caption-badge"><?= htmlspecialchars($monthLabel) ?></span>
+                <span class="finance-table-caption-badge" x-text="monthLabel"><?= htmlspecialchars($monthLabel) ?></span>
                 <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
             </div>
             <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Weekly expenses — scroll horizontally on small screens">
@@ -833,19 +881,19 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                     <thead>
                         <tr>
                             <th class="weekly-col-category">Category</th>
-                            <?php foreach ($sundays as $i => $sun): ?>
-                            <th class="weekly-col-sunday">
-                                <span class="weekly-sun-head-date"><?= date('d M', strtotime($sun)) ?></span>
-                                <span class="weekly-sun-head-label">Sun <?= $i + 1 ?></span>
-                            </th>
-                            <?php endforeach; ?>
+                            <template x-for="(sun, index) in weeklySundays" :key="sun">
+                                <th class="weekly-col-sunday">
+                                    <span class="weekly-sun-head-date" x-text="formatSundayShort(sun)"></span>
+                                    <span class="weekly-sun-head-label" x-text="'Sun ' + (index + 1)"></span>
+                                </th>
+                            </template>
                             <th class="weekly-col-total">Total</th>
                             <th class="weekly-col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr x-show="filteredWeekly.length === 0">
-                            <td colspan="<?= count($sundays) + 3 ?>" class="arrears-empty">
+                            <td :colspan="weeklySundays.length + 3" class="arrears-empty">
                                 <span x-show="weeklySearch.trim()">No categories match your search.</span>
                                 <span x-show="!weeklySearch.trim()">No expense categories yet. Click <strong>Add expenses</strong> to create one.</span>
                             </td>
@@ -856,13 +904,13 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                                     <span class="arrears-accent" x-text="row.label"></span>
                                     <span class="block text-xs arrears-muted mt-0.5" x-show="row.hint" x-text="row.hint"></span>
                                 </td>
-                                <?php foreach ($sundays as $sun): ?>
-                                <td class="weekly-amount-cell">
-                                    <span class="arrears-amount"
-                                          :class="Number(row.amounts['<?= $sun ?>'] || 0) > 0 ? '' : 'arrears-amount--muted'"
-                                          x-text="formatMoneyPlain(row.amounts['<?= $sun ?>'])"></span>
-                                </td>
-                                <?php endforeach; ?>
+                                <template x-for="sun in weeklySundays" :key="row.slug + '-' + sun">
+                                    <td class="weekly-amount-cell">
+                                        <span class="arrears-amount"
+                                              :class="Number(row.amounts?.[sun] || 0) > 0 ? '' : 'arrears-amount--muted'"
+                                              x-text="formatMoneyPlain(row.amounts?.[sun])"></span>
+                                    </td>
+                                </template>
                                 <td class="weekly-amount-cell weekly-col-total">
                                     <span class="arrears-amount weekly-total-cell"
                                           :class="Number(row.total) > 0 ? '' : 'arrears-amount--muted'"
@@ -885,12 +933,12 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                     <tfoot>
                         <tr class="finance-table-footer weekly-footer">
                             <td class="weekly-col-category finance-table-footer-label">Weekly total</td>
-                            <?php foreach ($sundays as $sun): ?>
-                            <td class="weekly-amount-cell">
-                                <span class="arrears-amount finance-table-footer-amount"
-                                      x-text="formatMoneyPlain(filteredWeeklyWeekTotals['<?= $sun ?>'])"></span>
-                            </td>
-                            <?php endforeach; ?>
+                            <template x-for="sun in weeklySundays" :key="'ft-' + sun">
+                                <td class="weekly-amount-cell">
+                                    <span class="arrears-amount finance-table-footer-amount"
+                                          x-text="formatMoneyPlain(filteredWeeklyWeekTotals[sun])"></span>
+                                </td>
+                            </template>
                             <td class="weekly-amount-cell weekly-col-total ft-td-accent">
                                 <span class="arrears-amount finance-table-footer-amount finance-table-footer-amount--grand"
                                       x-text="formatMoneyPlain(filteredWeeklyMonthTotal)"></span>
@@ -909,32 +957,33 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
             ?>
         </div>
     </div>
-    <?php else: ?>
-    <?php
-    $monthLabel = date('F Y', strtotime($month . '-01'));
-    $collectionSundays = $weeklyCollections['sundays'] ?? [];
-    ?>
-    <div class="arrears-page collections-page fin-section">
+
+    <div class="arrears-page collections-page fin-section" x-show="ledgerSub === 'collections'" x-cloak>
         <h2 class="arrears-title">Weekly Collections</h2>
         <p class="finance-tab-hint">Giving received each Sunday by payment method.</p>
 
         <div class="arrears-toolbar-row">
             <div class="arrears-toolbar-left">
                 <span class="arrears-count" x-text="weeklyCollectionRows.length + ' methods'"></span>
-                <form method="get" class="inline-flex items-center gap-2">
+                <form method="get" class="inline-flex items-center gap-2" @submit.prevent>
                     <input type="hidden" name="tab" value="ledger">
-                    <input type="hidden" name="sub" value="collections">
-                    <input type="hidden" name="year" value="<?= (int) $year ?>">
-                    <input type="month" name="month" value="<?= htmlspecialchars($month) ?>" onchange="this.form.submit()" class="arrears-year-select" aria-label="Month">
+                    <input type="hidden" name="sub" :value="ledgerSub" value="collections">
+                    <input type="hidden" name="year" :value="year" value="<?= (int) $year ?>">
+                    <input type="month"
+                           name="month"
+                           :value="weeklyMonth"
+                           @change="changeLedgerMonth($event.target.value)"
+                           class="arrears-year-select"
+                           aria-label="Month">
                 </form>
             </div>
-            <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month) ?>" class="arrears-btn-new no-underline">Record Sunday</a>
+            <button type="button" @click="openSundayModal()" class="arrears-btn-new">Record Sunday</button>
         </div>
 
         <div class="arrears-card finance-table-card">
             <div class="finance-table-caption">
                 <span class="finance-table-caption-label">Weekly collections</span>
-                <span class="finance-table-caption-badge"><?= htmlspecialchars($monthLabel) ?></span>
+                <span class="finance-table-caption-badge" x-text="monthLabel"><?= htmlspecialchars($monthLabel) ?></span>
                 <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
             </div>
             <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Weekly collections grid">
@@ -942,22 +991,21 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                     <thead>
                         <tr>
                             <th class="weekly-col-category">Method</th>
-                            <?php foreach ($collectionSundays as $i => $sun): ?>
-                            <th class="weekly-col-sunday">
-                                <span class="weekly-sun-head-date"><?= date('d M', strtotime($sun)) ?></span>
-                                <span class="weekly-sun-head-label">Sun <?= $i + 1 ?></span>
-                            </th>
-                            <?php endforeach; ?>
-                            <?php if (count($collectionSundays) === 0): ?>
-                            <th class="weekly-col-sunday">No Sundays</th>
-                            <?php endif; ?>
+                            <template x-for="(sun, index) in weeklyCollectionSundays" :key="sun">
+                                <th class="weekly-col-sunday">
+                                    <span class="weekly-sun-head-date" x-text="formatSundayShort(sun)"></span>
+                                    <span class="weekly-sun-head-label" x-text="'Sun ' + (index + 1)"></span>
+                                </th>
+                            </template>
+                            <th class="weekly-col-sunday" x-show="weeklyCollectionSundays.length === 0">No Sundays</th>
                             <th class="weekly-col-total">Total</th>
+                            <th class="weekly-col-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr x-show="weeklyCollectionRows.length === 0">
-                            <td colspan="<?= max(count($collectionSundays), 1) + 2 ?>" class="arrears-empty">
-                                No Sundays in <?= htmlspecialchars($monthLabel) ?>.
+                            <td :colspan="Math.max(weeklyCollectionSundays.length, 1) + 3" class="arrears-empty">
+                                No Sundays in <span x-text="monthLabel"></span>.
                             </td>
                         </tr>
                         <template x-for="row in weeklyCollectionRows" :key="row.method">
@@ -966,17 +1014,28 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                                     <span class="collections-method" :class="'collections-method--' + row.method" x-text="row.label"></span>
                                     <span class="block text-xs arrears-muted mt-0.5" x-show="row.desc" x-text="row.desc"></span>
                                 </td>
-                                <?php foreach ($collectionSundays as $sun): ?>
-                                <td class="weekly-amount-cell">
-                                    <span class="arrears-amount"
-                                          :class="Number(row.amounts['<?= $sun ?>'] || 0) > 0 ? '' : 'arrears-amount--muted'"
-                                          x-text="formatMoneyPlain(row.amounts['<?= $sun ?>'])"></span>
-                                </td>
-                                <?php endforeach; ?>
+                                <template x-for="sun in weeklyCollectionSundays" :key="row.method + '-' + sun">
+                                    <td class="weekly-amount-cell">
+                                        <span class="arrears-amount"
+                                              :class="Number(row.amounts?.[sun] || 0) > 0 ? '' : 'arrears-amount--muted'"
+                                              x-text="formatMoneyPlain(row.amounts?.[sun])"></span>
+                                    </td>
+                                </template>
                                 <td class="weekly-amount-cell weekly-col-total">
                                     <span class="arrears-amount weekly-total-cell"
                                           :class="Number(row.total) > 0 ? '' : 'arrears-amount--muted'"
                                           x-text="formatMoneyPlain(row.total)"></span>
+                                </td>
+                                <td class="arrears-actions weekly-col-actions"
+                                    :class="collectionMenu === row.method && 'weekly-actions--open'">
+                                    <button type="button"
+                                            class="arrears-view-btn"
+                                            @click.stop="toggleCollectionMenu(row.method, $event)"
+                                            :aria-expanded="collectionMenu === row.method"
+                                            :aria-label="'Actions for ' + row.label">
+                                        View
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
                                 </td>
                             </tr>
                         </template>
@@ -984,42 +1043,30 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                     <tfoot>
                         <tr class="finance-table-footer weekly-footer">
                             <td class="weekly-col-category finance-table-footer-label">Weekly total</td>
-                            <?php foreach ($collectionSundays as $sun): ?>
-                            <td class="weekly-amount-cell">
-                                <span class="arrears-amount finance-table-footer-amount"
-                                      x-text="formatMoneyPlain(weeklyCollectionWeekTotals['<?= $sun ?>'])"></span>
-                            </td>
-                            <?php endforeach; ?>
+                            <template x-for="sun in weeklyCollectionSundays" :key="'cft-' + sun">
+                                <td class="weekly-amount-cell">
+                                    <span class="arrears-amount finance-table-footer-amount"
+                                          x-text="formatMoneyPlain(weeklyCollectionWeekTotals[sun])"></span>
+                                </td>
+                            </template>
                             <td class="weekly-amount-cell weekly-col-total ft-td-accent">
                                 <span class="arrears-amount finance-table-footer-amount finance-table-footer-amount--grand"
                                       x-text="formatMoneyPlain(weeklyCollectionMonthTotal)"></span>
                             </td>
+                            <td class="weekly-col-actions ft-td-actions"></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
     </div>
-    <?php endif; ?>
     </div>
-    <?php elseif ($tabReports): ?>
-    <div class="fin-reports">
-        <div class="fin-subtabs no-print">
-            <a href="/admin/finance?tab=reports&year=<?= (int) $year ?>&month=<?= htmlspecialchars($month) ?>&sub=reconciliation"
-               class="fin-subtabs__item <?= $reportSub === 'reconciliation' ? 'fin-subtabs__item--active' : '' ?>">Reconciliation</a>
-            <a href="/admin/finance?tab=reports&year=<?= (int) $year ?>&month=<?= htmlspecialchars($month) ?>&sub=budget&budget_year=<?= (int) ($budgetYear ?? 2026) ?>"
-               class="fin-subtabs__item <?= $reportSub === 'budget' ? 'fin-subtabs__item--active' : '' ?>">Budget</a>
-            <a href="/admin/finance?tab=reports&year=<?= (int) $year ?>&month=<?= htmlspecialchars($month) ?>&sub=statement&view=monthly"
-               class="fin-subtabs__item <?= $reportSub === 'statement' ? 'fin-subtabs__item--active' : '' ?>">Statement</a>
-        </div>
-
-    <?php if ($reportSub === 'reconciliation'): ?>
+    <?php elseif ($tabReconciliation): ?>
     <?php
     $monthLabel = date('F Y', strtotime($month . '-01'));
     $monthCollections = (float) ($reconciliation['month_collections'] ?? 0);
     $monthExpenses = (float) ($reconciliation['month_expenses'] ?? 0);
     $monthBalance = (float) ($reconciliation['month_balance'] ?? 0);
-    $balanceStatClass = $monthBalance >= 0 ? 'reconciliation-stat--surplus' : 'reconciliation-stat--deficit';
     ?>
     <div class="arrears-page reconciliation-page">
         <h2 class="arrears-title">Reconciliation</h2>
@@ -1028,29 +1075,42 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
             <div class="reconciliation-stat reconciliation-stat--collected">
                 <p class="reconciliation-stat-label">Total collected</p>
-                <p class="reconciliation-stat-value">KES <?= $fmt($monthCollections) ?></p>
+                <p class="reconciliation-stat-value">KES <span x-text="formatMoneyPlain(reconciliation.month_collections)"><?= $fmt($monthCollections) ?></span></p>
             </div>
             <div class="reconciliation-stat reconciliation-stat--expenses">
                 <p class="reconciliation-stat-label">Expenses incurred</p>
-                <p class="reconciliation-stat-value">KES <?= $fmt($monthExpenses) ?></p>
+                <p class="reconciliation-stat-value">KES <span x-text="formatMoneyPlain(reconciliation.month_expenses)"><?= $fmt($monthExpenses) ?></span></p>
             </div>
-            <div class="reconciliation-stat <?= $balanceStatClass ?>">
+            <div class="reconciliation-stat" :class="reconciliation.month_balance >= 0 ? 'reconciliation-stat--surplus' : 'reconciliation-stat--deficit'">
                 <p class="reconciliation-stat-label">Balance</p>
-                <p class="reconciliation-stat-value"><?= $monthBalance < 0 ? '-' : '' ?>KES <?= $fmt(abs($monthBalance)) ?></p>
+                <p class="reconciliation-stat-value">
+                    <span x-text="(reconciliation.month_balance < 0 ? '-' : '') + 'KES ' + formatMoneyPlain(Math.abs(reconciliation.month_balance || 0))">
+                        <?= $monthBalance < 0 ? '-' : '' ?>KES <?= $fmt(abs($monthBalance)) ?>
+                    </span>
+                </p>
             </div>
         </div>
 
         <div class="arrears-toolbar-row">
             <div class="arrears-toolbar-left">
-                <form method="get" class="inline-flex items-center gap-2">
-                    <input type="hidden" name="tab" value="reports">
-                    <input type="hidden" name="sub" value="reconciliation">
-                    <select name="year" onchange="this.form.submit()" class="arrears-year-select" aria-label="Year">
+                <form method="get" class="inline-flex items-center gap-2" @submit.prevent>
+                    <input type="hidden" name="tab" value="reconciliation">
+                    <select name="year"
+                            :value="year"
+                            @change="changeFinanceYear(Number($event.target.value))"
+                            class="arrears-year-select"
+                            aria-label="Year">
                         <?php for ($y = (int) date('Y') + 1; $y >= 2024; $y--): ?>
                         <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
                         <?php endfor; ?>
                     </select>
-                    <input type="month" name="month" value="<?= htmlspecialchars($month) ?>" onchange="this.form.submit()" class="arrears-year-select" aria-label="Month">
+                    <input type="month"
+                           name="month"
+                           :value="weeklyMonth"
+                           value="<?= htmlspecialchars($month) ?>"
+                           @change="changeLedgerMonth($event.target.value)"
+                           class="arrears-year-select"
+                           aria-label="Month">
                 </form>
             </div>
         </div>
@@ -1068,12 +1128,13 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                             <th>Week</th>
                             <th class="ft-th-accent ft-th--right">Collections</th>
                             <th class="ft-th-accent ft-th--right">Expenses</th>
-                            <th class="ft-th-actions ft-th--right">Balance</th>
+                            <th class="ft-th-accent ft-th--right">Balance</th>
+                            <th class="ft-th-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr x-show="reconciliation.weeks.length === 0">
-                            <td colspan="4" class="arrears-empty">No Sunday weeks in this month.</td>
+                            <td colspan="5" class="arrears-empty">No Sunday weeks in this month.</td>
                         </tr>
                         <template x-for="(week, index) in reconciliation.weeks" :key="week.week_date">
                             <tr class="arrears-row">
@@ -1089,10 +1150,21 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                                 <td class="ft-td-accent">
                                     <span class="arrears-amount" x-text="formatMoneyPlain(week.expenses)"></span>
                                 </td>
-                                <td class="ft-td-actions">
+                                <td class="ft-td-accent">
                                     <span class="reconciliation-balance"
                                           :class="week.balance >= 0 ? 'reconciliation-balance--surplus' : 'reconciliation-balance--deficit'"
                                           x-text="formatMoneyPlain(week.balance)"></span>
+                                </td>
+                                <td class="arrears-actions ft-td-actions"
+                                    :class="reconciliationMenu === week.week_date && 'weekly-actions--open'">
+                                    <button type="button"
+                                            class="arrears-view-btn"
+                                            @click.stop="toggleReconciliationMenu(week.week_date, $event)"
+                                            :aria-expanded="reconciliationMenu === week.week_date"
+                                            :aria-label="'Actions for ' + dateMain(week.week_date)">
+                                        View
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
                                 </td>
                             </tr>
                         </template>
@@ -1106,26 +1178,27 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                             <td class="ft-td-accent">
                                 <span class="finance-table-footer-amount" x-text="formatMoney(reconciliation.month_expenses)"></span>
                             </td>
-                            <td class="ft-td-actions">
+                            <td class="ft-td-accent">
                                 <span class="finance-table-footer-amount finance-table-footer-amount--grand"
                                       :class="reconciliation.month_balance >= 0 ? 'reconciliation-balance--surplus' : 'reconciliation-balance--deficit'"
                                       x-text="formatMoney(reconciliation.month_balance)"></span>
                             </td>
+                            <td class="ft-td-actions"></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
     </div>
-    <?php elseif ($reportSub === 'budget'): ?>
+    <?php elseif ($tabBudget): ?>
     <?php require __DIR__ . '/budget-tab.php'; ?>
-    <?php else: ?>
+    <?php elseif ($tabReports): ?>
+    <div class="fin-reports">
     <?php
     $tabStatement = true;
     $statementView = $_GET['view'] ?? 'monthly';
     require __DIR__ . '/statement-tab.php';
     ?>
-    <?php endif; ?>
     </div>
     <?php endif; ?>
 
@@ -1141,7 +1214,10 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                     <button type="button" @click="openView(openMenuRow.id)" class="arrears-dropdown-item">View details</button>
                     <button type="button" @click="openEdit(openMenuRow.id)" class="arrears-dropdown-item">Edit expense</button>
                     <button type="button" @click="openRecordPayment(openMenuRow.id)" class="arrears-dropdown-item">Record payment</button>
-                    <form :action="'/admin/finance/arrears/' + openMenuRow.id + '/delete'" method="post" onsubmit="return confirm('Delete this arrear entry?')">
+                    <form :action="'/admin/finance/arrears/' + openMenuRow.id + '/delete'"
+                          method="post"
+                          @submit.prevent="deleteArrearAjax(openMenuRow.id)">
+                        <input type="hidden" name="budget_year" :value="year">
                         <button type="submit" class="arrears-dropdown-item arrears-dropdown-item--danger">Delete</button>
                     </form>
                 </div>
@@ -1158,10 +1234,16 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
              :style="'top:' + weeklyDropdownPos.top + 'px;left:' + weeklyDropdownPos.left + 'px'">
             <template x-if="weeklyMenuRow">
                 <div>
-                    <a :href="'/admin/finance/sunday?month=' + encodeURIComponent(weeklyMonth)"
-                       class="arrears-dropdown-item no-underline">
+                    <button type="button"
+                            @click="openWeeklyView(weeklyMenuRow.slug)"
+                            class="arrears-dropdown-item">
+                        View details
+                    </button>
+                    <button type="button"
+                            @click="weeklyMenu = null; openSundayModal()"
+                            class="arrears-dropdown-item">
                         Edit in Record Sunday
-                    </a>
+                    </button>
                     <button type="button"
                             @click="openWeeklyEdit(weeklyMenuRow.slug)"
                             class="arrears-dropdown-item">
@@ -1169,7 +1251,7 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                     </button>
                     <form :action="'/admin/finance/weekly/categories/' + weeklyMenuRow.slug + '/delete'"
                           method="post"
-                          onsubmit="return confirm('Delete this category and all its expense entries?')">
+                          @submit.prevent="deleteWeeklyCategoryAjax(weeklyMenuRow.slug)">
                         <input type="hidden" name="month" :value="weeklyMonth">
                         <button type="submit" class="arrears-dropdown-item arrears-dropdown-item--danger">Delete</button>
                     </form>
@@ -1177,6 +1259,302 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
             </template>
         </div>
     </template>
+
+    <template x-teleport="body">
+        <div x-show="reconciliationMenu"
+             x-cloak
+             @click.outside="if (!reconciliationMenuIgnoreOutside) reconciliationMenu = null"
+             @keydown.escape.window="reconciliationMenu = null"
+             class="arrears-dropdown arrears-dropdown--fixed"
+             :style="'top:' + reconciliationDropdownPos.top + 'px;left:' + reconciliationDropdownPos.left + 'px'">
+            <template x-if="reconciliationMenuRow">
+                <div>
+                    <button type="button"
+                            @click="openReconciliationView(reconciliationMenuRow.week_date)"
+                            class="arrears-dropdown-item">
+                        View details
+                    </button>
+                    <button type="button"
+                            @click="const d = reconciliationMenuRow.week_date; reconciliationMenu = null; openSundayModal(d)"
+                            class="arrears-dropdown-item">
+                        Edit in Record Sunday
+                    </button>
+                    <button type="button"
+                            @click="openWeeklyStatement(reconciliationMenuRow.week_date)"
+                            class="arrears-dropdown-item">
+                        View weekly statement
+                    </button>
+                    <button type="button"
+                            @click="goToLedger('expenses')"
+                            class="arrears-dropdown-item">
+                        Open Ledger expenses
+                    </button>
+                    <button type="button"
+                            @click="goToLedger('collections')"
+                            class="arrears-dropdown-item">
+                        Open Ledger collections
+                    </button>
+                </div>
+            </template>
+        </div>
+    </template>
+
+    <template x-teleport="body">
+        <div x-show="collectionMenu"
+             x-cloak
+             @click.outside="if (!collectionMenuIgnoreOutside) collectionMenu = null"
+             @keydown.escape.window="collectionMenu = null"
+             class="arrears-dropdown arrears-dropdown--fixed"
+             :style="'top:' + collectionDropdownPos.top + 'px;left:' + collectionDropdownPos.left + 'px'">
+            <template x-if="collectionMenuRow">
+                <div>
+                    <button type="button"
+                            @click="openCollectionView(collectionMenuRow.method)"
+                            class="arrears-dropdown-item">
+                        View details
+                    </button>
+                    <button type="button"
+                            @click="openCollectionEdit(collectionMenuRow.method)"
+                            class="arrears-dropdown-item">
+                        Edit amounts
+                    </button>
+                    <button type="button"
+                            @click="collectionMenu = null; openSundayModal()"
+                            class="arrears-dropdown-item">
+                        Edit in Record Sunday
+                    </button>
+                    <form :action="'/admin/finance/collections/weekly/methods/' + encodeURIComponent(collectionMenuRow.method) + '/clear'"
+                          method="post"
+                          @submit.prevent="clearCollectionMethodAjax(collectionMenuRow.method)">
+                        <input type="hidden" name="month" :value="weeklyMonth">
+                        <button type="submit" class="arrears-dropdown-item arrears-dropdown-item--danger">Delete</button>
+                    </form>
+                </div>
+            </template>
+        </div>
+    </template>
+
+    <!-- Collection method view modal -->
+    <div x-show="collectionViewRow"
+         x-cloak
+         class="finance-modal-overlay"
+         @keydown.escape.window="collectionViewRow = null">
+        <div class="finance-modal-backdrop" @click="collectionViewRow = null"></div>
+        <div class="finance-modal" x-transition>
+            <template x-if="collectionViewRow">
+                <div>
+                    <header class="finance-modal-header">
+                        <div class="finance-modal-header-text">
+                            <p class="finance-modal-eyebrow">Weekly collections</p>
+                            <h4 class="finance-modal-title" x-text="collectionViewRow.label"></h4>
+                            <p class="finance-modal-subtitle" x-show="collectionViewRow.desc" x-text="collectionViewRow.desc"></p>
+                        </div>
+                        <button type="button"
+                                @click="collectionViewRow = null"
+                                class="finance-modal-close"
+                                aria-label="Close">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </header>
+                    <div class="finance-modal-body">
+                        <div class="finance-field">
+                            <span class="finance-label">Month total</span>
+                            <p class="finance-modal-intro" style="margin:0">
+                                KES <span x-text="formatMoneyPlain(collectionViewRow.total)"></span>
+                            </p>
+                        </div>
+                        <div class="collections-method-breakdown">
+                            <template x-for="sun in weeklyCollectionSundays" :key="sun">
+                                <div class="collections-method-breakdown__row">
+                                    <span x-text="formatSundayShort(sun)"></span>
+                                    <strong x-text="'KES ' + formatMoneyPlain(collectionViewRow.amounts[sun] || 0)"></strong>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <footer class="finance-modal-footer">
+                        <div class="finance-modal-actions finance-modal-actions--end">
+                            <button type="button" @click="collectionViewRow = null" class="finance-btn-secondary">Close</button>
+                            <button type="button"
+                                    @click="const m = collectionViewRow.method; collectionViewRow = null; openCollectionEdit(m)"
+                                    class="finance-btn-primary">
+                                Edit amounts
+                            </button>
+                        </div>
+                    </footer>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Weekly expense category view modal -->
+    <div x-show="weeklyViewRow"
+         x-cloak
+         class="finance-modal-overlay"
+         @keydown.escape.window="weeklyViewRow = null">
+        <div class="finance-modal-backdrop" @click="weeklyViewRow = null"></div>
+        <div class="finance-modal" x-transition>
+            <template x-if="weeklyViewRow">
+                <div>
+                    <header class="finance-modal-header">
+                        <div class="finance-modal-header-text">
+                            <p class="finance-modal-eyebrow">Weekly expenses</p>
+                            <h4 class="finance-modal-title" x-text="weeklyViewRow.label"></h4>
+                            <p class="finance-modal-subtitle" x-show="weeklyViewRow.hint" x-text="weeklyViewRow.hint"></p>
+                        </div>
+                        <button type="button"
+                                @click="weeklyViewRow = null"
+                                class="finance-modal-close"
+                                aria-label="Close">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </header>
+                    <div class="finance-modal-body">
+                        <div class="finance-field">
+                            <span class="finance-label">Month total</span>
+                            <p class="finance-modal-intro" style="margin:0">
+                                KES <span x-text="formatMoneyPlain(weeklyViewRow.total)"></span>
+                            </p>
+                        </div>
+                        <div class="collections-method-breakdown">
+                            <template x-for="sun in weeklySundays" :key="sun">
+                                <div class="collections-method-breakdown__row">
+                                    <span x-text="formatSundayShort(sun)"></span>
+                                    <strong x-text="'KES ' + formatMoneyPlain(weeklyViewRow.amounts[sun] || 0)"></strong>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <footer class="finance-modal-footer">
+                        <div class="finance-modal-actions finance-modal-actions--end">
+                            <button type="button" @click="weeklyViewRow = null" class="finance-btn-secondary">Close</button>
+                            <button type="button"
+                                    @click="const slug = weeklyViewRow.slug; weeklyViewRow = null; openSundayModal()"
+                                    class="finance-btn-primary">
+                                Edit in Record Sunday
+                            </button>
+                        </div>
+                    </footer>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Reconciliation week view modal -->
+    <div x-show="reconciliationViewRow"
+         x-cloak
+         class="finance-modal-overlay"
+         @keydown.escape.window="reconciliationViewRow = null">
+        <div class="finance-modal-backdrop" @click="reconciliationViewRow = null"></div>
+        <div class="finance-modal" x-transition>
+            <template x-if="reconciliationViewRow">
+                <div>
+                    <header class="finance-modal-header">
+                        <div class="finance-modal-header-text">
+                            <p class="finance-modal-eyebrow">Reconciliation</p>
+                            <h4 class="finance-modal-title" x-text="dateMain(reconciliationViewRow.week_date)"></h4>
+                            <p class="finance-modal-subtitle" x-text="monthLabel"></p>
+                        </div>
+                        <button type="button"
+                                @click="reconciliationViewRow = null"
+                                class="finance-modal-close"
+                                aria-label="Close">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </header>
+                    <div class="finance-modal-body">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="reconciliation-stat reconciliation-stat--collected">
+                                <p class="reconciliation-stat-label">Collections</p>
+                                <p class="reconciliation-stat-value">KES <span x-text="formatMoneyPlain(reconciliationViewRow.collections)"></span></p>
+                            </div>
+                            <div class="reconciliation-stat reconciliation-stat--expenses">
+                                <p class="reconciliation-stat-label">Expenses</p>
+                                <p class="reconciliation-stat-value">KES <span x-text="formatMoneyPlain(reconciliationViewRow.expenses)"></span></p>
+                            </div>
+                            <div class="reconciliation-stat" :class="reconciliationViewRow.balance >= 0 ? 'reconciliation-stat--surplus' : 'reconciliation-stat--deficit'">
+                                <p class="reconciliation-stat-label">Balance</p>
+                                <p class="reconciliation-stat-value">
+                                    <span x-text="(reconciliationViewRow.balance < 0 ? '-' : '') + 'KES ' + formatMoneyPlain(Math.abs(reconciliationViewRow.balance || 0))"></span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="finance-modal-footer">
+                        <div class="finance-modal-actions finance-modal-actions--end">
+                            <button type="button" @click="reconciliationViewRow = null" class="finance-btn-secondary">Close</button>
+                            <button type="button"
+                                    @click="const d = reconciliationViewRow.week_date; reconciliationViewRow = null; openSundayModal(d)"
+                                    class="finance-btn-primary">
+                                Edit in Record Sunday
+                            </button>
+                        </div>
+                    </footer>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Collection method edit modal -->
+    <div x-show="collectionEditRow"
+         x-cloak
+         class="finance-modal-overlay"
+         @keydown.escape.window="collectionEditRow = null">
+        <div class="finance-modal-backdrop" @click="collectionEditRow = null"></div>
+        <div class="finance-modal" x-transition>
+            <template x-if="collectionEditRow">
+                <form method="post"
+                      :action="'/admin/finance/collections/weekly/methods/' + encodeURIComponent(collectionEditRow.method)"
+                      @submit="submitCollectionEditAjax($event)">
+                    <input type="hidden" name="month" :value="weeklyMonth">
+                    <header class="finance-modal-header">
+                        <div class="finance-modal-header-text">
+                            <p class="finance-modal-eyebrow">Weekly collections</p>
+                            <h4 class="finance-modal-title">Edit amounts</h4>
+                            <p class="finance-modal-subtitle" x-text="collectionEditRow.label"></p>
+                        </div>
+                        <button type="button"
+                                @click="collectionEditRow = null"
+                                class="finance-modal-close"
+                                aria-label="Close">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </header>
+                    <div class="finance-modal-body">
+                        <template x-for="sun in weeklyCollectionSundays" :key="sun">
+                            <div class="finance-field">
+                                <label class="finance-label" :for="'collection-edit-' + sun" x-text="formatSundayShort(sun)"></label>
+                                <div class="fin-amt-row__field" style="max-width:12rem">
+                                    <span class="fin-amt-row__currency">KES</span>
+                                    <input type="number"
+                                           :id="'collection-edit-' + sun"
+                                           :name="'amounts[' + sun + ']'"
+                                           min="0"
+                                           step="1"
+                                           inputmode="numeric"
+                                           class="fin-amt-row__input finance-input"
+                                           x-model.number="collectionEditRow.amounts[sun]"
+                                           @focus="$el.select()">
+                                </div>
+                            </div>
+                        </template>
+                        <p class="finance-field-hint">
+                            Month total: KES <span x-text="formatMoneyPlain(collectionEditTotal)"></span>
+                        </p>
+                    </div>
+                    <footer class="finance-modal-footer">
+                        <div class="finance-modal-actions finance-modal-actions--end">
+                            <button type="button" @click="collectionEditRow = null" class="finance-btn-secondary">Cancel</button>
+                            <button type="submit" class="finance-btn-primary">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                                Save changes
+                            </button>
+                        </div>
+                    </footer>
+                </form>
+            </template>
+        </div>
+    </div>
 
     <!-- New weekly category modal -->
     <div x-show="newCategory"
@@ -1465,7 +1843,7 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
                     <footer class="finance-modal-footer">
                         <form method="post"
                               :action="'/admin/finance/weekly/categories/' + weeklyEditRow.slug + '/delete'"
-                              onsubmit="return confirm('Delete this category and all its expense entries?')"
+                              @submit.prevent="deleteWeeklyCategoryAjax(weeklyEditRow.slug)"
                               class="finance-modal-delete-form">
                             <input type="hidden" name="month" :value="weeklyMonth">
                             <button type="submit" class="finance-btn-danger">
@@ -1485,4 +1863,6 @@ if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
             </template>
         </div>
     </div>
+
+    <?php require __DIR__ . '/_sunday-modal.php'; ?>
 </div>

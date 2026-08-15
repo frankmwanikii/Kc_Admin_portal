@@ -7,6 +7,12 @@
             newCategory: null,
             weeklyMenu: null,
             weeklyEditRow: null,
+            weeklyViewRow: null,
+            collectionMenu: null,
+            collectionViewRow: null,
+            collectionEditRow: null,
+            reconciliationMenu: null,
+            reconciliationViewRow: null,
             newCollection: null,
             collectionSearch: '',
             openMenu: null,
@@ -23,21 +29,60 @@
             weeklySearch: '',
             weeklyRows: config.weeklyRows || [],
             weeklySundays: config.weeklySundays || [],
-            weeklyMonth: config.weeklyMonth || '',
+            weeklyMonth: config.weeklyMonth || config.month || '',
             weeklyCollectionRows: config.weeklyCollectionRows || [],
             weeklyCollectionSundays: config.weeklyCollectionSundays || [],
+            sundaySessionsByDate: config.sundaySessionsByDate || {},
+            sundayFormBase: config.sundayFormBase || {
+                weekDate: '',
+                methods: Object.keys(config.paymentMethods || {}),
+                categories: [],
+                presets: {},
+                presetTotals: {},
+            },
+            ledgerSub: config.ledgerSub === 'collections' ? 'collections' : 'expenses',
+            dashboard: config.dashboard || {},
+            budget: config.budget || {},
+            budgetYear: config.budgetYear || config.year || new Date().getFullYear(),
+            budgetEditLines: config.budgetEditLines || [],
+            showBudgetEditor: false,
+            budgetNewLine: null,
             reconciliation: config.reconciliation || { weeks: [], month_expenses: 0, month_collections: 0, month_balance: 0 },
+            statementView: config.statementView || 'monthly',
+            statementWeekDate: config.statementWeekDate || '',
+            statementSundays: config.statementSundays || [],
+            statementBusy: false,
             yearReconciliation: config.yearReconciliation || { months: [], year_expenses: 0, year_collections: 0, year_balance: 0 },
             expenseGroups: config.expenseGroups || [],
+            arrearsTotals: config.arrearsTotals || { due: 0, paid: 0, balance: 0 },
             tablePerPage: 10,
             arrearsPage: 1,
             collectionsPage: 1,
             weeklyPage: 1,
+            _syncingEditCatalog: false,
+            editFormKey: 0,
             weeklyDropdownPos: { top: 0, left: 0 },
             weeklyMenuIgnoreOutside: false,
+            collectionDropdownPos: { top: 0, left: 0 },
+            collectionMenuIgnoreOutside: false,
+            reconciliationDropdownPos: { top: 0, left: 0 },
+            reconciliationMenuIgnoreOutside: false,
+            showSundayModal: false,
+            toast: null,
+            toastTimer: null,
+            ajaxBusy: false,
 
             init() {
                 this.$nextTick(() => window.lucide?.createIcons());
+                if (config.openSundayModal) {
+                    this.showSundayModal = true;
+                    try {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('record');
+                        url.searchParams.delete('record_date');
+                        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+                    } catch (_) { /* ignore */ }
+                }
                 this.$watch('search', () => { this.arrearsPage = 1; });
                 this.$watch('collectionSearch', () => { this.collectionsPage = 1; });
                 this.$watch('weeklySearch', () => { this.weeklyPage = 1; });
@@ -61,6 +106,12 @@
                 this.$watch('weeklyEditRow', () => {
                     this.$nextTick(() => window.lucide?.createIcons());
                 });
+                this.$watch('collectionViewRow', () => {
+                    this.$nextTick(() => window.lucide?.createIcons());
+                });
+                this.$watch('collectionEditRow', () => {
+                    this.$nextTick(() => window.lucide?.createIcons());
+                });
                 this.$watch('viewRow', () => {
                     this.$nextTick(() => window.lucide?.createIcons());
                 });
@@ -70,11 +121,502 @@
                 this.$watch('paymentRow', () => {
                     this.$nextTick(() => window.lucide?.createIcons());
                 });
+                this.$watch('showBudgetEditor', (open) => {
+                    document.body.style.overflow = open ? 'hidden' : '';
+                    this.$nextTick(() => window.lucide?.createIcons());
+                });
+                this.$watch('showSundayModal', (open) => {
+                    document.body.style.overflow = open ? 'hidden' : '';
+                    this.$nextTick(() => window.lucide?.createIcons());
+                });
+            },
+
+            openSundayModal(weekDate = null) {
+                if ((!this.weeklySundays || !this.weeklySundays.length)
+                    && Array.isArray(this.reconciliation?.weeks)
+                    && this.reconciliation.weeks.length) {
+                    this.weeklySundays = this.reconciliation.weeks.map((w) => w.week_date);
+                }
+                if (weekDate) {
+                    this.sundayFormBase = {
+                        ...(this.sundayFormBase || {}),
+                        weekDate,
+                    };
+                }
+                this.reconciliationMenu = null;
+                this.weeklyMenu = null;
+                this.collectionMenu = null;
+                this.showSundayModal = true;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            closeSundayModal() {
+                this.showSundayModal = false;
+            },
+
+            setLedgerSub(sub) {
+                if (sub !== 'expenses' && sub !== 'collections') return;
+                if (this.ledgerSub === sub) return;
+                this.ledgerSub = sub;
+                this.weeklyMenu = null;
+                this.collectionMenu = null;
+                this.reconciliationMenu = null;
+                this.syncFinanceUrl({ tab: 'ledger', sub });
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            buildSundayFormConfig() {
+                const base = this.sundayFormBase || {};
+                return {
+                    weekDate: base.weekDate || '',
+                    sessionsByDate: this.sundaySessionsByDate || {},
+                    methods: base.methods || Object.keys(this.paymentMethods || {}),
+                    categories: base.categories || [],
+                    presets: base.presets || {},
+                    presetTotals: base.presetTotals || {},
+                };
+            },
+
+            showToast(message, type = 'success') {
+                if (this.toastTimer) {
+                    clearTimeout(this.toastTimer);
+                }
+                this.toast = { message: String(message || ''), type };
+                this.toastTimer = setTimeout(() => {
+                    this.toast = null;
+                }, 3200);
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            applyLedgerData(data) {
+                this.applyFinanceData(data);
+            },
+
+            applyFinanceData(data) {
+                if (!data || typeof data !== 'object') return;
+                if (data.year) this.year = Number(data.year) || this.year;
+                if (Array.isArray(data.weeklyRows)) this.weeklyRows = data.weeklyRows;
+                if (Array.isArray(data.weeklySundays)) this.weeklySundays = data.weeklySundays;
+                if (Array.isArray(data.weeklyCollectionRows)) this.weeklyCollectionRows = data.weeklyCollectionRows;
+                if (Array.isArray(data.weeklyCollectionSundays)) this.weeklyCollectionSundays = data.weeklyCollectionSundays;
+                if (Array.isArray(data.expenseGroups)) this.expenseGroups = data.expenseGroups;
+                if (Array.isArray(data.arrears)) this.arrears = data.arrears;
+                if (data.arrearsTotals) this.arrearsTotals = data.arrearsTotals;
+                if (data.month) this.weeklyMonth = data.month;
+                if (data.weeklyMonth) this.weeklyMonth = data.weeklyMonth;
+                if (data.sundaySessionsByDate) this.sundaySessionsByDate = data.sundaySessionsByDate;
+                if (data.sundayFormBase) {
+                    this.sundayFormBase = {
+                        ...this.sundayFormBase,
+                        ...data.sundayFormBase,
+                    };
+                }
+                if (data.dashboard) this.dashboard = data.dashboard;
+                if (data.reconciliation) this.reconciliation = data.reconciliation;
+                if (data.budget) this.budget = data.budget;
+                if (Array.isArray(data.budgetEditLines)) this.budgetEditLines = data.budgetEditLines;
+                if (data.budgetYear) this.budgetYear = Number(data.budgetYear) || this.budgetYear;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            get monthLabel() {
+                if (!this.weeklyMonth) return '';
+                const d = new Date(String(this.weeklyMonth) + '-01T12:00:00');
+                if (Number.isNaN(d.getTime())) return String(this.weeklyMonth);
+                return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+            },
+
+            syncFinanceUrl(extra = {}) {
+                try {
+                    const url = new URL(window.location.href);
+                    if (extra.tab) url.searchParams.set('tab', extra.tab);
+                    if (Object.prototype.hasOwnProperty.call(extra, 'sub')) {
+                        if (extra.sub) url.searchParams.set('sub', String(extra.sub));
+                        else url.searchParams.delete('sub');
+                    }
+                    if (this.weeklyMonth) url.searchParams.set('month', this.weeklyMonth);
+                    if (this.year) url.searchParams.set('year', String(this.year));
+                    Object.keys(extra).forEach((key) => {
+                        if (key === 'tab' || key === 'sub') return;
+                        if (extra[key] === null || extra[key] === undefined || extra[key] === '') {
+                            url.searchParams.delete(key);
+                        } else {
+                            url.searchParams.set(key, String(extra[key]));
+                        }
+                    });
+                    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+                } catch (_) { /* ignore */ }
+            },
+
+            async loadFinanceData(options = {}) {
+                if (this.ajaxBusy) return null;
+                const month = options.month || this.weeklyMonth || '';
+                const year = options.year || this.year || (month ? Number(String(month).slice(0, 4)) : new Date().getFullYear());
+                const params = new URLSearchParams({
+                    month: month || `${year}-01`,
+                    year: String(year),
+                });
+                this.ajaxBusy = true;
+                try {
+                    const response = await fetch('/admin/finance/data?' + params.toString(), {
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data?.ok) {
+                        throw new Error(data?.message || 'Could not load finance data.');
+                    }
+                    this.applyFinanceData(data);
+                    this.syncFinanceUrl(options.url || {});
+                    if (options.toast) {
+                        this.showToast(options.toast);
+                    }
+                    if (typeof options.onSuccess === 'function') {
+                        options.onSuccess(data);
+                    }
+                    return data;
+                } catch (err) {
+                    this.showToast(err?.message || 'Could not load data.', 'error');
+                    return null;
+                } finally {
+                    this.ajaxBusy = false;
+                }
+            },
+
+            async changeLedgerMonth(month) {
+                if (!month || month === this.weeklyMonth) return;
+                const year = Number(String(month).slice(0, 4)) || this.year;
+                await this.loadFinanceData({
+                    month,
+                    year,
+                    url: { month, year },
+                });
+            },
+
+            async changeFinanceYear(year) {
+                const nextYear = Number(year) || this.year;
+                if (nextYear === this.year) return;
+                const monthPart = String(this.weeklyMonth || '').slice(5, 7) || '01';
+                const month = `${nextYear}-${monthPart}`;
+                this.year = nextYear;
+                await this.loadFinanceData({
+                    month,
+                    year: nextYear,
+                    url: { month, year: nextYear },
+                });
+            },
+
+            async shiftSundayMonth(delta) {
+                const parts = String(this.weeklyMonth || '').split('-').map(Number);
+                let y = parts[0] || new Date().getFullYear();
+                let m = parts[1] || (new Date().getMonth() + 1);
+                m += Number(delta) || 0;
+                while (m < 1) { m += 12; y -= 1; }
+                while (m > 12) { m -= 12; y += 1; }
+                const month = `${y}-${String(m).padStart(2, '0')}`;
+                const wasOpen = this.showSundayModal;
+                const data = await this.loadFinanceData({
+                    month,
+                    year: y,
+                    url: { month, year: y },
+                });
+                if (!data) return;
+                if (wasOpen) {
+                    this.showSundayModal = false;
+                    this.$nextTick(() => {
+                        this.showSundayModal = true;
+                        this.$nextTick(() => window.lucide?.createIcons());
+                    });
+                }
+            },
+
+            openBudgetEditor() {
+                const lines = (this.budgetEditLines || []).map((line) => ({
+                    ...line,
+                    amount: Number(line.amount) || 0,
+                }));
+                this.budgetEditLines = lines;
+                this.budgetNewLine = null;
+                this.showBudgetEditor = true;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            closeBudgetEditor() {
+                this.showBudgetEditor = false;
+                this.budgetNewLine = null;
+            },
+
+            get budgetEditIncomeLines() {
+                return (this.budgetEditLines || []).filter((l) => l.line_type === 'income');
+            },
+
+            get budgetEditExpenseLines() {
+                return (this.budgetEditLines || []).filter((l) => l.line_type !== 'income');
+            },
+
+            get budgetEditIncomeTotal() {
+                return this.budgetEditIncomeLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+            },
+
+            get budgetEditExpenseTotal() {
+                return this.budgetEditExpenseLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+            },
+
+            startBudgetNewLine(type) {
+                this.budgetNewLine = {
+                    line_type: type === 'income' ? 'income' : 'expense',
+                    section: type === 'income' ? 'Incomes' : 'Other expenses',
+                    label: '',
+                    amount: 0,
+                };
+                this.$nextTick(() => {
+                    window.lucide?.createIcons();
+                    const ref = type === 'income' ? this.$refs.budgetNewIncome : this.$refs.budgetNewExpense;
+                    if (ref && typeof ref.scrollIntoView === 'function') {
+                        ref.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    const input = ref?.querySelector?.('input[type="text"]');
+                    if (input) input.focus();
+                });
+            },
+
+            async saveBudgetMonth(event) {
+                event.preventDefault();
+                const form = event.target;
+                await this.postAjax(form, {
+                    onSuccess: () => {
+                        this.closeBudgetEditor();
+                        window.location.reload();
+                    },
+                });
+            },
+
+            async saveBudgetNewLine() {
+                if (!this.budgetNewLine || !String(this.budgetNewLine.label || '').trim()) {
+                    window.alert('Enter a line name.');
+                    return;
+                }
+                const form = document.createElement('form');
+                form.method = 'post';
+                form.action = '/admin/finance/budget/lines';
+                const fields = {
+                    budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
+                    month: this.weeklyMonth || '',
+                    line_type: this.budgetNewLine.line_type || 'expense',
+                    section: this.budgetNewLine.section || '',
+                    label: String(this.budgetNewLine.label || '').trim(),
+                    amount: String(Number(this.budgetNewLine.amount) || 0),
+                };
+                Object.keys(fields).forEach((name) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = fields[name];
+                    form.appendChild(input);
+                });
+                document.body.appendChild(form);
+                await this.postAjax(form, {
+                    onSuccess: () => {
+                        this.budgetNewLine = null;
+                        this.$nextTick(() => window.lucide?.createIcons());
+                    },
+                });
+                form.remove();
+            },
+
+            async deleteBudgetLine(line) {
+                if (!line || !line.id) return;
+                const kind = line.line_type === 'income' ? 'income' : 'expense';
+                const name = String(line.label || 'this line').trim() || 'this line';
+                if (!window.confirm('Delete ' + kind + ' line “' + name + '”? This removes it from the budget year.')) {
+                    return;
+                }
+                const form = document.createElement('form');
+                form.method = 'post';
+                form.action = '/admin/finance/budget/lines/' + encodeURIComponent(line.id) + '/delete';
+                const yearInput = document.createElement('input');
+                yearInput.type = 'hidden';
+                yearInput.name = 'budget_year';
+                yearInput.value = String(this.budgetYear || this.year || new Date().getFullYear());
+                form.appendChild(yearInput);
+                const monthInput = document.createElement('input');
+                monthInput.type = 'hidden';
+                monthInput.name = 'month';
+                monthInput.value = this.weeklyMonth || '';
+                form.appendChild(monthInput);
+                document.body.appendChild(form);
+                await this.postAjax(form, {
+                    onSuccess: () => {
+                        this.$nextTick(() => window.lucide?.createIcons());
+                    },
+                });
+                form.remove();
+            },
+
+            async postAjax(form, options = {}) {
+                if (!form || this.ajaxBusy) return null;
+                const url = form.getAttribute('action');
+                if (!url) return null;
+
+                this.ajaxBusy = true;
+                const submitBtn = options.submitBtn || form.querySelector('[type="submit"]');
+                if (submitBtn) submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch(url, {
+                        method: (form.getAttribute('method') || 'POST').toUpperCase(),
+                        body: new FormData(form),
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (_) {
+                        throw new Error('Unexpected server response.');
+                    }
+
+                    if (!response.ok || !data?.ok) {
+                        throw new Error(data?.message || 'Request failed.');
+                    }
+
+                    this.applyLedgerData(data);
+                    if (!options.silent) {
+                        this.showToast(data.message || 'Saved.');
+                    }
+                    if (typeof options.onSuccess === 'function') {
+                        options.onSuccess(data);
+                    }
+                    return data;
+                } catch (err) {
+                    this.showToast(err?.message || 'Something went wrong.', 'error');
+                    if (typeof options.onError === 'function') {
+                        options.onError(err);
+                    }
+                    return null;
+                } finally {
+                    this.ajaxBusy = false;
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            },
+
+            async submitSundayAjax(form) {
+                await this.postAjax(form, {
+                    onSuccess: () => this.closeSundayModal(),
+                });
+            },
+
+            async submitCollectionEditAjax(event) {
+                event.preventDefault();
+                const form = event.target;
+                await this.postAjax(form, {
+                    onSuccess: () => {
+                        this.collectionEditRow = null;
+                    },
+                });
+            },
+
+            async clearCollectionMethodAjax(method) {
+                if (!method) return;
+                if (!window.confirm('Clear all amounts for this method in the selected month?')) return;
+                this.collectionMenu = null;
+                const form = document.createElement('form');
+                form.method = 'post';
+                form.action = '/admin/finance/collections/weekly/methods/' + encodeURIComponent(method) + '/clear';
+                const monthInput = document.createElement('input');
+                monthInput.type = 'hidden';
+                monthInput.name = 'month';
+                monthInput.value = this.weeklyMonth || '';
+                form.appendChild(monthInput);
+                document.body.appendChild(form);
+                await this.postAjax(form);
+                form.remove();
+            },
+
+            async submitNewWeeklyCategory(event) {
+                if (!this.newCategory || !this.validateWeeklyCategory(this.newCategory)) {
+                    event.preventDefault();
+                    return;
+                }
+                event.preventDefault();
+                await this.postAjax(event.target, {
+                    onSuccess: () => {
+                        this.newCategory = null;
+                    },
+                });
+            },
+
+            async submitWeeklyCategoryEdit(event) {
+                if (!this.weeklyEditRow || !this.validateWeeklyCategory(this.weeklyEditRow)) {
+                    event.preventDefault();
+                    return;
+                }
+                event.preventDefault();
+                await this.postAjax(event.target, {
+                    onSuccess: () => {
+                        this.weeklyEditRow = null;
+                    },
+                });
+            },
+
+            async deleteWeeklyCategoryAjax(slug) {
+                if (!slug) return;
+                if (!window.confirm('Delete this category and all its expense entries?')) return;
+                this.weeklyMenu = null;
+                const form = document.createElement('form');
+                form.method = 'post';
+                form.action = '/admin/finance/weekly/categories/' + encodeURIComponent(slug) + '/delete';
+                const monthInput = document.createElement('input');
+                monthInput.type = 'hidden';
+                monthInput.name = 'month';
+                monthInput.value = this.weeklyMonth || '';
+                form.appendChild(monthInput);
+                document.body.appendChild(form);
+                const result = await this.postAjax(form);
+                form.remove();
+                if (result) {
+                    this.weeklyEditRow = null;
+                }
+            },
+
+            async deleteArrearAjax(id) {
+                if (!id) return;
+                if (!window.confirm('Delete this arrear entry?')) return;
+                this.openMenu = null;
+                this.viewRow = null;
+                const form = document.createElement('form');
+                form.method = 'post';
+                form.action = '/admin/finance/arrears/' + encodeURIComponent(id) + '/delete';
+                const yearInput = document.createElement('input');
+                yearInput.type = 'hidden';
+                yearInput.name = 'budget_year';
+                yearInput.value = String(this.year || new Date().getFullYear());
+                form.appendChild(yearInput);
+                document.body.appendChild(form);
+                await this.postAjax(form);
+                form.remove();
             },
 
             get weeklyMenuRow() {
                 if (!this.weeklyMenu) return null;
                 return this.weeklyRows.find((r) => r.slug === this.weeklyMenu) || null;
+            },
+
+            get collectionMenuRow() {
+                if (!this.collectionMenu) return null;
+                return this.weeklyCollectionRows.find((r) => r.method === this.collectionMenu) || null;
+            },
+
+            get reconciliationMenuRow() {
+                if (!this.reconciliationMenu) return null;
+                return (this.reconciliation.weeks || []).find((w) => w.week_date === this.reconciliationMenu) || null;
             },
 
             get openMenuRow() {
@@ -96,6 +638,59 @@
                 };
                 this.weeklyMenu = null;
                 this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            openWeeklyView(slug) {
+                const row = this.weeklyRows.find((r) => r.slug === slug);
+                if (!row) return;
+                this.weeklyViewRow = {
+                    slug: row.slug,
+                    label: row.label,
+                    hint: row.hint || '',
+                    amounts: { ...(row.amounts || {}) },
+                    total: Number(row.total) || 0,
+                };
+                this.weeklyMenu = null;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            openCollectionView(method) {
+                const row = this.weeklyCollectionRows.find((r) => r.method === method);
+                if (!row) return;
+                this.collectionViewRow = {
+                    method: row.method,
+                    label: row.label,
+                    desc: row.desc || '',
+                    amounts: { ...(row.amounts || {}) },
+                    total: Number(row.total) || 0,
+                };
+                this.collectionMenu = null;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            openCollectionEdit(method) {
+                const row = this.weeklyCollectionRows.find((r) => r.method === method);
+                if (!row) return;
+                const amounts = {};
+                (this.weeklyCollectionSundays || []).forEach((sun) => {
+                    amounts[sun] = Number(row.amounts?.[sun]) || 0;
+                });
+                this.collectionEditRow = {
+                    method: row.method,
+                    label: row.label,
+                    desc: row.desc || '',
+                    amounts,
+                };
+                this.collectionMenu = null;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            get collectionEditTotal() {
+                if (!this.collectionEditRow) return 0;
+                return Object.values(this.collectionEditRow.amounts || {}).reduce(
+                    (sum, v) => sum + (Number(v) || 0),
+                    0
+                );
             },
 
             get filteredCollections() {
@@ -160,12 +755,30 @@
                 return this.categoriesForDepartment(this.administrationDepartmentId());
             },
 
-            expenseItemsForDepartment(deptId) {
+            expenseItemsForDepartment(deptId, keepCategoryId = null) {
                 const dept = this.departmentById(deptId);
                 if (!dept) return [];
                 const items = dept.categories || [];
-                if (items.length <= 1) return items;
-                return items.filter((cat) => cat.label !== dept.label);
+                // Always expose every catalog line on edit/create selects.
+                // (Previously hid lines whose label matched the department name, which
+                // removed real items like "K.Kids" and broke edit prefill + save.)
+                if (keepCategoryId != null && keepCategoryId !== '') {
+                    const keepId = Number(keepCategoryId);
+                    const hasKeep = items.some((cat) => Number(cat.id) === keepId);
+                    if (!hasKeep && Number.isFinite(keepId) && keepId > 0) {
+                        // Selected id missing from catalog — still show a stub so the select can bind.
+                        return [
+                            {
+                                id: keepId,
+                                label: dept.label,
+                                slug: '',
+                                account_code: '',
+                            },
+                            ...items,
+                        ];
+                    }
+                }
+                return items;
             },
 
             weeklyLineLabel(row) {
@@ -173,14 +786,7 @@
                 if (row.expense_category_id === '__new__') {
                     return String(row.new_category_item_label || '').trim();
                 }
-                if (this.isAdminExpenses(row.expense_group)) {
-                    const items = this.expenseItemsForDepartment(row.department_id);
-                    const cat = items.find(
-                        (c) => Number(c.id) === Number(row.expense_category_id)
-                    );
-                    return cat?.label || String(row.new_category_item_label || row.label || '').trim();
-                }
-                const items = this.expenseItemsForDepartment(row.department_id);
+                const items = this.categoriesForDepartment(row.department_id);
                 const cat = items.find((c) => Number(c.id) === Number(row.expense_category_id));
                 return cat?.label || String(row.new_category_item_label || row.label || '').trim();
             },
@@ -217,7 +823,7 @@
             },
 
             onEditGroupChange() {
-                if (!this.editRow) return;
+                if (!this.editRow || this._syncingEditCatalog) return;
                 this.editRow.department_id = '';
                 this.editRow.category_id = '';
                 this.editRow.new_category_label = '';
@@ -233,7 +839,7 @@
             },
 
             onEditDepartmentChange() {
-                if (!this.editRow) return;
+                if (!this.editRow || this._syncingEditCatalog) return;
                 this.editRow.category_id = '';
                 this.editRow.new_category_label = '';
             },
@@ -304,10 +910,17 @@
                 return true;
             },
 
-            submitNewArrear(event) {
+            async submitNewArrear(event) {
                 if (!this.newArrear || !this.validateArrearCatalog(this.newArrear)) {
                     event.preventDefault();
+                    return;
                 }
+                event.preventDefault();
+                await this.postAjax(event.target, {
+                    onSuccess: () => {
+                        this.newArrear = null;
+                    },
+                });
             },
 
             get filteredWeekly() {
@@ -449,6 +1062,8 @@
                 }
                 this.openMenu = id;
                 this.weeklyMenu = null;
+                this.collectionMenu = null;
+                this.reconciliationMenu = null;
                 this.arrearMenuIgnoreOutside = true;
                 requestAnimationFrame(() => {
                     this.arrearMenuIgnoreOutside = false;
@@ -464,15 +1079,96 @@
                 const btn = event?.currentTarget;
                 if (btn) {
                     const rect = btn.getBoundingClientRect();
-                    this.weeklyDropdownPos = this.positionFixedDropdown(rect, 220, 132);
+                    this.weeklyDropdownPos = this.positionFixedDropdown(rect, 220, 176);
                 }
                 this.weeklyMenu = slug;
                 this.openMenu = null;
+                this.collectionMenu = null;
+                this.reconciliationMenu = null;
                 this.weeklyMenuIgnoreOutside = true;
                 requestAnimationFrame(() => {
                     this.weeklyMenuIgnoreOutside = false;
                 });
                 this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            toggleCollectionMenu(method, event) {
+                if (this.collectionMenu === method) {
+                    this.collectionMenu = null;
+                    return;
+                }
+                const btn = event?.currentTarget;
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    this.collectionDropdownPos = this.positionFixedDropdown(rect, 220, 176);
+                }
+                this.collectionMenu = method;
+                this.openMenu = null;
+                this.weeklyMenu = null;
+                this.reconciliationMenu = null;
+                this.collectionMenuIgnoreOutside = true;
+                requestAnimationFrame(() => {
+                    this.collectionMenuIgnoreOutside = false;
+                });
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            toggleReconciliationMenu(weekDate, event) {
+                if (this.reconciliationMenu === weekDate) {
+                    this.reconciliationMenu = null;
+                    return;
+                }
+                const btn = event?.currentTarget;
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    this.reconciliationDropdownPos = this.positionFixedDropdown(rect, 240, 220);
+                }
+                this.reconciliationMenu = weekDate;
+                this.openMenu = null;
+                this.weeklyMenu = null;
+                this.collectionMenu = null;
+                this.reconciliationMenuIgnoreOutside = true;
+                requestAnimationFrame(() => {
+                    this.reconciliationMenuIgnoreOutside = false;
+                });
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            openReconciliationView(weekDate) {
+                const week = (this.reconciliation.weeks || []).find((w) => w.week_date === weekDate);
+                if (!week) return;
+                this.reconciliationViewRow = {
+                    week_date: week.week_date,
+                    collections: Number(week.collections) || 0,
+                    expenses: Number(week.expenses) || 0,
+                    balance: Number(week.balance) || 0,
+                };
+                this.reconciliationMenu = null;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            openWeeklyStatement(weekDate) {
+                this.reconciliationMenu = null;
+                if (!weekDate) return;
+                const params = new URLSearchParams({
+                    tab: 'reports',
+                    view: 'weekly',
+                    week_date: weekDate,
+                    month: this.weeklyMonth || String(weekDate).slice(0, 7),
+                    year: String(this.year || String(weekDate).slice(0, 4)),
+                });
+                window.location.href = '/admin/finance?' + params.toString();
+            },
+
+            goToLedger(sub) {
+                this.reconciliationMenu = null;
+                const params = new URLSearchParams({
+                    tab: 'ledger',
+                    sub: sub === 'collections' ? 'collections' : 'expenses',
+                    month: this.weeklyMonth || '',
+                    year: String(this.year || new Date().getFullYear()),
+                });
+                window.location.href = '/admin/finance?' + params.toString();
             },
 
             positionActionDropdown(button) {
@@ -583,18 +1279,6 @@
                 return true;
             },
 
-            submitNewWeeklyCategory(event) {
-                if (!this.newCategory || !this.validateWeeklyCategory(this.newCategory)) {
-                    event.preventDefault();
-                }
-            },
-
-            submitWeeklyCategoryEdit(event) {
-                if (!this.weeklyEditRow || !this.validateWeeklyCategory(this.weeklyEditRow)) {
-                    event.preventDefault();
-                }
-            },
-
             openNewCollection() {
                 const methods = Object.keys(this.paymentMethods);
                 this.newCollection = {
@@ -628,20 +1312,92 @@
             openEdit(id) {
                 const row = this.findArrear(id);
                 if (!row) return;
+
+                const departmentId = row.department_id != null && Number(row.department_id) > 0
+                    ? String(row.department_id)
+                    : '';
+                const categoryId = row.category_id != null && Number(row.category_id) > 0
+                    ? String(row.category_id)
+                    : '';
+                let expenseGroup = String(row.expense_group || '').trim();
+                if (!expenseGroup && departmentId) {
+                    expenseGroup = this.groupForDepartment(departmentId);
+                }
+
+                this._syncingEditCatalog = true;
                 this.editRow = {
                     ...row,
-                    expense_group: row.expense_group || this.groupForDepartment(row.department_id),
-                    department_id: row.department_id || '',
-                    category_id: row.category_id || '',
+                    expense_group: expenseGroup,
+                    department_id: departmentId,
+                    category_id: categoryId,
                     new_category_label: '',
                     expense_item: row.expense_item || row.category_label || '',
                     amount_paid: Number(row.amount_paid) || 0,
                     amount_due: Number(row.amount_due) || 0,
+                    month_incurred: row.month_incurred || '',
+                    date_paid: row.date_paid || '',
+                    paid_by_ref: row.paid_by_ref || '',
+                    notes: row.notes || '',
+                    budget_year: row.budget_year || this.year,
                 };
+                this.editFormKey = `${row.id}-${Date.now()}`;
                 this.paymentRow = null;
                 this.openMenu = null;
                 this.viewRow = null;
-                this.$nextTick(() => window.lucide?.createIcons());
+
+                this.$nextTick(() => {
+                    this.syncEditCatalogSelects(expenseGroup, departmentId, categoryId);
+                });
+            },
+
+            syncEditCatalogSelects(expenseGroup, departmentId, categoryId) {
+                if (!this.editRow) {
+                    this._syncingEditCatalog = false;
+                    return;
+                }
+
+                const setSelectValue = (el, value) => {
+                    if (!el || value === '' || value == null) return;
+                    const str = String(value);
+                    el.value = str;
+                    // If option was missing when we set value, try again after options paint.
+                    if (el.value !== str) {
+                        const opt = Array.from(el.options || []).find((o) => o.value === str);
+                        if (opt) {
+                            opt.selected = true;
+                            el.value = str;
+                        }
+                    }
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                };
+
+                const groupEl = document.getElementById('edit-expense-group');
+                setSelectValue(groupEl, expenseGroup);
+                if (this.editRow) this.editRow.expense_group = expenseGroup;
+
+                this.$nextTick(() => {
+                    if (!this.editRow) {
+                        this._syncingEditCatalog = false;
+                        return;
+                    }
+                    if (this.editRow) this.editRow.department_id = departmentId;
+                    const deptEl = document.getElementById('edit-department')
+                        || document.getElementById('edit-admin-department');
+                    setSelectValue(deptEl, departmentId);
+
+                    this.$nextTick(() => {
+                        if (!this.editRow) {
+                            this._syncingEditCatalog = false;
+                            return;
+                        }
+                        if (this.editRow) this.editRow.category_id = categoryId;
+                        const itemEl = document.getElementById('edit-ministry-item')
+                            || document.getElementById('edit-admin-item');
+                        setSelectValue(itemEl, categoryId);
+                        this._syncingEditCatalog = false;
+                        window.lucide?.createIcons();
+                    });
+                });
             },
 
             openRecordPayment(id) {
@@ -727,7 +1483,8 @@
                 }
             },
 
-            submitArrearEdit(event) {
+            async submitArrearEdit(event) {
+                event.preventDefault();
                 const form = event.target;
                 const payload = {
                     ...this.editRow,
@@ -740,12 +1497,15 @@
                     window.alert('Enter an expense title.');
                     return;
                 }
-                this.syncArrearInTable(payload);
-                this.editRow = null;
-                form.submit();
+                await this.postAjax(form, {
+                    onSuccess: () => {
+                        this.editRow = null;
+                    },
+                });
             },
 
-            submitArrearPayment(event) {
+            async submitArrearPayment(event) {
+                event.preventDefault();
                 const form = event.target;
                 const payment = Number(this.paymentRow.record_payment) || 0;
                 if (payment <= 0) {
@@ -755,17 +1515,15 @@
                 if (!this.paymentRow.date_paid) {
                     this.paymentRow.date_paid = new Date().toISOString().slice(0, 10);
                 }
-                const payload = {
-                    ...this.paymentRow,
-                    amount_paid: this.paymentComputedPaid,
-                };
                 if (this.paymentComputedPaid > Number(this.paymentRow.amount_due)) {
                     window.alert('Total amount paid cannot exceed amount due.');
                     return;
                 }
-                this.syncArrearInTable(payload);
-                this.paymentRow = null;
-                form.submit();
+                await this.postAjax(form, {
+                    onSuccess: () => {
+                        this.paymentRow = null;
+                    },
+                });
             },
 
             formatMoney(value) {
@@ -782,6 +1540,20 @@
                 if (Number.isNaN(n)) return '—';
                 const formatted = Math.abs(n).toLocaleString('en-KE', { maximumFractionDigits: 0 });
                 return (n < 0 ? '-' : '') + formatted;
+            },
+
+            formatSundayShort(date) {
+                if (!date) return '';
+                const d = new Date(String(date) + 'T12:00:00');
+                if (Number.isNaN(d.getTime())) return String(date);
+                return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            },
+
+            formatSundayLong(date) {
+                if (!date) return '';
+                const d = new Date(String(date) + 'T12:00:00');
+                if (Number.isNaN(d.getTime())) return String(date);
+                return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
             },
 
             formatDate(value) {
@@ -822,10 +1594,123 @@
             printStatement() {
                 window.print();
             },
+
+            statementExportUrl(format) {
+                const params = new URLSearchParams({
+                    view: this.statementView || 'monthly',
+                    year: String(this.year || new Date().getFullYear()),
+                });
+                if (this.statementView !== 'annual' && this.weeklyMonth) {
+                    params.set('month', this.weeklyMonth);
+                }
+                if (this.statementView === 'weekly' && this.statementWeekDate) {
+                    params.set('week_date', this.statementWeekDate);
+                }
+                return '/admin/finance/statement/' + format + '?' + params.toString();
+            },
+
+            async setStatementView(view) {
+                if (!['weekly', 'monthly', 'annual'].includes(view)) return;
+                if (view === this.statementView && !this.statementBusy) return;
+                await this.loadStatement({ view });
+            },
+
+            async changeStatementMonth(month) {
+                if (!month || month === this.weeklyMonth) return;
+                const year = Number(String(month).slice(0, 4)) || this.year;
+                await this.loadStatement({ month, year, week_date: '' });
+            },
+
+            async changeStatementYear(year) {
+                const nextYear = Number(year) || this.year;
+                if (nextYear === this.year && this.statementView === 'annual') {
+                    await this.loadStatement({ year: nextYear });
+                    return;
+                }
+                const monthPart = String(this.weeklyMonth || '').slice(5, 7) || '01';
+                const month = `${nextYear}-${monthPart}`;
+                await this.loadStatement({
+                    year: nextYear,
+                    month: this.statementView === 'annual' ? this.weeklyMonth : month,
+                    week_date: this.statementView === 'weekly' ? '' : this.statementWeekDate,
+                });
+            },
+
+            async changeStatementWeek(weekDate) {
+                if (!weekDate || weekDate === this.statementWeekDate) return;
+                await this.loadStatement({ view: 'weekly', week_date: weekDate });
+            },
+
+            async loadStatement(options = {}) {
+                if (this.statementBusy) return null;
+                const view = options.view || this.statementView || 'monthly';
+                const month = options.month || this.weeklyMonth || '';
+                const year = options.year || this.year || (month ? Number(String(month).slice(0, 4)) : new Date().getFullYear());
+                const weekDate = Object.prototype.hasOwnProperty.call(options, 'week_date')
+                    ? (options.week_date || '')
+                    : (this.statementWeekDate || '');
+
+                const params = new URLSearchParams({
+                    view,
+                    year: String(year),
+                });
+                if (view !== 'annual' && month) {
+                    params.set('month', month);
+                }
+                if (view === 'weekly' && weekDate) {
+                    params.set('week_date', weekDate);
+                }
+
+                this.statementBusy = true;
+                try {
+                    const response = await fetch('/admin/finance/statement/data?' + params.toString(), {
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data?.ok) {
+                        throw new Error(data?.message || 'Could not load statement.');
+                    }
+
+                    this.statementView = data.view || view;
+                    this.year = Number(data.year) || year;
+                    if (data.month) this.weeklyMonth = data.month;
+                    this.statementWeekDate = data.week_date || '';
+                    this.statementSundays = Array.isArray(data.sundays) ? data.sundays : [];
+
+                    const wrap = this.$refs?.statementDocumentWrap;
+                    if (wrap && data.html) {
+                        wrap.innerHTML = data.html;
+                    }
+
+                    this.syncFinanceUrl({
+                        tab: 'reports',
+                        view: this.statementView,
+                        year: this.year,
+                        month: this.statementView === 'annual' ? null : this.weeklyMonth,
+                        week_date: this.statementView === 'weekly' ? this.statementWeekDate : null,
+                        sub: null,
+                    });
+
+                    this.$nextTick(() => window.lucide?.createIcons());
+                    return data;
+                } catch (err) {
+                    this.showToast(err?.message || 'Could not load statement.', 'error');
+                    return null;
+                } finally {
+                    this.statementBusy = false;
+                }
+            },
         };
     }
 
-    document.addEventListener('alpine:init', () => {
+    function registerFinanceAlpine() {
+        if (!window.Alpine || window.__kcFinanceAlpineRegistered) return;
+        window.__kcFinanceAlpineRegistered = true;
+
         Alpine.data('financeHub', financeHubFactory);
 
         Alpine.data('weeklyEntryForm', (config) => ({
@@ -1000,5 +1885,10 @@
                 this.recalc();
             },
         }));
-    });
+    }
+
+    document.addEventListener('alpine:init', registerFinanceAlpine);
+    if (window.Alpine) {
+        registerFinanceAlpine();
+    }
 })();

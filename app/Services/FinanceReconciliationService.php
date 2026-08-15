@@ -1093,6 +1093,61 @@ class FinanceReconciliationService
         ];
     }
 
+    /**
+     * Save one payment method's amounts across Sundays in a month.
+     *
+     * @param array<string, float|string> $amountsByDate week_date => amount
+     */
+    public static function saveCollectionMethodMonth(string $method, string $yearMonth, array $amountsByDate): void
+    {
+        self::ensureTables();
+        if (!isset(self::PAYMENT_METHODS[$method])) {
+            throw new \InvalidArgumentException('Unknown payment method.');
+        }
+
+        $sundays = self::sundaysInMonth($yearMonth);
+        $db = Database::connection();
+
+        foreach ($sundays as $sun) {
+            $amount = (float) ($amountsByDate[$sun] ?? 0);
+            if ($amount <= 0) {
+                $db->prepare('DELETE FROM finance_weekly_collections WHERE week_date = ? AND payment_method = ?')
+                    ->execute([$sun, $method]);
+                continue;
+            }
+            $stmt = $db->prepare('
+                INSERT INTO finance_weekly_collections (week_date, payment_method, amount)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE amount = VALUES(amount), updated_at = NOW()
+            ');
+            $stmt->execute([$sun, $method, $amount]);
+        }
+
+        self::clearRuntimeCaches();
+    }
+
+    /** Clear all amounts for one payment method in a month. */
+    public static function clearCollectionMethodMonth(string $method, string $yearMonth): void
+    {
+        self::ensureTables();
+        if (!isset(self::PAYMENT_METHODS[$method])) {
+            throw new \InvalidArgumentException('Unknown payment method.');
+        }
+
+        $sundays = self::sundaysInMonth($yearMonth);
+        if ($sundays === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($sundays), '?'));
+        $params = array_merge([$method], $sundays);
+        Database::connection()
+            ->prepare("DELETE FROM finance_weekly_collections WHERE payment_method = ? AND week_date IN ($placeholders)")
+            ->execute($params);
+
+        self::clearRuntimeCaches();
+    }
+
     /** @param array<string, float|string> $methodAmounts payment_method => amount */
     public static function saveWeeklyCollectionEntry(string $weekDate, array $methodAmounts): void
     {

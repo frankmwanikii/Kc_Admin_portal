@@ -29,7 +29,8 @@ $churchName = SettingsService::churchName();
             <div class="login-alert login-alert--error"><?= htmlspecialchars($error) ?></div>
             <?php endif; ?>
 
-            <form method="POST" action="/login" class="login-form" x-data="{ showPassword: false, showForgot: false }">
+            <form method="POST" action="/login" class="login-form"
+                  x-data="{ showPassword: false, showForgot: false, username: <?= htmlspecialchars(json_encode((string) ($username ?? '')), ENT_QUOTES, 'UTF-8') ?>, password: '' }">
                 <?php if (!empty($_GET['redirect'])): ?>
                 <input type="hidden" name="redirect" value="<?= htmlspecialchars($_GET['redirect']) ?>">
                 <?php endif; ?>
@@ -39,7 +40,7 @@ $churchName = SettingsService::churchName();
                     <input type="text"
                            id="login-username"
                            name="username"
-                           value="<?= htmlspecialchars($username ?? '') ?>"
+                           x-model="username"
                            required
                            autocomplete="username"
                            autofocus
@@ -52,6 +53,7 @@ $churchName = SettingsService::churchName();
                     <input :type="showPassword ? 'text' : 'password'"
                            id="login-password"
                            name="password"
+                           x-model="password"
                            required
                            autocomplete="current-password"
                            class="login-input login-input--password"
@@ -80,6 +82,16 @@ $churchName = SettingsService::churchName();
                 </button>
                 <div x-show="showForgot" x-cloak class="login-alert login-alert--success login-forgot-note">
                     Contact your system administrator to reset your password.
+                </div>
+
+                <div class="login-demo">
+                    <p class="login-demo__label">Demo</p>
+                    <button type="button"
+                            class="login-demo__user"
+                            @click="username = 'Admin'; password = '12345678'"
+                            title="Fill Admin demo credentials">
+                        Admin
+                    </button>
                 </div>
             </form>
         </div>

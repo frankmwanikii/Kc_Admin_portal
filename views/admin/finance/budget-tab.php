@@ -19,24 +19,25 @@ $statusClass = match ($focusMonth['status'] ?? 'neutral') {
     'on_track' => 'fin-budget-status--ok',
     default => 'fin-budget-status--neutral',
 };
+$fyLabel = $b['label'] ?? ('FY ' . $budgetYear);
 ?>
 <div class="arrears-page fin-budget-page">
-    <h2 class="arrears-title">Budget vs Actual</h2>
-    <p class="text-sm text-slate-500 -mt-3 mb-5">
-        <?= htmlspecialchars($b['label'] ?? ('FY ' . $budgetYear)) ?> — compare planned spending against Sunday entries
-    </p>
-
-    <?php if (!($b['has_budget'] ?? false)): ?>
-    <div class="fin-budget-empty">
-        <p>No annual budget loaded for this financial year.</p>
-        <p class="fin-budget-empty__hint">Import the Draft Budget from the Excel workbook to enable tracking.</p>
+    <div class="fin-budget-page__head">
+        <div>
+            <h2 class="arrears-title">Budget vs Actual</h2>
+            <p class="text-sm text-slate-500 -mt-3 mb-5">
+                <?= htmlspecialchars($fyLabel) ?> — set planned amounts, then compare against Sunday entries to stay on track
+            </p>
+        </div>
+        <button type="button" class="arrears-btn-new" @click="openBudgetEditor()">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+            Set Budget
+        </button>
     </div>
-    <?php else: ?>
 
     <div class="fin-budget-toolbar">
         <form method="get" class="inline-flex items-center gap-2">
-            <input type="hidden" name="tab" value="reports">
-            <input type="hidden" name="sub" value="budget">
+            <input type="hidden" name="tab" value="budget">
             <label class="fin-budget-toolbar__label">
                 Financial year
                 <select name="budget_year" onchange="this.form.submit()" class="arrears-year-select" aria-label="Financial year">
@@ -51,6 +52,14 @@ $statusClass = match ($focusMonth['status'] ?? 'neutral') {
             </label>
         </form>
     </div>
+
+    <?php if (!($b['has_budget'] ?? false)): ?>
+    <div class="fin-budget-empty">
+        <p>No budget amounts for this month yet.</p>
+        <p class="fin-budget-empty__hint">Click <strong>Set Budget</strong> to enter planned income and expenses. Those figures drive on-track / over-budget status.</p>
+        <button type="button" class="arrears-btn-new mt-3" @click="openBudgetEditor()">Set Budget</button>
+    </div>
+    <?php else: ?>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <div class="reconciliation-stat reconciliation-stat--expenses">
@@ -185,7 +194,6 @@ $statusClass = match ($focusMonth['status'] ?? 'neutral') {
                         <td class="arrears-muted"><?= htmlspecialchars($line['section'] ?? '') ?></td>
                         <td>
                             <span class="arrears-accent"><?= htmlspecialchars($line['label'] ?? '') ?></span>
-                            <span class="fin-budget-code"><?= htmlspecialchars($line['account_code'] ?? '') ?></span>
                         </td>
                         <td class="ft-td-accent ft-td--right"><span class="arrears-amount">KES <?= $fmt((float) ($line['budget'] ?? 0)) ?></span></td>
                         <td class="ft-td-accent ft-td--right"><span class="arrears-amount">KES <?= $fmt((float) ($line['actual'] ?? 0)) ?></span></td>
@@ -207,4 +215,186 @@ $statusClass = match ($focusMonth['status'] ?? 'neutral') {
     <?php endif; ?>
 
     <?php endif; ?>
+
+    <!-- Set Budget modal -->
+    <div x-show="showBudgetEditor"
+         x-cloak
+         class="finance-modal-overlay"
+         @keydown.escape.window="closeBudgetEditor()">
+        <div class="finance-modal-backdrop" @click="closeBudgetEditor()"></div>
+        <div class="finance-modal finance-modal--sunday" x-transition role="dialog" aria-modal="true" aria-labelledby="budget-editor-title">
+            <header class="finance-modal-header">
+                <div class="finance-modal-header-text">
+                    <p class="finance-modal-eyebrow">Budget</p>
+                    <h4 class="finance-modal-title" id="budget-editor-title">Set Budget</h4>
+                    <p class="finance-modal-subtitle">
+                        Planned amounts for <span x-text="monthLabel"><?= htmlspecialchars(date('F Y', strtotime($month . '-01'))) ?></span>
+                        (<?= htmlspecialchars($fyLabel) ?>). These drive on-track / over-budget tracking.
+                    </p>
+                </div>
+                <button type="button" @click="closeBudgetEditor()" class="finance-modal-close" aria-label="Close">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </header>
+
+            <form method="post" action="/admin/finance/budget" class="fin-budget-editor" @submit="saveBudgetMonth($event)">
+                <input type="hidden" name="budget_year" value="<?= (int) $budgetYear ?>">
+                <input type="hidden" name="month" :value="weeklyMonth" value="<?= htmlspecialchars($month) ?>">
+
+                <div class="finance-modal-body finance-modal-body--sunday">
+                    <div class="fin-budget-editor__totals">
+                        <div class="fin-budget-editor__total fin-budget-editor__total--in">
+                            <span>Income planned</span>
+                            <strong x-text="'KES ' + formatMoneyPlain(budgetEditIncomeTotal)">KES 0</strong>
+                        </div>
+                        <div class="fin-budget-editor__total fin-budget-editor__total--out">
+                            <span>Expenses planned</span>
+                            <strong x-text="'KES ' + formatMoneyPlain(budgetEditExpenseTotal)">KES 0</strong>
+                        </div>
+                    </div>
+
+                    <section class="fin-budget-editor__section">
+                        <div class="fin-budget-editor__section-head">
+                            <h3>Income</h3>
+                            <button type="button" class="fin-link" @click="startBudgetNewLine('income')">+ Add income line</button>
+                        </div>
+                        <template x-for="line in budgetEditIncomeLines" :key="'in-' + line.id">
+                            <div class="fin-budget-editor__row">
+                                <div class="fin-budget-editor__meta">
+                                    <span class="fin-budget-editor__label" x-text="line.label"></span>
+                                </div>
+                                <div class="fin-budget-editor__controls">
+                                    <div class="fin-amt-row__field">
+                                        <span class="fin-amt-row__currency">KES</span>
+                                        <input type="number"
+                                               min="0"
+                                               step="1"
+                                               inputmode="numeric"
+                                               class="fin-amt-row__input finance-input"
+                                               :name="'amounts[' + line.id + ']'"
+                                               x-model.number="line.amount"
+                                               @focus="$el.select()">
+                                    </div>
+                                    <button type="button"
+                                            class="fin-budget-editor__delete"
+                                            title="Delete income line"
+                                            aria-label="Delete income line"
+                                            @click="deleteBudgetLine(line)">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                        <p class="finance-field-hint" x-show="budgetEditIncomeLines.length === 0 && !(budgetNewLine && budgetNewLine.line_type === 'income')">No income lines yet — add one above.</p>
+                        <div class="fin-budget-newline"
+                             x-show="budgetNewLine && budgetNewLine.line_type === 'income'"
+                             x-cloak
+                             x-ref="budgetNewIncome">
+                            <template x-if="budgetNewLine && budgetNewLine.line_type === 'income'">
+                                <div>
+                                    <p class="fin-budget-newline__title">New income line</p>
+                                    <div class="fin-budget-newline__fields">
+                                        <input type="text"
+                                               required
+                                               class="finance-input"
+                                               placeholder="Line name"
+                                               x-model="budgetNewLine.label"
+                                               @keydown.enter.prevent="saveBudgetNewLine()">
+                                        <div class="fin-amt-row__field">
+                                            <span class="fin-amt-row__currency">KES</span>
+                                            <input type="number"
+                                                   min="0"
+                                                   step="1"
+                                                   class="fin-amt-row__input finance-input"
+                                                   placeholder="0"
+                                                   x-model.number="budgetNewLine.amount"
+                                                   @keydown.enter.prevent="saveBudgetNewLine()">
+                                        </div>
+                                        <button type="button" class="finance-btn-primary" @click="saveBudgetNewLine()">Add</button>
+                                        <button type="button" class="finance-btn-secondary" @click="budgetNewLine = null">Cancel</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+
+                    <section class="fin-budget-editor__section">
+                        <div class="fin-budget-editor__section-head">
+                            <h3>Expenses</h3>
+                            <button type="button" class="fin-link" @click="startBudgetNewLine('expense')">+ Add expense line</button>
+                        </div>
+                        <template x-for="line in budgetEditExpenseLines" :key="'ex-' + line.id">
+                            <div class="fin-budget-editor__row">
+                                <div class="fin-budget-editor__meta">
+                                    <span class="fin-budget-editor__section-tag" x-show="line.section" x-text="line.section"></span>
+                                    <span class="fin-budget-editor__label" x-text="line.label"></span>
+                                </div>
+                                <div class="fin-budget-editor__controls">
+                                    <div class="fin-amt-row__field">
+                                        <span class="fin-amt-row__currency">KES</span>
+                                        <input type="number"
+                                               min="0"
+                                               step="1"
+                                               inputmode="numeric"
+                                               class="fin-amt-row__input finance-input"
+                                               :name="'amounts[' + line.id + ']'"
+                                               x-model.number="line.amount"
+                                               @focus="$el.select()">
+                                    </div>
+                                    <button type="button"
+                                            class="fin-budget-editor__delete"
+                                            title="Delete expense line"
+                                            aria-label="Delete expense line"
+                                            @click="deleteBudgetLine(line)">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                        <p class="finance-field-hint" x-show="budgetEditExpenseLines.length === 0 && !(budgetNewLine && budgetNewLine.line_type === 'expense')">No expense lines yet — add one above.</p>
+                        <div class="fin-budget-newline"
+                             x-show="budgetNewLine && budgetNewLine.line_type === 'expense'"
+                             x-cloak
+                             x-ref="budgetNewExpense">
+                            <template x-if="budgetNewLine && budgetNewLine.line_type === 'expense'">
+                                <div>
+                                    <p class="fin-budget-newline__title">New expense line</p>
+                                    <div class="fin-budget-newline__fields">
+                                        <input type="text"
+                                               required
+                                               class="finance-input"
+                                               placeholder="Line name"
+                                               x-model="budgetNewLine.label"
+                                               @keydown.enter.prevent="saveBudgetNewLine()">
+                                        <div class="fin-amt-row__field">
+                                            <span class="fin-amt-row__currency">KES</span>
+                                            <input type="number"
+                                                   min="0"
+                                                   step="1"
+                                                   class="fin-amt-row__input finance-input"
+                                                   placeholder="0"
+                                                   x-model.number="budgetNewLine.amount"
+                                                   @keydown.enter.prevent="saveBudgetNewLine()">
+                                        </div>
+                                        <button type="button" class="finance-btn-primary" @click="saveBudgetNewLine()">Add</button>
+                                        <button type="button" class="finance-btn-secondary" @click="budgetNewLine = null">Cancel</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                </div>
+
+                <footer class="finance-modal-footer">
+                    <div class="finance-modal-actions finance-modal-actions--end">
+                        <button type="button" @click="closeBudgetEditor()" class="finance-btn-secondary">Cancel</button>
+                        <button type="submit" class="finance-btn-primary">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            Save budget
+                        </button>
+                    </div>
+                </footer>
+            </form>
+        </div>
+    </div>
 </div>

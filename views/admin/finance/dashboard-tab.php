@@ -28,8 +28,8 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
                 <i data-lucide="trending-up" class="fin-kpi__icon"></i>
             </div>
             <div class="fin-kpi__body">
-                <p class="fin-kpi__label">Collections <?= (int) $year ?></p>
-                <p class="fin-kpi__value">KES <?= $fmt($colYtd) ?></p>
+                <p class="fin-kpi__label">Collections <span x-text="year"><?= (int) $year ?></span></p>
+                <p class="fin-kpi__value">KES <span x-text="formatMoneyPlain(dashboard.collections_ytd)"><?= $fmt($colYtd) ?></span></p>
                 <p class="fin-kpi__hint">Total received this year</p>
             </div>
         </article>
@@ -38,18 +38,22 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
                 <i data-lucide="wallet" class="fin-kpi__icon"></i>
             </div>
             <div class="fin-kpi__body">
-                <p class="fin-kpi__label">Expenses <?= (int) $year ?></p>
-                <p class="fin-kpi__value">KES <?= $fmt($expYtd) ?></p>
+                <p class="fin-kpi__label">Expenses <span x-text="year"><?= (int) $year ?></span></p>
+                <p class="fin-kpi__value">KES <span x-text="formatMoneyPlain(dashboard.expenses_ytd)"><?= $fmt($expYtd) ?></span></p>
                 <p class="fin-kpi__hint">Sunday cash spending</p>
             </div>
         </article>
-        <article class="fin-kpi <?= $netOp >= 0 ? 'fin-kpi--surplus' : 'fin-kpi--deficit' ?>">
+        <article class="fin-kpi" :class="Number(dashboard.net_operating) >= 0 ? 'fin-kpi--surplus' : 'fin-kpi--deficit'">
             <div class="fin-kpi__icon-wrap">
                 <i data-lucide="scale" class="fin-kpi__icon"></i>
             </div>
             <div class="fin-kpi__body">
                 <p class="fin-kpi__label">Operating balance</p>
-                <p class="fin-kpi__value"><?= $netOp < 0 ? '-' : '' ?>KES <?= $fmt(abs($netOp)) ?></p>
+                <p class="fin-kpi__value">
+                    <span x-text="(Number(dashboard.net_operating) < 0 ? '-' : '') + 'KES ' + formatMoneyPlain(Math.abs(Number(dashboard.net_operating) || 0))">
+                        <?= $netOp < 0 ? '-' : '' ?>KES <?= $fmt(abs($netOp)) ?>
+                    </span>
+                </p>
                 <p class="fin-kpi__hint">Collections minus expenses</p>
             </div>
         </article>
@@ -59,8 +63,12 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
             </div>
             <div class="fin-kpi__body">
                 <p class="fin-kpi__label">Outstanding bills</p>
-                <p class="fin-kpi__value">KES <?= $fmt($arrearsOwing) ?></p>
-                <p class="fin-kpi__hint"><?= (int) ($d['arrears_count'] ?? 0) ?> unpaid bill<?= ((int) ($d['arrears_count'] ?? 0)) === 1 ? '' : 's' ?></p>
+                <p class="fin-kpi__value">KES <span x-text="formatMoneyPlain(dashboard.arrears_owing)"><?= $fmt($arrearsOwing) ?></span></p>
+                <p class="fin-kpi__hint">
+                    <span x-text="(Number(dashboard.arrears_count) || 0) + ((Number(dashboard.arrears_count) || 0) === 1 ? ' unpaid bill' : ' unpaid bills')">
+                        <?= (int) ($d['arrears_count'] ?? 0) ?> unpaid bill<?= ((int) ($d['arrears_count'] ?? 0)) === 1 ? '' : 's' ?>
+                    </span>
+                </p>
             </div>
         </article>
     </div>
@@ -89,7 +97,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
             <p class="fin-highlight__value">KES <?= $fmt((float) ($budgetSnap['fy_budget_expenses'] ?? 0)) ?></p>
             <p class="fin-highlight__formula">Annual expense budget — no line items set for <?= htmlspecialchars($budgetSnap['label'] ?? 'this month') ?> yet</p>
             <?php endif; ?>
-            <a href="/admin/finance?tab=reports&sub=budget&budget_year=<?= $budgetYearDash ?>&month=<?= htmlspecialchars($month) ?>" class="fin-link fin-budget-link">Budget report →</a>
+            <a href="/admin/finance?tab=budget&budget_year=<?= $budgetYearDash ?>&month=<?= htmlspecialchars($month) ?>" class="fin-link fin-budget-link">Budget report →</a>
         </article>
         <?php else: ?>
         <article class="fin-highlight fin-highlight--neutral">
@@ -114,7 +122,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
         <div class="fin-panel fin-panel--wide">
             <div class="fin-panel__head">
                 <h3 class="fin-panel__title">Monthly overview</h3>
-                <a href="/admin/finance?tab=reports&sub=budget&month=<?= htmlspecialchars($month) ?>" class="fin-link">Budget report →</a>
+                <a href="/admin/finance?tab=budget&month=<?= htmlspecialchars($month) ?>" class="fin-link">Budget report →</a>
             </div>
             <div class="fin-table-wrap" tabindex="0" role="region" aria-label="Monthly performance">
                 <table class="fin-table">
@@ -144,7 +152,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
                         <?php endforeach; ?>
                         <?php if ($colYtd <= 0 && $expYtd <= 0): ?>
                         <tr>
-                            <td colspan="4" class="fin-table__empty">No activity recorded yet. <a href="/admin/finance/sunday" class="fin-link">Record your first Sunday →</a></td>
+                            <td colspan="4" class="fin-table__empty">No activity recorded yet. <button type="button" @click="openSundayModal()" class="fin-link">Record your first Sunday →</button></td>
                         </tr>
                         <?php endif; ?>
                     </tbody>
@@ -193,7 +201,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
     <div class="fin-panel">
         <div class="fin-panel__head">
             <h3 class="fin-panel__title">Recent Sundays</h3>
-            <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month) ?>" class="fin-link">Record Sunday →</a>
+            <a href="#" @click.prevent="openSundayModal()" class="fin-link">Record Sunday →</a>
         </div>
         <div class="fin-sundays-table" role="table" aria-label="Recent Sunday entries">
             <div class="fin-sundays-table__row fin-sundays-table__row--head" role="row">
@@ -209,7 +217,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
             ?>
             <div class="fin-sundays-table__row" role="row">
                 <div class="fin-sundays-table__cell fin-sundays-table__cell--date" role="cell">
-                    <a href="/admin/finance/sunday?month=<?= htmlspecialchars(substr($w['week_date'], 0, 7)) ?>&week_date=<?= htmlspecialchars($w['week_date']) ?>"
+                    <a href="/admin/finance?tab=dashboard&month=<?= htmlspecialchars(substr($w['week_date'], 0, 7)) ?>&record=1&record_date=<?= htmlspecialchars($w['week_date']) ?>"
                        class="fin-link fin-sundays-table__date-link">
                         <?= date('j M Y', strtotime($w['week_date'])) ?>
                     </a>

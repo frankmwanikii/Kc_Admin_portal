@@ -34,6 +34,7 @@ use App\Controllers\Admin\MinistryController;
 
 use App\Controllers\Admin\SettingsController;
 use App\Controllers\Admin\StaffController;
+use App\Controllers\Admin\ProfileController;
 
 
 
@@ -130,6 +131,7 @@ $router->post('/admin/inventory/{id}/delete', [InventoryController::class, 'dele
 
 
 $router->get('/admin/finance', [FinanceController::class, 'index']);
+$router->get('/admin/finance/data', [FinanceController::class, 'data']);
 
 $router->get('/admin/finance/sunday', [FinanceController::class, 'sundayEntry']);
 $router->post('/admin/finance/sunday', [FinanceController::class, 'storeSundayEntry']);
@@ -153,12 +155,18 @@ $router->post('/admin/finance/weekly/categories/{slug}/delete', [FinanceControll
 $router->get('/admin/finance/collections/weekly/entry', [FinanceController::class, 'weeklyCollectionsEntry']);
 
 $router->post('/admin/finance/collections/weekly', [FinanceController::class, 'storeWeeklyCollections']);
+$router->post('/admin/finance/collections/weekly/methods/{method}', [FinanceController::class, 'updateWeeklyCollectionMethod']);
+$router->post('/admin/finance/collections/weekly/methods/{method}/clear', [FinanceController::class, 'clearWeeklyCollectionMethod']);
 
 $router->post('/admin/finance/collections', [FinanceController::class, 'storeCollection']);
 $router->post('/admin/finance/collections/{id}/delete', [FinanceController::class, 'deleteCollection']);
 
 $router->get('/admin/finance/statement/pdf', [FinanceController::class, 'downloadStatementPdf']);
 $router->get('/admin/finance/statement/csv', [FinanceController::class, 'downloadStatementCsv']);
+$router->get('/admin/finance/statement/data', [FinanceController::class, 'statementData']);
+$router->post('/admin/finance/budget', [FinanceController::class, 'storeBudgetMonth']);
+$router->post('/admin/finance/budget/lines', [FinanceController::class, 'storeBudgetLine']);
+$router->post('/admin/finance/budget/lines/{id}/delete', [FinanceController::class, 'deleteBudgetLine']);
 
 
 
@@ -179,4 +187,7 @@ $router->get('/admin/onboarding-qr', [OnboardingController::class, 'qrDisplay'])
 $router->get('/admin/settings', [SettingsController::class, 'index']);
 
 $router->post('/admin/settings', [SettingsController::class, 'update']);
+
+$router->get('/admin/profile', [ProfileController::class, 'index']);
+$router->post('/admin/profile', [ProfileController::class, 'update']);
 

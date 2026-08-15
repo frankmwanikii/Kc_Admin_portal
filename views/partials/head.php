@@ -37,6 +37,15 @@ tailwind.config = {
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
 </style>
 <?php foreach ($pageScripts ?? [] as $src): ?>
-<script defer src="<?= htmlspecialchars((string) $src) ?>"></script>
+<?php
+    $src = (string) $src;
+    if (str_starts_with($src, '/') && !str_contains($src, '?')) {
+        $absolute = dirname(__DIR__, 2) . '/public' . $src;
+        if (is_file($absolute)) {
+            $src .= '?v=' . (int) filemtime($absolute);
+        }
+    }
+?>
+<script defer src="<?= htmlspecialchars($src) ?>"></script>
 <?php endforeach; ?>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>

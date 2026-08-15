@@ -19,11 +19,13 @@ class FinanceController
         FinanceReconciliationService::ensureTables();
 
         $tab = $_GET['tab'] ?? 'dashboard';
-        $reportSub = $_GET['sub'] ?? 'reconciliation';
-        if (!in_array($reportSub, ['reconciliation', 'statement', 'budget'], true)) {
-            $reportSub = 'reconciliation';
+        $reportSub = $_GET['sub'] ?? '';
+        // Legacy: Budget / Reconciliation lived under Reports subtabs.
+        if ($tab === 'reports' && in_array($reportSub, ['budget', 'reconciliation'], true)) {
+            $tab = $reportSub;
+            $reportSub = '';
         }
-        if (in_array($tab, ['reconciliation', 'statement'], true)) {
+        if ($tab === 'statement') {
             $tab = 'reports';
         }
         if (in_array($tab, ['arrears'], true)) {
@@ -75,7 +77,30 @@ class FinanceController
         $expenseCatalog = [];
         $statement = [];
         $budget = [];
-        $hubConfig = ['year' => $year, 'paymentMethods' => $paymentMethods];
+        $recordSunday = isset($_GET['record']);
+        $recordDate = trim((string) ($_GET['record_date'] ?? ''));
+        $sundayForm = $this->sundayFormPayload($month, $recordDate !== '' ? $recordDate : null);
+        $presets = $sundayForm['sundayPresets'];
+        $expenseCatalog = FinanceReconciliationService::allExpenseCatalog();
+        $hubConfig = [
+            'year' => $year,
+            'month' => $month,
+            'paymentMethods' => $paymentMethods,
+            'openSundayModal' => $recordSunday,
+            'weeklyMonth' => $month,
+            'expenseGroups' => array_values($expenseCatalog),
+            'sundaySessionsByDate' => $sundayForm['sundaySessionsByDate'],
+            'sundayFormBase' => [
+                'weekDate' => $sundayForm['sundayWeekDate'],
+                'methods' => array_keys($sundayForm['sundayPaymentMethods']),
+                'categories' => array_keys($sundayForm['sundayCategories']),
+                'presets' => $presets,
+                'presetTotals' => [
+                    'standard' => array_sum($presets['standard'] ?? []),
+                    'full' => array_sum($presets['full'] ?? []),
+                ],
+            ],
+        ];
 
         switch ($tab) {
             case 'dashboard':
@@ -107,42 +132,46 @@ class FinanceController
                     'paid' => array_sum(array_column($arrears, 'amount_paid')),
                     'balance' => array_sum(array_column($arrears, 'balance_owing')),
                 ];
-                $expenseCatalog = FinanceReconciliationService::allExpenseCatalog();
                 $hubConfig['arrears'] = array_values($arrears);
-                $hubConfig['expenseGroups'] = array_values($expenseCatalog);
+                $hubConfig['arrearsTotals'] = $arrearsTotals;
                 break;
 
             case 'ledger':
-                if ($ledgerSub === 'collections') {
-                    $weeklyCollections = FinanceReconciliationService::weeklyCollectionsGrid($month);
-                    $hubConfig['weeklyCollectionRows'] = array_values($weeklyCollections['rows']);
-                    $hubConfig['weeklyCollectionSundays'] = $weeklyCollections['sundays'];
-                } else {
-                    $weekly = FinanceReconciliationService::weeklyGrid($month);
-                    $expenseCatalog = FinanceReconciliationService::allExpenseCatalog();
-                    $hubConfig['weeklyRows'] = array_values($weekly['rows']);
-                    $hubConfig['weeklySundays'] = $weekly['sundays'];
-                    $hubConfig['weeklyMonth'] = $month;
-                    $hubConfig['expenseGroups'] = array_values($expenseCatalog);
-                }
+                $weekly = FinanceReconciliationService::weeklyGrid($month);
+                $weeklyCollections = FinanceReconciliationService::weeklyCollectionsGrid($month);
+                $hubConfig['weeklyRows'] = array_values($weekly['rows']);
+                $hubConfig['weeklySundays'] = $weekly['sundays'];
+                $hubConfig['weeklyCollectionRows'] = array_values($weeklyCollections['rows']);
+                $hubConfig['weeklyCollectionSundays'] = $weeklyCollections['sundays'];
+                $hubConfig['weeklyMonth'] = $month;
+                $hubConfig['ledgerSub'] = $ledgerSub;
+                break;
+
+            case 'reconciliation':
+                $reconciliation = FinanceReconciliationService::monthReconciliation($month);
+                $hubConfig['reconciliation'] = $reconciliation;
+                break;
+
+            case 'budget':
+                FinanceBudgetService::ensureTables();
+                $budget = FinanceBudgetService::buildBudgetVsActual($budgetYear, $month);
+                $hubConfig['budget'] = $budget;
+                $hubConfig['budgetYear'] = $budgetYear;
+                $hubConfig['budgetEditLines'] = FinanceBudgetService::linesForEdit($budgetYear, $month);
+                $hubConfig['weeklyMonth'] = $month;
                 break;
 
             case 'reports':
-                if ($reportSub === 'statement') {
-                    $statement = FinanceReconciliationService::buildStatement(
-                        $statementView,
-                        $year,
-                        $month,
-                        $weekDate ?: null
-                    );
-                } elseif ($reportSub === 'budget') {
-                    FinanceBudgetService::ensureTables();
-                    $budget = FinanceBudgetService::buildBudgetVsActual($budgetYear, $month);
-                    $hubConfig['budget'] = $budget;
-                } else {
-                    $reconciliation = FinanceReconciliationService::monthReconciliation($month);
-                    $hubConfig['reconciliation'] = $reconciliation;
-                }
+                $statement = FinanceReconciliationService::buildStatement(
+                    $statementView,
+                    $year,
+                    $month,
+                    $weekDate ?: null
+                );
+                $hubConfig['statementView'] = $statementView;
+                $hubConfig['statementWeekDate'] = $weekDate;
+                $hubConfig['statementSundays'] = $statementSundays;
+                $hubConfig['weeklyMonth'] = $month;
                 break;
         }
 
@@ -150,6 +179,8 @@ class FinanceController
             'dashboard' => 'Finance overview',
             'bills' => 'Bills',
             'ledger' => 'Ledger',
+            'reconciliation' => 'Reconciliation',
+            'budget' => 'Budget',
             'reports' => 'Reports',
         ];
 
@@ -176,10 +207,48 @@ class FinanceController
             'budgetYear' => $budgetYear,
             'budget' => $budget,
             'hubConfig' => $hubConfig,
-            'churchName' => $churchConfig['site_name'] ?? 'Church',
+            'churchName' => SettingsService::churchName() ?: ($churchConfig['site_name'] ?? 'Church'),
             'statementLogoUrl' => FinanceReconciliationService::statementLogoUrl(),
             'statementDisclaimer' => FinanceReconciliationService::STATEMENT_DISCLAIMER,
-        ], $this->financePageAssets(['/css/admin-pagination.css'])), 'layouts/admin');
+        ], $sundayForm, $this->financePageAssets(['/css/admin-pagination.css'])), 'layouts/admin');
+    }
+
+    /**
+     * Shared payload for the Record Sunday modal (and legacy /sunday redirect).
+     *
+     * @return array<string, mixed>
+     */
+    private function sundayFormPayload(string $month, ?string $weekDate = null): array
+    {
+        $sundays = FinanceReconciliationService::sundaysInMonth($month);
+        if ($weekDate === null || $weekDate === '') {
+            $weekDate = FinanceReconciliationService::suggestedSundayDate($month);
+        }
+        if ($weekDate !== '' && $sundays !== [] && !in_array($weekDate, $sundays, true)) {
+            $weekDate = FinanceReconciliationService::suggestedSundayDate($month);
+        }
+
+        $session = $weekDate !== ''
+            ? FinanceReconciliationService::sundaySessionData($weekDate)
+            : ['collections' => [], 'expenses' => [], 'notes' => ''];
+        $categories = FinanceReconciliationService::allWeeklyCategories();
+        $sessionsByDate = FinanceReconciliationService::sundaySessionsForDates($sundays);
+
+        return [
+            'sundayMonth' => $month,
+            'sundayWeekDate' => $weekDate,
+            'sundaySundays' => $sundays,
+            'sundayCategories' => $categories,
+            'sundayCollections' => $session['collections'],
+            'sundayExpenses' => $session['expenses'],
+            'sundayNotes' => $session['notes'],
+            'sundaySessionsByDate' => $sessionsByDate,
+            'sundayPresets' => [
+                'standard' => FinanceReconciliationService::SUNDAY_PRESET_STANDARD,
+                'full' => FinanceReconciliationService::SUNDAY_PRESET_FULL,
+            ],
+            'sundayPaymentMethods' => FinanceReconciliationService::PAYMENT_METHODS,
+        ];
     }
 
     public function storeArrear(): void
@@ -188,10 +257,17 @@ class FinanceController
         $year = (int) ($_POST['budget_year'] ?? date('Y'));
         try {
             FinanceReconciliationService::saveArrear($this->arrearPostData());
-        } catch (\InvalidArgumentException) {
-            // validation failed — return to form
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=bills&year=' . $year,
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not save bill.'],
+                422
+            );
         }
-        View::redirect('/admin/finance?tab=bills&year=' . $year);
+        $this->respondMutation(
+            '/admin/finance?tab=bills&year=' . $year,
+            array_merge(['ok' => true, 'message' => 'Bill saved.', 'year' => $year], $this->billsAjaxPayload($year))
+        );
     }
 
     public function updateArrear(string $id): void
@@ -200,10 +276,17 @@ class FinanceController
         $year = (int) ($_POST['budget_year'] ?? date('Y'));
         try {
             FinanceReconciliationService::saveArrear($this->arrearPostData(), (int) $id);
-        } catch (\InvalidArgumentException) {
-            // validation failed — return to form
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=bills&year=' . $year,
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not update bill.'],
+                422
+            );
         }
-        View::redirect('/admin/finance?tab=bills&year=' . $year);
+        $this->respondMutation(
+            '/admin/finance?tab=bills&year=' . $year,
+            array_merge(['ok' => true, 'message' => 'Bill updated.', 'year' => $year], $this->billsAjaxPayload($year))
+        );
     }
 
     /** @return array<string, mixed> */
@@ -230,51 +313,92 @@ class FinanceController
     public function deleteArrear(string $id): void
     {
         Auth::requireAdmin();
+        $year = (int) ($_POST['budget_year'] ?? $_GET['year'] ?? date('Y'));
         FinanceReconciliationService::deleteArrear((int) $id);
-        View::redirect('/admin/finance?tab=bills');
+        $this->respondMutation(
+            '/admin/finance?tab=bills&year=' . $year,
+            array_merge(['ok' => true, 'message' => 'Bill deleted.', 'year' => $year], $this->billsAjaxPayload($year))
+        );
+    }
+
+    public function data(): void
+    {
+        Auth::requireAdmin();
+        FinanceReconciliationService::ensureTables();
+
+        $month = (string) ($_GET['month'] ?? date('Y-m'));
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $month = date('Y-m');
+        }
+        $year = (int) ($_GET['year'] ?? substr($month, 0, 4));
+        if ($year < 2000 || $year > 2100) {
+            $year = (int) date('Y');
+        }
+
+        $dashboard = FinanceReconciliationService::buildDashboard($year);
+        try {
+            $dashboard['budget'] = FinanceBudgetService::currentMonthSnapshot(
+                FinanceBudgetService::budgetYearForDate($month . '-01'),
+                $month
+            );
+        } catch (\Throwable) {
+            $dashboard['budget'] = [
+                'month' => $month,
+                'label' => date('M Y', strtotime($month . '-01')),
+                'budget_expenses' => 0.0,
+                'actual_expenses' => 0.0,
+                'expense_used_pct' => null,
+                'status' => 'neutral',
+                'status_label' => 'Unavailable',
+                'has_activity' => false,
+            ];
+        }
+
+        $payload = array_merge(
+            [
+                'ok' => true,
+                'year' => $year,
+                'month' => $month,
+                'dashboard' => $dashboard,
+                'reconciliation' => FinanceReconciliationService::monthReconciliation($month),
+            ],
+            $this->ledgerAjaxPayload($month),
+            $this->billsAjaxPayload($year)
+        );
+
+        View::json($payload);
     }
 
     public function sundayEntry(): void
     {
         Auth::requireAdmin();
-        FinanceReconciliationService::ensureTables();
-
         $month = $_GET['month'] ?? date('Y-m');
-        $sundays = FinanceReconciliationService::sundaysInMonth($month);
-        $weekDate = $_GET['week_date'] ?? FinanceReconciliationService::suggestedSundayDate($month);
-        if ($weekDate !== '' && $sundays !== [] && !in_array($weekDate, $sundays, true)) {
-            $weekDate = FinanceReconciliationService::suggestedSundayDate($month);
-        }
-
-        $session = $weekDate !== '' ? FinanceReconciliationService::sundaySessionData($weekDate) : ['collections' => [], 'expenses' => [], 'notes' => ''];
-        $categories = FinanceReconciliationService::allWeeklyCategories();
-
-        $sessionsByDate = FinanceReconciliationService::sundaySessionsForDates($sundays);
-
-        View::render('admin/finance/sunday-entry', array_merge([
-            'title' => 'Record Sunday',
+        $weekDate = trim((string) ($_GET['week_date'] ?? ''));
+        $qs = http_build_query(array_filter([
+            'tab' => 'ledger',
             'month' => $month,
-            'weekDate' => $weekDate,
-            'sundays' => $sundays,
-            'categories' => $categories,
-            'collections' => $session['collections'],
-            'expenses' => $session['expenses'],
-            'notes' => $session['notes'],
-            'sessionsByDate' => $sessionsByDate,
-            'paymentMethods' => FinanceReconciliationService::PAYMENT_METHODS,
-            'presets' => [
-                'standard' => FinanceReconciliationService::SUNDAY_PRESET_STANDARD,
-                'full' => FinanceReconciliationService::SUNDAY_PRESET_FULL,
-            ],
-        ], $this->financePageAssets()), 'layouts/admin');
+            'record' => '1',
+            'record_date' => $weekDate !== '' ? $weekDate : null,
+        ]));
+        View::redirect('/admin/finance?' . $qs);
     }
 
     public function storeSundayEntry(): void
     {
         Auth::requireAdmin();
         $weekDate = trim($_POST['week_date'] ?? '');
+        $returnTab = trim((string) ($_POST['return_tab'] ?? 'ledger'));
+        if (!in_array($returnTab, ['dashboard', 'bills', 'ledger', 'reconciliation', 'budget', 'reports'], true)) {
+            $returnTab = 'ledger';
+        }
+        $returnSub = trim((string) ($_POST['return_sub'] ?? ''));
+
         if ($weekDate === '') {
-            View::redirect('/admin/finance/sunday');
+            $this->respondMutation(
+                '/admin/finance?tab=' . urlencode($returnTab) . '&record=1',
+                ['ok' => false, 'message' => 'Choose a Sunday date.'],
+                422
+            );
         }
 
         $collectionAmounts = [];
@@ -295,7 +419,18 @@ class FinanceController
         );
 
         $month = substr($weekDate, 0, 7);
-        View::redirect('/admin/finance/sunday?month=' . urlencode($month) . '&week_date=' . urlencode($weekDate) . '&saved=1');
+        $qs = [
+            'tab' => $returnTab,
+            'month' => $month,
+            'saved' => '1',
+        ];
+        if ($returnSub !== '' && in_array($returnSub, ['expenses', 'collections'], true)) {
+            $qs['sub'] = $returnSub;
+        }
+        $this->respondMutation(
+            '/admin/finance?' . http_build_query($qs),
+            array_merge(['ok' => true, 'message' => 'Sunday saved.'], $this->ledgerAjaxPayload($month))
+        );
     }
 
     public function weeklyEntry(): void
@@ -347,10 +482,17 @@ class FinanceController
                 $departmentId,
                 $expenseCategoryId
             );
-        } catch (\InvalidArgumentException) {
-            // ignore validation errors
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not add category.'],
+                422
+            );
         }
-        View::redirect('/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month));
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Category added.'], $this->ledgerAjaxPayload($month))
+        );
     }
 
     public function updateWeeklyCategory(string $slug): void
@@ -366,10 +508,17 @@ class FinanceController
                 $departmentId,
                 $expenseCategoryId
             );
-        } catch (\InvalidArgumentException) {
-            // ignore validation errors
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not update category.'],
+                422
+            );
         }
-        View::redirect('/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month));
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Category updated.'], $this->ledgerAjaxPayload($month))
+        );
     }
 
     /** @return array{0: int, 1: int|null, 2: string} */
@@ -405,7 +554,10 @@ class FinanceController
         Auth::requireAdmin();
         $month = $_POST['month'] ?? date('Y-m');
         FinanceReconciliationService::deleteWeeklyCategory($slug);
-        View::redirect('/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month));
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Category deleted.'], $this->ledgerAjaxPayload($month))
+        );
     }
 
     public function storeWeekly(): void
@@ -418,7 +570,10 @@ class FinanceController
         }
         FinanceReconciliationService::saveWeeklyEntry($weekDate, $amounts);
         $month = substr($weekDate, 0, 7);
-        View::redirect('/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month));
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=expenses&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Expenses saved.'], $this->ledgerAjaxPayload($month))
+        );
     }
 
     public function weeklyCollectionsEntry(): void
@@ -465,7 +620,54 @@ class FinanceController
         FinanceReconciliationService::saveWeeklyCollectionEntry($weekDate, $amounts);
         $month = substr($weekDate, 0, 7);
         $year = (int) substr($weekDate, 0, 4);
-        View::redirect('/admin/finance?tab=ledger&sub=collections&year=' . $year . '&month=' . urlencode($month));
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=collections&year=' . $year . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Collections saved.'], $this->ledgerAjaxPayload($month))
+        );
+    }
+
+    public function updateWeeklyCollectionMethod(string $method): void
+    {
+        Auth::requireAdmin();
+        $month = trim((string) ($_POST['month'] ?? date('Y-m')));
+        $amounts = $_POST['amounts'] ?? [];
+        if (!is_array($amounts)) {
+            $amounts = [];
+        }
+        try {
+            FinanceReconciliationService::saveCollectionMethodMonth($method, $month, $amounts);
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=ledger&sub=collections&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not update amounts.'],
+                422
+            );
+        }
+        $year = (int) substr($month, 0, 4);
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=collections&year=' . $year . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Amounts updated.'], $this->ledgerAjaxPayload($month))
+        );
+    }
+
+    public function clearWeeklyCollectionMethod(string $method): void
+    {
+        Auth::requireAdmin();
+        $month = trim((string) ($_POST['month'] ?? date('Y-m')));
+        try {
+            FinanceReconciliationService::clearCollectionMethodMonth($method, $month);
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=ledger&sub=collections&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not clear amounts.'],
+                422
+            );
+        }
+        $year = (int) substr($month, 0, 4);
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=collections&year=' . $year . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Amounts cleared.'], $this->ledgerAjaxPayload($month))
+        );
     }
 
     public function storeCollection(): void
@@ -482,14 +684,167 @@ class FinanceController
             'budget_year' => $_POST['budget_year'] ?? date('Y'),
         ]);
         $month = substr($date, 0, 7);
-        View::redirect('/admin/finance?tab=reports&sub=reconciliation&year=' . (int) ($_POST['budget_year'] ?? date('Y')) . '&month=' . urlencode($month));
+        View::redirect('/admin/finance?tab=reconciliation&year=' . (int) ($_POST['budget_year'] ?? date('Y')) . '&month=' . urlencode($month));
     }
 
     public function deleteCollection(string $id): void
     {
         Auth::requireAdmin();
         FinanceReconciliationService::deleteCollection((int) $id);
-        View::redirect('/admin/finance?tab=reports&sub=reconciliation');
+        View::redirect('/admin/finance?tab=reconciliation');
+    }
+
+    public function storeBudgetMonth(): void
+    {
+        Auth::requireAdmin();
+        FinanceBudgetService::ensureTables();
+
+        $budgetYear = (int) ($_POST['budget_year'] ?? date('Y'));
+        $month = trim((string) ($_POST['month'] ?? date('Y-m')));
+        $amounts = $_POST['amounts'] ?? [];
+        if (!is_array($amounts)) {
+            $amounts = [];
+        }
+
+        try {
+            FinanceBudgetService::saveMonthAmounts($budgetYear, $month, $amounts);
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not save budget.'],
+                422
+            );
+        }
+
+        $this->respondMutation(
+            '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+            array_merge(
+                ['ok' => true, 'message' => 'Budget saved. Tracking will use these figures.'],
+                $this->budgetAjaxPayload($budgetYear, $month)
+            )
+        );
+    }
+
+    public function storeBudgetLine(): void
+    {
+        Auth::requireAdmin();
+        FinanceBudgetService::ensureTables();
+
+        $budgetYear = (int) ($_POST['budget_year'] ?? date('Y'));
+        $month = trim((string) ($_POST['month'] ?? date('Y-m')));
+
+        try {
+            $id = FinanceBudgetService::addLine($budgetYear, [
+                'line_type' => $_POST['line_type'] ?? 'expense',
+                'section' => $_POST['section'] ?? '',
+                'label' => $_POST['label'] ?? '',
+                'account_code' => $_POST['account_code'] ?? '',
+            ]);
+            $amount = round((float) ($_POST['amount'] ?? 0), 2);
+            if ($amount > 0) {
+                FinanceBudgetService::saveMonthAmounts($budgetYear, $month, [$id => $amount]);
+            }
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not add budget line.'],
+                422
+            );
+        }
+
+        $this->respondMutation(
+            '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+            array_merge(
+                ['ok' => true, 'message' => 'Budget line added.'],
+                $this->budgetAjaxPayload($budgetYear, $month)
+            )
+        );
+    }
+
+    public function deleteBudgetLine(string $id): void
+    {
+        Auth::requireAdmin();
+        FinanceBudgetService::ensureTables();
+
+        $budgetYear = (int) ($_POST['budget_year'] ?? date('Y'));
+        $month = trim((string) ($_POST['month'] ?? date('Y-m')));
+        $lineId = (int) $id;
+
+        try {
+            FinanceBudgetService::deleteLine($budgetYear, $lineId);
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not delete budget line.'],
+                422
+            );
+        }
+
+        $this->respondMutation(
+            '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+            array_merge(
+                ['ok' => true, 'message' => 'Budget line deleted.'],
+                $this->budgetAjaxPayload($budgetYear, $month)
+            )
+        );
+    }
+
+    public function statementData(): void
+    {
+        Auth::requireAdmin();
+        FinanceReconciliationService::ensureTables();
+
+        $year = (int) ($_GET['year'] ?? date('Y'));
+        $month = (string) ($_GET['month'] ?? date('Y-m'));
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $month = date('Y-m');
+        }
+        $statementView = (string) ($_GET['view'] ?? 'monthly');
+        if (!in_array($statementView, ['weekly', 'monthly', 'annual'], true)) {
+            $statementView = 'monthly';
+        }
+
+        $weekDate = trim((string) ($_GET['week_date'] ?? ''));
+        $statementSundays = FinanceReconciliationService::sundaysInMonth($month);
+        if ($statementView === 'weekly') {
+            if ($weekDate === '' && $statementSundays !== []) {
+                $weekDate = $statementSundays[0];
+            }
+            if ($weekDate !== '' && !in_array($weekDate, $statementSundays, true)) {
+                $weekDate = $statementSundays[0] ?? '';
+            }
+        } else {
+            $weekDate = '';
+        }
+
+        $statement = FinanceReconciliationService::buildStatement(
+            $statementView,
+            $year,
+            $month,
+            $weekDate !== '' ? $weekDate : null
+        );
+
+        $churchConfig = $this->churchConfig();
+        $churchName = SettingsService::churchName() ?: ($churchConfig['site_name'] ?? 'Church');
+        $generatedAt = date('j F Y, g:i a');
+        $refId = 'STMT-' . strtoupper($statement['view'] ?? 'M') . '-' . ($statement['year'] ?? $year) . '-' . date('YmdHis');
+
+        ob_start();
+        $statementLogoUrl = FinanceReconciliationService::statementLogoUrl();
+        $statementDisclaimer = FinanceReconciliationService::STATEMENT_DISCLAIMER;
+        require dirname(__DIR__, 3) . '/views/admin/finance/_statement-document.php';
+        $html = (string) ob_get_clean();
+
+        View::json([
+            'ok' => true,
+            'view' => $statementView,
+            'year' => $year,
+            'month' => $month,
+            'week_date' => $weekDate,
+            'sundays' => $statementSundays,
+            'html' => $html,
+            'period_label' => $statement['period_label'] ?? '',
+        ]);
     }
 
     public function downloadStatementPdf(): void
@@ -558,6 +913,90 @@ class FinanceController
             'pageStyles' => array_merge(['/css/admin-finance.css'], $extraStyles),
             'pageScripts' => ['/js/admin-finance.js'],
         ];
+    }
+
+    /**
+     * Fresh ledger grids for AJAX clients after a mutation.
+     *
+     * @return array<string, mixed>
+     */
+    private function ledgerAjaxPayload(string $month): array
+    {
+        $weekly = FinanceReconciliationService::weeklyGrid($month);
+        $collections = FinanceReconciliationService::weeklyCollectionsGrid($month);
+        $sundays = $weekly['sundays'] !== [] ? $weekly['sundays'] : $collections['sundays'];
+        $expenseCatalog = FinanceReconciliationService::allExpenseCatalog();
+        $presets = [
+            'standard' => FinanceReconciliationService::SUNDAY_PRESET_STANDARD,
+            'full' => FinanceReconciliationService::SUNDAY_PRESET_FULL,
+        ];
+
+        return [
+            'month' => $month,
+            'weeklyMonth' => $month,
+            'weeklyRows' => array_values($weekly['rows']),
+            'weeklySundays' => $weekly['sundays'],
+            'weeklyCollectionRows' => array_values($collections['rows']),
+            'weeklyCollectionSundays' => $collections['sundays'],
+            'expenseGroups' => array_values($expenseCatalog),
+            'sundaySessionsByDate' => FinanceReconciliationService::sundaySessionsForDates($sundays),
+            'sundayFormBase' => [
+                'weekDate' => FinanceReconciliationService::suggestedSundayDate($month),
+                'methods' => array_keys(FinanceReconciliationService::PAYMENT_METHODS),
+                'categories' => array_keys(FinanceReconciliationService::allWeeklyCategories()),
+                'presets' => $presets,
+                'presetTotals' => [
+                    'standard' => array_sum($presets['standard']),
+                    'full' => array_sum($presets['full']),
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function budgetAjaxPayload(int $budgetYear, string $month): array
+    {
+        $budget = FinanceBudgetService::buildBudgetVsActual($budgetYear, $month);
+
+        return [
+            'budgetYear' => $budgetYear,
+            'month' => $month,
+            'weeklyMonth' => $month,
+            'budget' => $budget,
+            'budgetEditLines' => FinanceBudgetService::linesForEdit($budgetYear, $month),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function billsAjaxPayload(int $year): array
+    {
+        $arrears = FinanceReconciliationService::arrearsList($year);
+        $expenseCatalog = FinanceReconciliationService::allExpenseCatalog();
+
+        return [
+            'arrears' => array_values($arrears),
+            'expenseGroups' => array_values($expenseCatalog),
+            'arrearsTotals' => [
+                'due' => array_sum(array_column($arrears, 'amount_due')),
+                'paid' => array_sum(array_column($arrears, 'amount_paid')),
+                'balance' => array_sum(array_column($arrears, 'balance_owing')),
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $json
+     */
+    private function respondMutation(string $redirectUrl, array $json, int $status = 200): void
+    {
+        if (View::wantsJson()) {
+            View::json($json, $status);
+        }
+        View::redirect($redirectUrl);
     }
 
     /** @return array<string, mixed> */

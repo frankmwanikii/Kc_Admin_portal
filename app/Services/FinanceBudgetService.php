@@ -585,4 +585,170 @@ class FinanceBudgetService
             default => '—',
         };
     }
+
+    /**
+     * All budget lines for a month (including zero amounts) for the Set Budget editor.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function linesForEdit(int $budgetYear, string $yearMonth): array
+    {
+        self::ensureTables();
+        self::importSeedIfEmpty($budgetYear);
+
+        $rows = self::budgetLinesForMonth($budgetYear, $yearMonth);
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = [
+                'id' => (int) $row['id'],
+                'line_type' => (string) $row['line_type'],
+                'section' => (string) ($row['section'] ?? ''),
+                'label' => (string) ($row['label'] ?? ''),
+                'account_code' => (string) ($row['account_code'] ?? ''),
+                'sort_order' => (int) ($row['sort_order'] ?? 0),
+                'amount' => round((float) ($row['amount'] ?? 0), 2),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Save monthly amounts for existing lines. Amount 0 removes the month row.
+     *
+     * @param array<int|string, float|string> $amountsByLineId
+     */
+    public static function saveMonthAmounts(int $budgetYear, string $yearMonth, array $amountsByLineId): void
+    {
+        self::ensureTables();
+        if (!preg_match('/^\d{4}-\d{2}$/', $yearMonth)) {
+            throw new \InvalidArgumentException('Invalid budget month.');
+        }
+        $fiscalMonths = self::fiscalYearMonths($budgetYear);
+        if (!in_array($yearMonth, $fiscalMonths, true)) {
+            throw new \InvalidArgumentException('Month is outside this financial year.');
+        }
+
+        $db = Database::connection();
+        $validIds = [];
+        $idStmt = $db->prepare('SELECT id FROM finance_budget_lines WHERE budget_year = ?');
+        $idStmt->execute([$budgetYear]);
+        foreach ($idStmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
+            $validIds[(int) $id] = true;
+        }
+
+        $upsert = $db->prepare('
+            INSERT INTO finance_budget_monthly (budget_line_id, budget_month, amount)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE amount = VALUES(amount)
+        ');
+        $delete = $db->prepare('
+            DELETE FROM finance_budget_monthly WHERE budget_line_id = ? AND budget_month = ?
+        ');
+
+        $db->beginTransaction();
+        try {
+            foreach ($amountsByLineId as $lineId => $rawAmount) {
+                $id = (int) $lineId;
+                if ($id <= 0 || !isset($validIds[$id])) {
+                    continue;
+                }
+                $amount = round((float) $rawAmount, 2);
+                if ($amount <= 0) {
+                    $delete->execute([$id, $yearMonth]);
+                    continue;
+                }
+                $upsert->execute([$id, $yearMonth, $amount]);
+            }
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Add a custom budget line for a financial year.
+     *
+     * @param array{line_type?: string, section?: string, label?: string, account_code?: string} $data
+     */
+    public static function addLine(int $budgetYear, array $data): int
+    {
+        self::ensureTables();
+        $lineType = ($data['line_type'] ?? '') === 'income' ? 'income' : 'expense';
+        $section = trim((string) ($data['section'] ?? ''));
+        $label = trim((string) ($data['label'] ?? ''));
+        if ($label === '') {
+            throw new \InvalidArgumentException('Line label is required.');
+        }
+        if ($section === '') {
+            $section = $lineType === 'income' ? 'Incomes' : 'Other expenses';
+        }
+
+        $accountCode = trim((string) ($data['account_code'] ?? ''));
+        $db = Database::connection();
+
+        if ($accountCode === '') {
+            $maxStmt = $db->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM finance_budget_lines WHERE budget_year = ?');
+            $maxStmt->execute([$budgetYear]);
+            $next = ((int) $maxStmt->fetchColumn()) + 10;
+            $accountCode = sprintf('001/9/%03d', max(1, $next % 1000));
+            // Ensure uniqueness
+            $check = $db->prepare('SELECT COUNT(*) FROM finance_budget_lines WHERE budget_year = ? AND account_code = ?');
+            $n = 0;
+            while (true) {
+                $check->execute([$budgetYear, $accountCode]);
+                if ((int) $check->fetchColumn() === 0) {
+                    break;
+                }
+                $n++;
+                $accountCode = sprintf('001/9/%03d', ($next + $n) % 1000);
+                if ($n > 200) {
+                    $accountCode = '001/9/' . substr((string) time(), -3);
+                    break;
+                }
+            }
+            $sortOrder = $next;
+        } else {
+            $maxStmt = $db->prepare('SELECT COALESCE(MAX(sort_order), 0) FROM finance_budget_lines WHERE budget_year = ?');
+            $maxStmt->execute([$budgetYear]);
+            $sortOrder = ((int) $maxStmt->fetchColumn()) + 10;
+        }
+
+        $stmt = $db->prepare('
+            INSERT INTO finance_budget_lines (budget_year, line_type, section, label, account_code, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([$budgetYear, $lineType, $section, $label, $accountCode, $sortOrder]);
+
+        return (int) $db->lastInsertId();
+    }
+
+    /**
+     * Permanently remove a budget line and all of its monthly amounts for the year.
+     */
+    public static function deleteLine(int $budgetYear, int $lineId): void
+    {
+        self::ensureTables();
+        if ($lineId <= 0 || $budgetYear <= 0) {
+            throw new \InvalidArgumentException('Invalid budget line.');
+        }
+
+        $db = Database::connection();
+        $check = $db->prepare('SELECT id FROM finance_budget_lines WHERE id = ? AND budget_year = ?');
+        $check->execute([$lineId, $budgetYear]);
+        if (!$check->fetchColumn()) {
+            throw new \InvalidArgumentException('Budget line not found.');
+        }
+
+        $db->beginTransaction();
+        try {
+            $db->prepare('DELETE FROM finance_budget_monthly WHERE budget_line_id = ?')->execute([$lineId]);
+            $db->prepare('DELETE FROM finance_budget_lines WHERE id = ? AND budget_year = ?')->execute([$lineId, $budgetYear]);
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
 }

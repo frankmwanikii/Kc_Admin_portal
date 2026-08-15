@@ -1,5 +1,8 @@
 <?php
+use App\Core\Auth;
+
 $monthLabel = date('F Y');
+$welcomeName = Auth::user()?->fullName() ?? '';
 /** Safe JSON for inline <script> — do not use htmlspecialchars (breaks JS). */
 $chartJson = fn ($data) => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_THROW_ON_ERROR);
 
@@ -84,7 +87,7 @@ $statCards = [
         <div class="relative px-6 py-7 sm:px-8 sm:py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
                 <p class="text-white/60 text-sm font-medium"><?= date('l, F j, Y') ?></p>
-                <h2 class="text-2xl sm:text-3xl font-bold mt-1 tracking-tight">Welcome back</h2>
+                <h2 class="text-2xl sm:text-3xl font-bold mt-1 tracking-tight">Welcome back<?= $welcomeName !== '' ? ', ' . htmlspecialchars($welcomeName) : '' ?></h2>
                 <p class="text-white/70 text-sm mt-2 max-w-lg">Overview of members, finances, and church activity for <?= htmlspecialchars($churchName ?? 'your church') ?>.</p>
             </div>
             <div class="flex flex-wrap gap-2 shrink-0">
