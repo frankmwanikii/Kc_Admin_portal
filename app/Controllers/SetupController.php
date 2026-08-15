@@ -22,19 +22,19 @@ class SetupController
         View::render('setup/index', [
             'title' => 'System Setup',
             'defaults' => [
-                'db_host' => '127.0.0.1',
+                'db_host' => 'localhost',
                 'db_port' => '3306',
-                'db_name' => 'church_mis',
-                'db_username' => 'root',
+                'db_name' => '',
+                'db_username' => '',
                 'db_password' => '',
                 'church_name' => 'Grace Community Church',
                 'admin_email' => 'admin@church.local',
                 'admin_password' => '',
                 'app_url' => $defaultUrl,
-                'forms_db_host' => '127.0.0.1',
+                'forms_db_host' => 'localhost',
                 'forms_db_port' => '3306',
-                'forms_db_name' => 'kingdomcity_forms',
-                'forms_db_username' => 'root',
+                'forms_db_name' => '',
+                'forms_db_username' => '',
                 'forms_db_password' => '',
             ],
             'data' => [],
@@ -49,7 +49,7 @@ class SetupController
         }
 
         $data = [
-            'db_host' => trim($_POST['db_host'] ?? '127.0.0.1'),
+            'db_host' => trim($_POST['db_host'] ?? 'localhost'),
             'db_port' => trim($_POST['db_port'] ?? '3306'),
             'db_name' => trim($_POST['db_name'] ?? ''),
             'db_username' => trim($_POST['db_username'] ?? 'root'),

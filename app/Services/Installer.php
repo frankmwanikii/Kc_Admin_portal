@@ -17,15 +17,28 @@ class Installer
 
     public static function testConnection(string $host, string $port, string $database, string $username, string $password): void
     {
-        self::createDatabase($host, $port, $database, $username, $password);
-        self::connectDatabase($host, $port, $database, $username, $password);
+        self::ensureDatabase($host, $port, $database, $username, $password);
     }
 
     public static function createDatabase(string $host, string $port, string $database, string $username, string $password): void
     {
-        $pdo = self::connectServer($host, $port, $username, $password);
-        $safeName = str_replace('`', '``', $database);
-        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$safeName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        self::ensureDatabase($host, $port, $database, $username, $password);
+    }
+
+    /**
+     * Use the existing database (cPanel) when CREATE DATABASE is not allowed.
+     */
+    private static function ensureDatabase(string $host, string $port, string $database, string $username, string $password): void
+    {
+        try {
+            $pdo = self::connectServer($host, $port, $username, $password);
+            $safeName = str_replace('`', '``', $database);
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$safeName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        } catch (\Throwable $e) {
+            // cPanel MySQL users usually cannot CREATE DATABASE. Connecting is enough.
+        }
+
+        self::connectDatabase($host, $port, $database, $username, $password);
     }
 
     /** @param array<string, string> $config */
@@ -37,13 +50,13 @@ class Installer
         $username = $config['db_username'];
         $password = $config['db_password'];
 
-        self::createDatabase($host, $port, $database, $username, $password);
+        self::ensureDatabase($host, $port, $database, $username, $password);
 
         $formsDb = trim($config['forms_db_name'] ?? '');
         if ($formsDb !== '') {
             $formsUser = trim($config['forms_db_username'] ?? $username);
             $formsPass = $config['forms_db_password'] ?? $password;
-            self::createDatabase(
+            self::ensureDatabase(
                 trim($config['forms_db_host'] ?? $host),
                 trim($config['forms_db_port'] ?? $port),
                 $formsDb,
@@ -95,12 +108,28 @@ class Installer
 
     private static function migrate(): void
     {
-        $db = Database::connection();
-        $schema = file_get_contents(dirname(__DIR__, 2) . '/database/schema.mysql.sql');
-        if ($schema === false) {
-            throw new \RuntimeException('MySQL schema file not found.');
+        $files = [
+            'schema.mysql.sql',
+            'finance-reconciliation.sql',
+            'finance-budget.sql',
+            'finance-expense-catalog.sql',
+        ];
+
+        foreach ($files as $file) {
+            self::runSqlFile($file);
         }
-        foreach (self::splitSql($schema) as $statement) {
+    }
+
+    private static function runSqlFile(string $file): void
+    {
+        $path = dirname(__DIR__, 2) . '/database/' . $file;
+        $sql = file_get_contents($path);
+        if ($sql === false) {
+            throw new \RuntimeException('SQL file not found: ' . $file);
+        }
+
+        $db = Database::connection();
+        foreach (self::splitSql($sql) as $statement) {
             $db->exec($statement);
         }
     }

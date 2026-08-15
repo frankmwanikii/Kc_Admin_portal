@@ -6,7 +6,7 @@ $d = array_merge($defaults ?? [], $data ?? []);
         <div class="text-center mb-8">
             <div class="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center text-white text-2xl font-bold mx-auto ring-1 ring-white/20">✝</div>
             <h1 class="mt-5 text-2xl sm:text-3xl font-bold text-white">Church MIS Setup</h1>
-            <p class="text-white/60 mt-2 text-sm sm:text-base max-w-md mx-auto">Connect your local MySQL database and create your admin account. Settings are saved automatically to <code class="text-church-300">.env</code>.</p>
+            <p class="text-white/60 mt-2 text-sm sm:text-base max-w-md mx-auto">Enter your cPanel MySQL database and create your admin account. Tables are created automatically and settings are saved to <code class="text-church-300">.env</code>.</p>
         </div>
 
         <?php if (!empty($error)): ?>
@@ -24,7 +24,7 @@ $d = array_merge($defaults ?? [], $data ?? []);
                     </div>
                     <div>
                         <h2 class="font-semibold text-church-800">MySQL Database</h2>
-                        <p class="text-xs text-slate-500">Uses your locally installed MySQL server</p>
+                        <p class="text-xs text-slate-500">Use the empty database you already created in cPanel → MySQL Databases. Host is usually localhost.</p>
                     </div>
                 </div>
 
@@ -40,7 +40,7 @@ $d = array_merge($defaults ?? [], $data ?? []);
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-slate-700 mb-1.5">Database Name</label>
                         <input type="text" name="db_name" value="<?= htmlspecialchars($d['db_name'] ?? 'church_mis') ?>" required placeholder="church_mis" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-church-500 outline-none text-base">
-                        <p class="text-xs text-slate-400 mt-1">Created automatically if it doesn't exist</p>
+                        <p class="text-xs text-slate-400 mt-1">Must already exist in cPanel. This wizard will create the tables inside it.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1.5">Username</label>
