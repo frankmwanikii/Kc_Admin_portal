@@ -14,6 +14,11 @@ class App
 
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+
+        if (in_array($method, ['GET', 'HEAD'], true) && PublicFile::tryServe($uri)) {
+            return;
+        }
+
         $isSetupRoute = $uri === '/setup' || $uri === '/setup/';
 
         if (!Installer::isInstalled()) {

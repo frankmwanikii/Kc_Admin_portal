@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Core\Database;
 use PDO;
 use PDOException;
+use App\Models\User;
 
 class Installer
 {
@@ -95,6 +96,7 @@ class Installer
 
         Database::reset();
         self::migrate();
+        User::ensureProfileColumns();
 
         if ($formsDb !== '') {
             $formsSql = file_get_contents(dirname(__DIR__, 2) . '/database/shared-form-submissions.sql');
@@ -110,6 +112,7 @@ class Installer
     {
         $files = [
             'schema.mysql.sql',
+            'shared-form-submissions.sql',
             'finance-reconciliation.sql',
             'finance-budget.sql',
             'finance-expense-catalog.sql',
@@ -146,8 +149,8 @@ class Installer
         }
 
         $hash = password_hash($adminPassword, PASSWORD_DEFAULT);
-        $stmt = $db->prepare('UPDATE users SET email = ?, password = ? WHERE role = ? LIMIT 1');
-        $stmt->execute([$adminEmail, $hash, 'admin']);
+        $stmt = $db->prepare('UPDATE users SET email = ?, password = ?, username = COALESCE(NULLIF(username, \'\'), ?) WHERE role = ? LIMIT 1');
+        $stmt->execute([$adminEmail, $hash, 'Admin', 'admin']);
     }
 
     /** @return string[] */

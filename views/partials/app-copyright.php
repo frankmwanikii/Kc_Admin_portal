@@ -1,6 +1,6 @@
 <?php
 $copyrightYear = 2026;
-$copyrightText = 'Copyright Fraittech Inc © ' . $copyrightYear;
+$copyrightText = $copyrightYear.'© Copyright Kingdomcity Church Nanyuki ';
 $copyrightClass = trim('app-copyright ' . (string) ($copyrightVariant ?? ''));
 ?>
 <footer class="<?= htmlspecialchars($copyrightClass) ?>" role="contentinfo">

@@ -171,9 +171,10 @@ class ProfileController
         };
 
         $dir = dirname(__DIR__, 3) . '/public/uploads/avatars';
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new \RuntimeException('Could not create the profile image folder.');
         }
+        @chmod($dir, 0755);
 
         $this->removeAvatarFile($previousPath);
 
@@ -182,6 +183,7 @@ class ProfileController
         if (!move_uploaded_file($file['tmp_name'], $dest)) {
             throw new \RuntimeException('Failed to save profile image.');
         }
+        @chmod($dest, 0644);
 
         return 'uploads/avatars/' . $filename;
     }

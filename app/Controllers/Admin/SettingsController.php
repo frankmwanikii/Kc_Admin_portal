@@ -220,17 +220,19 @@ class SettingsController
         };
 
         $dir = dirname(__DIR__, 3) . '/public/uploads/branding';
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new \RuntimeException('Could not create the logo upload folder. Set public/uploads/branding to writable (0755).');
         }
+        @chmod($dir, 0755);
 
         $this->removeUploadedLogo();
 
         $filename = 'logo.' . $ext;
         $dest = $dir . '/' . $filename;
         if (!move_uploaded_file($file['tmp_name'], $dest)) {
-            throw new \RuntimeException('Failed to save uploaded logo.');
+            throw new \RuntimeException('Failed to save uploaded logo. Check that public/uploads/branding is writable.');
         }
+        @chmod($dest, 0644);
 
         SettingsService::set('church_logo_path', 'uploads/branding/' . $filename);
         SettingsService::set('church_logo_url', '');

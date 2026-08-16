@@ -9,6 +9,10 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
     <h2 class="arrears-title">Staff</h2>
     <p class="finance-tab-hint">Manage church staff, roles, and contact details.</p>
 
+    <?php if (!empty($error)): ?>
+    <div class="admin-alert admin-alert--error mb-4"><?= htmlspecialchars((string) $error) ?></div>
+    <?php endif; ?>
+
     <div class="arrears-toolbar-row">
         <div class="arrears-toolbar-left">
             <input type="search"

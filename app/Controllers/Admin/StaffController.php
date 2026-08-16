@@ -15,13 +15,20 @@ class StaffController
         Auth::requireAdmin();
         \App\Services\FormSubmissionService::ensureFinanceTables();
 
-        $staff = Database::connection()->query('
-            SELECT * FROM staff_members ORDER BY name ASC
-        ')->fetchAll();
+        $error = $_GET['error'] ?? null;
+        $staff = [];
+        try {
+            $staff = Database::connection()->query('
+                SELECT * FROM staff_members ORDER BY name ASC
+            ')->fetchAll();
+        } catch (\Throwable $e) {
+            $error = $error ?: ('Could not load staff: ' . $e->getMessage());
+        }
 
         View::render('admin/staff/index', [
             'title' => 'Staff',
             'staff' => $staff,
+            'error' => $error,
         ], 'layouts/admin');
     }
 
@@ -35,19 +42,23 @@ class StaffController
             View::redirect('/admin/staff');
         }
 
-        $stmt = Database::connection()->prepare('
-            INSERT INTO staff_members (name, role_title, department, phone, email, status, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ');
-        $stmt->execute([
-            $name,
-            trim($_POST['role_title'] ?? '') ?: null,
-            trim($_POST['department'] ?? '') ?: null,
-            trim($_POST['phone'] ?? '') ?: null,
-            $this->normalizeEmail($_POST['email'] ?? ''),
-            $this->normalizeStatus($_POST['status'] ?? 'active'),
-            trim($_POST['notes'] ?? '') ?: null,
-        ]);
+        try {
+            $stmt = Database::connection()->prepare('
+                INSERT INTO staff_members (name, role_title, department, phone, email, status, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ');
+            $stmt->execute([
+                $name,
+                trim($_POST['role_title'] ?? '') ?: null,
+                trim($_POST['department'] ?? '') ?: null,
+                trim($_POST['phone'] ?? '') ?: null,
+                $this->normalizeEmail($_POST['email'] ?? ''),
+                $this->normalizeStatus($_POST['status'] ?? 'active'),
+                trim($_POST['notes'] ?? '') ?: null,
+            ]);
+        } catch (\Throwable $e) {
+            View::redirect('/admin/staff?error=' . urlencode('Could not save staff: ' . $e->getMessage()));
+        }
 
         View::redirect('/admin/staff');
     }
@@ -84,6 +95,7 @@ class StaffController
     public function delete(string $id): void
     {
         Auth::requireAdmin();
+        \App\Services\FormSubmissionService::ensureFinanceTables();
         Database::connection()->prepare('DELETE FROM staff_members WHERE id = ?')->execute([(int) $id]);
         View::redirect('/admin/staff');
     }

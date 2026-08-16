@@ -14,15 +14,27 @@ class MemberController
     {
         Auth::requireAdmin();
         $site = \App\Services\WebsiteContentService::bootstrap();
+
+        $error = $_GET['error'] ?? null;
+        $members = [];
+        $formsDbStatus = [];
+        try {
+            $members = FormSubmissionService::membersList();
+            $formsDbStatus = FormSubmissionService::formsDatabaseStatus();
+        } catch (\Throwable $e) {
+            $error = $error ?: ('Could not load members: ' . $e->getMessage());
+            $formsDbStatus = FormSubmissionService::formsDatabaseStatus();
+        }
+
         View::render('admin/members/index', [
             'title' => 'Members',
-            'members' => FormSubmissionService::membersList(),
-            'formsDbStatus' => FormSubmissionService::formsDatabaseStatus(),
+            'members' => $members,
+            'formsDbStatus' => $formsDbStatus,
             'formTypeLabels' => FormSubmissionService::formTypeLabels(),
             'ministries' => $site['ministries_list'] ?? [],
             'campuses' => $site['campuses'] ?? [],
             'success' => $_GET['added'] ?? null,
-            'error' => $_GET['error'] ?? null,
+            'error' => $error,
         ], 'layouts/admin');
     }
 
@@ -48,7 +60,11 @@ class MemberController
             View::redirect('/admin/members?error=' . urlencode('Phone is required.'));
         }
 
-        FormSubmissionService::createManual($_POST);
+        try {
+            FormSubmissionService::createManual($_POST);
+        } catch (\Throwable $e) {
+            View::redirect('/admin/members?error=' . urlencode('Could not add member: ' . $e->getMessage()));
+        }
 
         View::redirect('/admin/members?added=1');
     }

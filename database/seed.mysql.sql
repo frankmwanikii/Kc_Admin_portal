@@ -24,11 +24,11 @@ UPDATE households SET head_member_id = 1 WHERE id = 1;
 UPDATE households SET head_member_id = 4 WHERE id = 2;
 UPDATE households SET head_member_id = 6 WHERE id = 3;
 
-INSERT IGNORE INTO users (id, member_id, email, password, role, email_verified_at) VALUES
-(1, NULL, 'admin@church.local', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', NOW()),
-(2, 1, 'james.kamau@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW()),
-(3, 4, 'peter.ochieng@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW()),
-(4, 6, 'faith.wanjiku@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW());
+INSERT IGNORE INTO users (id, member_id, username, email, password, role, email_verified_at) VALUES
+(1, NULL, 'Admin', 'admin@church.local', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', NOW()),
+(2, 1, 'james.kamau', 'james.kamau@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW()),
+(3, 4, 'peter.ochieng', 'peter.ochieng@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW()),
+(4, 6, 'faith.wanjiku', 'faith.wanjiku@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW());
 
 INSERT IGNORE INTO ministries (id, name, description, leader_id, meeting_day) VALUES
 (1, 'Praise & Worship', 'Music ministry and worship team', 6, 'Thursday'),

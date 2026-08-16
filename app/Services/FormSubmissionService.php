@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Database;
+use App\Core\SqlFile;
 use PDO;
 
 class FormSubmissionService
@@ -60,11 +61,6 @@ class FormSubmissionService
             $members = (int) $stmt->fetchColumn();
 
             $warning = null;
-            if (!$configured) {
-                $warning = 'The shared forms database is not configured (FORMS_DB_DATABASE_NAME in .env). '
-                    . 'The portal may be reading a different database than the website. '
-                    . 'Set it to match Kc_website includes/database-config.php (e.g. kingdomcity_forms).';
-            }
 
             return [
                 'configured' => $configured,
@@ -94,10 +90,30 @@ class FormSubmissionService
             return;
         }
 
-        $sql = file_get_contents(dirname(__DIR__, 2) . '/database/shared-form-submissions.sql');
-        if ($sql) {
-            self::db()->exec($sql);
-        }
+        $db = self::db();
+        SqlFile::runQuietly($db, dirname(__DIR__, 2) . '/database/shared-form-submissions.sql');
+        SqlFile::execute($db, "
+            CREATE TABLE IF NOT EXISTS form_submissions (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                form_type VARCHAR(50) NOT NULL,
+                campus_id VARCHAR(32) NOT NULL DEFAULT 'nanyuki',
+                submitter_name VARCHAR(255) NULL,
+                submitter_email VARCHAR(255) NULL,
+                submitter_phone VARCHAR(64) NULL,
+                payload LONGTEXT NOT NULL,
+                ip_address VARCHAR(45) NULL,
+                user_agent VARCHAR(512) NULL,
+                email_sent TINYINT(1) NOT NULL DEFAULT 0,
+                status VARCHAR(20) NOT NULL DEFAULT 'new',
+                portal_notes TEXT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_form_type (form_type),
+                KEY idx_status (status),
+                KEY idx_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
         self::$tableChecked = true;
     }
 
@@ -116,14 +132,46 @@ class FormSubmissionService
         if (($_ENV['APP_INSTALLED'] ?? 'false') !== 'true') {
             return;
         }
-        $sql = file_get_contents(dirname(__DIR__, 2) . '/database/finance-reconciliation.sql');
-        if ($sql) {
-            Database::connection()->exec($sql);
-        }
-        $catalogSql = file_get_contents(dirname(__DIR__, 2) . '/database/finance-expense-catalog.sql');
-        if ($catalogSql) {
-            Database::connection()->exec($catalogSql);
-        }
+
+        $db = Database::connection();
+        $dir = dirname(__DIR__, 2) . '/database';
+
+        SqlFile::execute($db, "
+            CREATE TABLE IF NOT EXISTS staff_members (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL,
+                role_title VARCHAR(150) NULL,
+                department VARCHAR(150) NULL,
+                phone VARCHAR(64) NULL,
+                email VARCHAR(255) NULL,
+                status VARCHAR(30) NOT NULL DEFAULT 'active',
+                notes TEXT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_staff_status (status),
+                KEY idx_staff_department (department)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        SqlFile::execute($db, "
+            CREATE TABLE IF NOT EXISTS inventory_items (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL,
+                category VARCHAR(100) NULL,
+                quantity INT NOT NULL DEFAULT 0,
+                unit VARCHAR(50) NULL DEFAULT 'pcs',
+                location VARCHAR(255) NULL,
+                notes TEXT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        SqlFile::runQuietly($db, $dir . '/finance-reconciliation.sql');
+        SqlFile::runQuietly($db, $dir . '/finance-budget.sql');
+        SqlFile::runQuietly($db, $dir . '/finance-expense-catalog.sql');
+
         self::$financeTablesReady = true;
     }
 

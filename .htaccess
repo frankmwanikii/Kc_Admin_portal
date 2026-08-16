@@ -1,6 +1,11 @@
 # If this whole project is extracted into public_html, send traffic to /public.
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Serve files that physically exist under /public (logo, css, js, images).
+    RewriteCond %{DOCUMENT_ROOT}/public/$1 -f
+    RewriteRule ^(.*)$ public/$1 [L]
+
     RewriteRule ^$ public/ [L]
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]

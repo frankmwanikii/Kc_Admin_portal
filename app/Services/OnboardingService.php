@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Database;
+use App\Models\User;
 
 class OnboardingService
 {
@@ -14,6 +15,8 @@ class OnboardingService
 
     public function createMember(array $data, string $qrToken): array
     {
+        User::ensureProfileColumns();
+
         $db = Database::connection();
         $db->beginTransaction();
 
@@ -89,11 +92,12 @@ class OnboardingService
             $magicToken = bin2hex(random_bytes(32));
             $tempPassword = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
             $magicExpires = date('Y-m-d H:i:s', strtotime('+48 hours'));
+            $userName = preg_replace('/[^A-Za-z0-9._-]+/', '', (string) strstr((string) $data['email'], '@', true)) ?: ('member' . $memberId);
             $stmt = $db->prepare('
-                INSERT INTO users (member_id, email, password, role, magic_link_token, magic_link_expires)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO users (member_id, username, email, password, role, magic_link_token, magic_link_expires)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ');
-            $stmt->execute([$memberId, $data['email'], $tempPassword, 'member', $magicToken, $magicExpires]);
+            $stmt->execute([$memberId, $userName, $data['email'], $tempPassword, 'member', $magicToken, $magicExpires]);
 
             $db->prepare('UPDATE onboarding_qr_codes SET scan_count = scan_count + 1 WHERE token = ?')->execute([$qrToken]);
 

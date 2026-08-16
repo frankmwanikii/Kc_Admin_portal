@@ -49,8 +49,69 @@ class User extends Model
         if (!isset($existing['avatar_path'])) {
             $db->exec('ALTER TABLE users ADD COLUMN avatar_path VARCHAR(255) NULL AFTER display_name');
         }
+        if (!isset($existing['username'])) {
+            $db->exec('ALTER TABLE users ADD COLUMN username VARCHAR(80) NULL AFTER member_id');
+        }
+
+        self::backfillUsernames($db);
+
+        $hasUsernameIndex = false;
+        foreach ($db->query('SHOW INDEX FROM users')->fetchAll(PDO::FETCH_ASSOC) as $index) {
+            if (($index['Column_name'] ?? '') === 'username' && (int) ($index['Non_unique'] ?? 1) === 0) {
+                $hasUsernameIndex = true;
+                break;
+            }
+        }
+        if (!$hasUsernameIndex) {
+            try {
+                $db->exec('ALTER TABLE users ADD UNIQUE KEY uk_users_username (username)');
+            } catch (\Throwable $e) {
+                // Index may already exist under another name.
+            }
+        }
 
         self::$profileColumnsReady = true;
+    }
+
+    private static function backfillUsernames(\PDO $db): void
+    {
+        $taken = [];
+        foreach ($db->query('SELECT id, email, role, username FROM users')->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $existingName = trim((string) ($row['username'] ?? ''));
+            if ($existingName !== '') {
+                $taken[strtolower($existingName)] = true;
+            }
+        }
+
+        $update = $db->prepare('UPDATE users SET username = ? WHERE id = ?');
+        foreach ($db->query('SELECT id, email, role, username FROM users')->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (trim((string) ($row['username'] ?? '')) !== '') {
+                continue;
+            }
+
+            $id = (int) $row['id'];
+            $candidates = [];
+            if (($row['role'] ?? '') === 'admin') {
+                $candidates[] = 'Admin';
+            }
+            $fromEmail = strstr((string) $row['email'], '@', true);
+            if (is_string($fromEmail) && $fromEmail !== '') {
+                $candidates[] = $fromEmail;
+            }
+            $candidates[] = 'user' . $id;
+
+            $chosen = 'user' . $id;
+            foreach ($candidates as $candidate) {
+                $candidate = preg_replace('/[^A-Za-z0-9._-]+/', '', (string) $candidate) ?: ('user' . $id);
+                if (!isset($taken[strtolower($candidate)])) {
+                    $chosen = $candidate;
+                    break;
+                }
+            }
+
+            $taken[strtolower($chosen)] = true;
+            $update->execute([$chosen, $id]);
+        }
     }
 
     public static function findByEmail(string $email): ?self
@@ -68,7 +129,10 @@ class User extends Model
         if ($username === '') {
             return null;
         }
-        $stmt = self::query('SELECT * FROM users WHERE username = ?', [$username]);
+        $stmt = self::query(
+            'SELECT * FROM users WHERE username = ? OR (email = ? AND ? LIKE \'%@%\') LIMIT 1',
+            [$username, $username, $username]
+        );
         $row = $stmt->fetch();
         return $row ? self::hydrate($row) : null;
     }

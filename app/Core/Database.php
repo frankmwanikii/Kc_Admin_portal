@@ -39,6 +39,7 @@ class Database
                     self::$instance = new PDO($dsn, $_ENV['DB_USERNAME'] ?? 'root', $_ENV['DB_PASSWORD'] ?? '', [
                         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
                     ]);
                 } else {
                     $path = dirname(__DIR__, 2) . '/' . ($_ENV['DB_DATABASE'] ?? 'database/church.sqlite');
@@ -82,10 +83,12 @@ class Database
                     [
                         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
                     ]
                 );
             } catch (PDOException $e) {
-                throw new \RuntimeException('Forms database connection failed: ' . $e->getMessage());
+                // Wrong or empty forms-DB name on cPanel should not take Members down.
+                return self::connection();
             }
         }
 

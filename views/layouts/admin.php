@@ -1,3 +1,9 @@
+<?php
+$pageScripts = array_values(array_unique(array_merge(
+    ['/js/admin-pagination.js'],
+    $pageScripts ?? []
+)));
+?>
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
