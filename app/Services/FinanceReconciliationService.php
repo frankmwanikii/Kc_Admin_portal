@@ -1885,6 +1885,478 @@ class FinanceReconciliationService
         return $csvContent;
     }
 
+    /**
+     * CITAM-style consolidated statement of financial position for a calendar year,
+     * with comparative prior-year figures and department rollups.
+     *
+     * @return array<string, mixed>
+     */
+    public static function buildConsolidatedPosition(int $year): array
+    {
+        self::ensureTables();
+        $year = max(2000, min(2100, $year));
+        $priorYear = $year - 1;
+
+        $current = self::yearPositionTotals($year);
+        $prior = self::yearPositionTotals($priorYear);
+
+        $departments = self::departmentPositionRows($current, $prior);
+        $incomeLines = self::mergeYearLines(
+            $current['income_lines'],
+            $prior['income_lines'],
+            1
+        );
+
+        $expenseNoteStart = count($incomeLines) + 1;
+        $expenseLines = [];
+        $note = $expenseNoteStart;
+        $adminExpenses = ['current' => 0.0, 'prior' => 0.0];
+        $ministryExpenses = ['current' => 0.0, 'prior' => 0.0];
+
+        foreach ($departments as $dept) {
+            $expenseLines[] = [
+                'key' => 'dept_exp_' . $dept['slug'],
+                'label' => $dept['label'],
+                'note' => (string) $note,
+                'code' => $dept['code_prefix'],
+                'group' => $dept['group'],
+                'group_label' => $dept['group_label'],
+                'current' => $dept['expenses_current'],
+                'prior' => $dept['expenses_prior'],
+            ];
+            if ($dept['group'] === 'admin_expenses') {
+                $adminExpenses['current'] = round($adminExpenses['current'] + $dept['expenses_current'], 2);
+                $adminExpenses['prior'] = round($adminExpenses['prior'] + $dept['expenses_prior'], 2);
+            } else {
+                $ministryExpenses['current'] = round($ministryExpenses['current'] + $dept['expenses_current'], 2);
+                $ministryExpenses['prior'] = round($ministryExpenses['prior'] + $dept['expenses_prior'], 2);
+            }
+            $note++;
+        }
+
+        if ($current['uncategorized_expenses'] > 0 || $prior['uncategorized_expenses'] > 0) {
+            $expenseLines[] = [
+                'key' => 'dept_exp_uncategorized',
+                'label' => 'Other / unassigned',
+                'note' => (string) $note,
+                'code' => '',
+                'group' => 'other',
+                'group_label' => 'Other',
+                'current' => $current['uncategorized_expenses'],
+                'prior' => $prior['uncategorized_expenses'],
+            ];
+            $ministryExpenses['current'] = round($ministryExpenses['current'] + $current['uncategorized_expenses'], 2);
+            $ministryExpenses['prior'] = round($ministryExpenses['prior'] + $prior['uncategorized_expenses'], 2);
+            $note++;
+        }
+
+        $liabilityLines = [];
+        foreach ($departments as $dept) {
+            if ($dept['arrears_current'] <= 0 && $dept['arrears_prior'] <= 0) {
+                continue;
+            }
+            $liabilityLines[] = [
+                'key' => 'dept_liab_' . $dept['slug'],
+                'label' => $dept['label'] . ' — outstanding bills',
+                'note' => (string) $note,
+                'code' => $dept['code_prefix'],
+                'group' => $dept['group'],
+                'group_label' => $dept['group_label'],
+                'current' => $dept['arrears_current'],
+                'prior' => $dept['arrears_prior'],
+            ];
+            $note++;
+        }
+        if ($current['uncategorized_arrears'] > 0 || $prior['uncategorized_arrears'] > 0) {
+            $liabilityLines[] = [
+                'key' => 'dept_liab_uncategorized',
+                'label' => 'Other outstanding bills',
+                'note' => (string) $note,
+                'code' => '',
+                'group' => 'other',
+                'group_label' => 'Other',
+                'current' => $current['uncategorized_arrears'],
+                'prior' => $prior['uncategorized_arrears'],
+            ];
+            $note++;
+        }
+
+        $incomeTotalCurrent = $current['collections'];
+        $incomeTotalPrior = $prior['collections'];
+        $expenseTotalCurrent = $current['expenses'];
+        $expenseTotalPrior = $prior['expenses'];
+        $operatingCurrent = round($incomeTotalCurrent - $expenseTotalCurrent, 2);
+        $operatingPrior = round($incomeTotalPrior - $expenseTotalPrior, 2);
+        $liabilitiesCurrent = $current['arrears'];
+        $liabilitiesPrior = $prior['arrears'];
+        $netCurrent = round($operatingCurrent - $liabilitiesCurrent, 2);
+        $netPrior = round($operatingPrior - $liabilitiesPrior, 2);
+
+        $asAtLabel = '31st December ' . $year;
+        $periodLabel = 'Consolidated statement as at ' . $asAtLabel;
+
+        return [
+            'view' => 'consolidated',
+            'year' => $year,
+            'prior_year' => $priorYear,
+            'as_at' => $year . '-12-31',
+            'as_at_label' => $asAtLabel,
+            'period_label' => $periodLabel,
+            'period_subtitle' => 'Comparative figures for ' . $priorYear . ' · Amounts in Kenya Shillings (KShs)',
+            'currency' => 'KShs',
+            'income_lines' => $incomeLines,
+            'income_total' => ['current' => $incomeTotalCurrent, 'prior' => $incomeTotalPrior],
+            'expense_lines' => $expenseLines,
+            'expense_groups' => [
+                [
+                    'slug' => 'admin_expenses',
+                    'label' => self::EXPENSE_GROUPS['admin_expenses'],
+                    'current' => $adminExpenses['current'],
+                    'prior' => $adminExpenses['prior'],
+                ],
+                [
+                    'slug' => 'ministry_departments',
+                    'label' => self::EXPENSE_GROUPS['ministry_departments'],
+                    'current' => $ministryExpenses['current'],
+                    'prior' => $ministryExpenses['prior'],
+                ],
+            ],
+            'expense_total' => ['current' => $expenseTotalCurrent, 'prior' => $expenseTotalPrior],
+            'operating' => ['current' => $operatingCurrent, 'prior' => $operatingPrior],
+            'liability_lines' => $liabilityLines,
+            'liability_total' => ['current' => $liabilitiesCurrent, 'prior' => $liabilitiesPrior],
+            'net_position' => ['current' => $netCurrent, 'prior' => $netPrior],
+            'departments' => $departments,
+            'department_totals' => [
+                'expenses_current' => $expenseTotalCurrent,
+                'expenses_prior' => $expenseTotalPrior,
+                'arrears_current' => $liabilitiesCurrent,
+                'arrears_prior' => $liabilitiesPrior,
+                'application_current' => round($expenseTotalCurrent + $liabilitiesCurrent, 2),
+                'application_prior' => round($expenseTotalPrior + $liabilitiesPrior, 2),
+            ],
+            'notes' => self::consolidatedPositionNotes($incomeLines, $expenseLines, $liabilityLines, $year, $priorYear),
+            'narrative' => self::consolidatedPositionNarrative(
+                $incomeTotalCurrent,
+                $expenseTotalCurrent,
+                $operatingCurrent,
+                $liabilitiesCurrent,
+                $netCurrent,
+                $year
+            ),
+        ];
+    }
+
+    /**
+     * @return array{
+     *   collections: float,
+     *   expenses: float,
+     *   arrears: float,
+     *   uncategorized_expenses: float,
+     *   uncategorized_arrears: float,
+     *   income_lines: array<string, float>,
+     *   expenses_by_dept: array<int, float>,
+     *   arrears_by_dept: array<int, float>
+     * }
+     */
+    private static function yearPositionTotals(int $year): array
+    {
+        $start = sprintf('%04d-01-01', $year);
+        $end = sprintf('%04d-01-01', $year + 1);
+        $db = Database::connection();
+
+        $incomeLines = array_fill_keys(array_keys(self::PAYMENT_METHODS), 0.0);
+        $colStmt = $db->prepare('
+            SELECT payment_method, COALESCE(SUM(amount), 0) AS total
+            FROM finance_weekly_collections
+            WHERE week_date >= ? AND week_date < ?
+            GROUP BY payment_method
+        ');
+        $colStmt->execute([$start, $end]);
+        $collections = 0.0;
+        foreach ($colStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $method = (string) $row['payment_method'];
+            $amt = round((float) $row['total'], 2);
+            if (isset($incomeLines[$method])) {
+                $incomeLines[$method] = $amt;
+            }
+            $collections = round($collections + $amt, 2);
+        }
+
+        $expByDept = [];
+        $expStmt = $db->prepare('
+            SELECT c.department_id, COALESCE(SUM(e.amount), 0) AS total
+            FROM finance_weekly_expenses e
+            INNER JOIN finance_weekly_categories c ON c.slug = e.category_slug
+            WHERE e.week_date >= ? AND e.week_date < ?
+              AND c.department_id IS NOT NULL
+            GROUP BY c.department_id
+        ');
+        $expStmt->execute([$start, $end]);
+        $expensesAssigned = 0.0;
+        foreach ($expStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $deptId = (int) $row['department_id'];
+            $amt = round((float) $row['total'], 2);
+            $expByDept[$deptId] = $amt;
+            $expensesAssigned = round($expensesAssigned + $amt, 2);
+        }
+
+        $uncatExpStmt = $db->prepare('
+            SELECT COALESCE(SUM(e.amount), 0) AS total
+            FROM finance_weekly_expenses e
+            LEFT JOIN finance_weekly_categories c ON c.slug = e.category_slug
+            WHERE e.week_date >= ? AND e.week_date < ?
+              AND (c.id IS NULL OR c.department_id IS NULL)
+        ');
+        $uncatExpStmt->execute([$start, $end]);
+        $uncategorizedExpenses = round((float) ($uncatExpStmt->fetchColumn() ?: 0), 2);
+        $expenses = round($expensesAssigned + $uncategorizedExpenses, 2);
+
+        $arrearsByDept = [];
+        $arrStmt = $db->prepare('
+            SELECT c.department_id, COALESCE(SUM(a.amount_due - a.amount_paid), 0) AS total
+            FROM finance_expense_arrears a
+            LEFT JOIN finance_expense_categories c ON c.id = a.category_id
+            WHERE a.budget_year = ?
+              AND (a.amount_due - a.amount_paid) > 0
+              AND c.department_id IS NOT NULL
+            GROUP BY c.department_id
+        ');
+        $arrStmt->execute([$year]);
+        $arrearsAssigned = 0.0;
+        foreach ($arrStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $deptId = (int) $row['department_id'];
+            $amt = round((float) $row['total'], 2);
+            $arrearsByDept[$deptId] = $amt;
+            $arrearsAssigned = round($arrearsAssigned + $amt, 2);
+        }
+
+        $uncatArrStmt = $db->prepare('
+            SELECT COALESCE(SUM(a.amount_due - a.amount_paid), 0) AS total
+            FROM finance_expense_arrears a
+            LEFT JOIN finance_expense_categories c ON c.id = a.category_id
+            WHERE a.budget_year = ?
+              AND (a.amount_due - a.amount_paid) > 0
+              AND (a.category_id IS NULL OR c.department_id IS NULL)
+        ');
+        $uncatArrStmt->execute([$year]);
+        $uncategorizedArrears = round((float) ($uncatArrStmt->fetchColumn() ?: 0), 2);
+        $arrears = round($arrearsAssigned + $uncategorizedArrears, 2);
+
+        return [
+            'collections' => $collections,
+            'expenses' => $expenses,
+            'arrears' => $arrears,
+            'uncategorized_expenses' => $uncategorizedExpenses,
+            'uncategorized_arrears' => $uncategorizedArrears,
+            'income_lines' => $incomeLines,
+            'expenses_by_dept' => $expByDept,
+            'arrears_by_dept' => $arrearsByDept,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $current
+     * @param array<string, mixed> $prior
+     * @return list<array<string, mixed>>
+     */
+    private static function departmentPositionRows(array $current, array $prior): array
+    {
+        $db = Database::connection();
+        $depts = $db->query('
+            SELECT id, slug, label, code_prefix, expense_group
+            FROM finance_expense_departments
+            ORDER BY
+                CASE expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 ELSE 9 END,
+                sort_order ASC,
+                id ASC
+        ')->fetchAll(PDO::FETCH_ASSOC);
+
+        $rows = [];
+        foreach ($depts as $dept) {
+            $id = (int) $dept['id'];
+            $group = (string) ($dept['expense_group'] ?? 'ministry_departments');
+            $expCurrent = round((float) ($current['expenses_by_dept'][$id] ?? 0), 2);
+            $expPrior = round((float) ($prior['expenses_by_dept'][$id] ?? 0), 2);
+            $arrCurrent = round((float) ($current['arrears_by_dept'][$id] ?? 0), 2);
+            $arrPrior = round((float) ($prior['arrears_by_dept'][$id] ?? 0), 2);
+
+            $rows[] = [
+                'id' => $id,
+                'slug' => (string) $dept['slug'],
+                'label' => (string) $dept['label'],
+                'code_prefix' => (string) ($dept['code_prefix'] ?? ''),
+                'group' => $group,
+                'group_label' => self::EXPENSE_GROUPS[$group] ?? 'Other',
+                'expenses_current' => $expCurrent,
+                'expenses_prior' => $expPrior,
+                'arrears_current' => $arrCurrent,
+                'arrears_prior' => $arrPrior,
+                'application_current' => round($expCurrent + $arrCurrent, 2),
+                'application_prior' => round($expPrior + $arrPrior, 2),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, float> $current
+     * @param array<string, float> $prior
+     * @return list<array<string, mixed>>
+     */
+    private static function mergeYearLines(array $current, array $prior, int $noteStart): array
+    {
+        $lines = [];
+        $note = $noteStart;
+        foreach (self::PAYMENT_METHODS as $method => $meta) {
+            $lines[] = [
+                'key' => $method,
+                'label' => $meta['label'],
+                'note' => (string) $note,
+                'current' => round((float) ($current[$method] ?? 0), 2),
+                'prior' => round((float) ($prior[$method] ?? 0), 2),
+            ];
+            $note++;
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $incomeLines
+     * @param list<array<string, mixed>> $expenseLines
+     * @param list<array<string, mixed>> $liabilityLines
+     * @return list<array{number: string, text: string}>
+     */
+    private static function consolidatedPositionNotes(
+        array $incomeLines,
+        array $expenseLines,
+        array $liabilityLines,
+        int $year,
+        int $priorYear
+    ): array {
+        $notes = [
+            [
+                'number' => '',
+                'text' => 'Figures are drawn from weekly collections, weekly expenses by department, and outstanding bills (arrears) recorded in the Kingdomcity Church finance ledger for the calendar years ' . $priorYear . ' and ' . $year . '.',
+            ],
+        ];
+        foreach (array_merge($incomeLines, $expenseLines, $liabilityLines) as $line) {
+            $notes[] = [
+                'number' => (string) ($line['note'] ?? ''),
+                'text' => (string) ($line['label'] ?? ''),
+            ];
+        }
+
+        return $notes;
+    }
+
+    private static function consolidatedPositionNarrative(
+        float $income,
+        float $expenses,
+        float $operating,
+        float $liabilities,
+        float $net,
+        int $year
+    ): string {
+        $fmt = static fn (float $n): string => 'KShs ' . number_format(abs($n), 2);
+        $opWord = $operating >= 0 ? 'surplus' : 'deficit';
+        $netWord = $net >= 0 ? 'positive net financial position' : 'net shortfall after outstanding bills';
+
+        return sprintf(
+            'For the year ended 31 December %d, total funds received were %s against departmental application of %s, resulting in an operating %s of %s. After outstanding bills of %s, the church reports a %s of %s.',
+            $year,
+            $fmt($income),
+            $fmt($expenses),
+            $opWord,
+            $fmt($operating),
+            $fmt($liabilities),
+            $netWord,
+            $fmt($net)
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $position
+     */
+    public static function consolidatedPositionToCsv(array $position, string $churchName): string
+    {
+        $fmt = static fn (float $n): string => number_format($n, 2, '.', '');
+        $stream = fopen('php://temp', 'r+');
+        if ($stream === false) {
+            return '';
+        }
+
+        $write = static function (array $row) use ($stream): void {
+            fputcsv($stream, $row);
+        };
+
+        $year = (int) ($position['year'] ?? date('Y'));
+        $prior = (int) ($position['prior_year'] ?? ($year - 1));
+
+        $write([$churchName]);
+        $write(['Consolidated Statement of Financial Position']);
+        $write(['As at', $position['as_at_label'] ?? '']);
+        $write(['Generated', date('Y-m-d H:i')]);
+        $write([]);
+        $write(['Department', 'Notes', 'CONSOLIDATED ' . $year . ' (KShs)', 'CONSOLIDATED ' . $prior . ' (KShs)']);
+
+        $note = 1;
+        foreach ($position['departments'] ?? [] as $dept) {
+            $write([
+                $dept['label'] ?? '',
+                (string) $note,
+                $fmt((float) ($dept['application_current'] ?? 0)),
+                $fmt((float) ($dept['application_prior'] ?? 0)),
+            ]);
+            $note++;
+        }
+
+        $totals = $position['department_totals'] ?? [];
+        $write([
+            'TOTAL',
+            '',
+            $fmt((float) ($totals['application_current'] ?? 0)),
+            $fmt((float) ($totals['application_prior'] ?? 0)),
+        ]);
+
+        rewind($stream);
+        $csv = stream_get_contents($stream);
+        fclose($stream);
+
+        $csvContent = $csv !== false ? $csv : '';
+        if ($csvContent !== '') {
+            $csvContent .= "\n" . self::STATEMENT_DISCLAIMER . "\n";
+        }
+
+        return $csvContent;
+    }
+
+    /**
+     * @param array<string, mixed> $position
+     */
+    public static function consolidatedPositionExportFilename(array $position, string $extension): string
+    {
+        $year = (int) ($position['year'] ?? date('Y'));
+
+        return 'consolidated-financial-position-' . $year . '.' . ltrim($extension, '.');
+    }
+
+    /** Format a ledger amount for CITAM-style statements (dash, parentheses, or number). */
+    public static function formatPositionAmount(float $amount, bool $showZeroAsDash = true): string
+    {
+        if (abs($amount) < 0.005) {
+            return $showZeroAsDash ? '—' : '0.00';
+        }
+        $formatted = number_format(abs($amount), 2);
+        if ($amount < 0) {
+            return '(' . $formatted . ')';
+        }
+
+        return $formatted;
+    }
+
     /** @return list<array<string, mixed>> */
     public static function collectionsList(int $year, ?string $month = null): array
     {

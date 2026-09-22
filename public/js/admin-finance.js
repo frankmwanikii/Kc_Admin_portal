@@ -52,6 +52,8 @@
             statementWeekDate: config.statementWeekDate || '',
             statementSundays: config.statementSundays || [],
             statementBusy: false,
+            reportSub: config.reportSub === 'position' ? 'position' : 'statement',
+            positionBusy: false,
             yearReconciliation: config.yearReconciliation || { months: [], year_expenses: 0, year_collections: 0, year_balance: 0 },
             expenseGroups: config.expenseGroups || [],
             arrearsTotals: config.arrearsTotals || { due: 0, paid: 0, balance: 0 },
@@ -1593,6 +1595,75 @@
 
             printStatement() {
                 window.print();
+            },
+
+            setReportSub(sub) {
+                if (!['statement', 'position'].includes(sub) || sub === this.reportSub) return;
+                const params = new URLSearchParams({
+                    tab: 'reports',
+                    sub,
+                    year: String(this.year || new Date().getFullYear()),
+                });
+                if (sub === 'statement') {
+                    params.set('view', this.statementView || 'monthly');
+                    if (this.weeklyMonth) params.set('month', this.weeklyMonth);
+                    if (this.statementView === 'weekly' && this.statementWeekDate) {
+                        params.set('week_date', this.statementWeekDate);
+                    }
+                }
+                window.location.href = '/admin/finance?' + params.toString();
+            },
+
+            positionExportUrl(format) {
+                const params = new URLSearchParams({
+                    year: String(this.year || new Date().getFullYear()),
+                });
+                return '/admin/finance/position/' + format + '?' + params.toString();
+            },
+
+            async changePositionYear(year) {
+                const nextYear = Number(year) || this.year;
+                if (nextYear === this.year && !this.positionBusy) {
+                    await this.loadPosition({ year: nextYear });
+                    return;
+                }
+                await this.loadPosition({ year: nextYear });
+            },
+
+            async loadPosition(options = {}) {
+                if (this.positionBusy) return null;
+                const year = options.year || this.year || new Date().getFullYear();
+                this.positionBusy = true;
+                try {
+                    const params = new URLSearchParams({ year: String(year) });
+                    const res = await fetch('/admin/finance/position/data?' + params.toString(), {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    const data = await res.json();
+                    if (!data || !data.ok) {
+                        this.showToast((data && data.message) || 'Could not load consolidated position.', 'error');
+                        return null;
+                    }
+                    this.year = data.year || year;
+                    this.reportSub = 'position';
+                    if (this.$refs.positionDocumentWrap && data.html) {
+                        this.$refs.positionDocumentWrap.innerHTML = data.html;
+                        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                            window.lucide.createIcons();
+                        }
+                    }
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'reports');
+                    url.searchParams.set('sub', 'position');
+                    url.searchParams.set('year', String(this.year));
+                    window.history.replaceState({}, '', url.toString());
+                    return data;
+                } catch (err) {
+                    this.showToast('Could not load consolidated position.', 'error');
+                    return null;
+                } finally {
+                    this.positionBusy = false;
+                }
             },
 
             statementExportUrl(format) {

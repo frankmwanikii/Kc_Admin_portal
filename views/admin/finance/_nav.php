@@ -32,7 +32,7 @@ $sectionMeta = match ($tabKey) {
     ],
     'reports' => [
         'title' => 'Reports',
-        'sub' => 'Generate and download financial statements.',
+        'sub' => 'Financial statements and consolidated position by department.',
     ],
     default => [
         'title' => 'Finance overview',

@@ -27,6 +27,16 @@ class FinanceController
         }
         if ($tab === 'statement') {
             $tab = 'reports';
+            if ($reportSub === '') {
+                $reportSub = 'statement';
+            }
+        }
+        if ($tab === 'reports') {
+            if (!in_array($reportSub, ['statement', 'position'], true)) {
+                $reportSub = 'statement';
+            }
+        } else {
+            $reportSub = '';
         }
         if (in_array($tab, ['arrears'], true)) {
             $tab = 'bills';
@@ -76,6 +86,7 @@ class FinanceController
         ];
         $expenseCatalog = [];
         $statement = [];
+        $position = [];
         $budget = [];
         $recordSunday = isset($_GET['record']);
         $recordDate = trim((string) ($_GET['record_date'] ?? ''));
@@ -162,16 +173,22 @@ class FinanceController
                 break;
 
             case 'reports':
-                $statement = FinanceReconciliationService::buildStatement(
-                    $statementView,
-                    $year,
-                    $month,
-                    $weekDate ?: null
-                );
-                $hubConfig['statementView'] = $statementView;
-                $hubConfig['statementWeekDate'] = $weekDate;
-                $hubConfig['statementSundays'] = $statementSundays;
+                $hubConfig['reportSub'] = $reportSub;
                 $hubConfig['weeklyMonth'] = $month;
+                if ($reportSub === 'position') {
+                    $position = FinanceReconciliationService::buildConsolidatedPosition($year);
+                    $hubConfig['positionYear'] = $year;
+                } else {
+                    $statement = FinanceReconciliationService::buildStatement(
+                        $statementView,
+                        $year,
+                        $month,
+                        $weekDate ?: null
+                    );
+                    $hubConfig['statementView'] = $statementView;
+                    $hubConfig['statementWeekDate'] = $weekDate;
+                    $hubConfig['statementSundays'] = $statementSundays;
+                }
                 break;
         }
 
@@ -200,6 +217,7 @@ class FinanceController
             'paymentMethods' => $paymentMethods,
             'expenseCatalog' => $expenseCatalog,
             'statement' => $statement,
+            'position' => $position,
             'statementView' => $statementView,
             'statementWeekDate' => $weekDate,
             'statementSundays' => $statementSundays,
@@ -904,6 +922,70 @@ class FinanceController
         }
 
         return FinanceReconciliationService::buildStatement($statementView, $year, $month, $weekDate ?: null);
+    }
+
+    public function positionData(): void
+    {
+        Auth::requireAdmin();
+        FinanceReconciliationService::ensureTables();
+
+        $year = (int) ($_GET['year'] ?? date('Y'));
+        $position = FinanceReconciliationService::buildConsolidatedPosition($year);
+
+        $churchConfig = $this->churchConfig();
+        $churchName = SettingsService::churchName() ?: ($churchConfig['site_name'] ?? 'Church');
+        $generatedAt = date('j F Y, g:i a');
+        $refId = 'POS-' . ($position['year'] ?? $year) . '-' . date('YmdHis');
+
+        ob_start();
+        $statementLogoUrl = FinanceReconciliationService::statementLogoUrl();
+        $statementDisclaimer = FinanceReconciliationService::STATEMENT_DISCLAIMER;
+        require dirname(__DIR__, 3) . '/views/admin/finance/_position-document.php';
+        $html = (string) ob_get_clean();
+
+        View::json([
+            'ok' => true,
+            'year' => $year,
+            'html' => $html,
+            'period_label' => $position['period_label'] ?? '',
+        ]);
+    }
+
+    public function downloadPositionPdf(): void
+    {
+        Auth::requireAdmin();
+        FinanceReconciliationService::ensureTables();
+
+        $year = (int) ($_GET['year'] ?? date('Y'));
+        $position = FinanceReconciliationService::buildConsolidatedPosition($year);
+        $churchName = SettingsService::churchName() ?: ($this->churchConfig()['site_name'] ?? 'Church');
+        $churchAddress = SettingsService::churchAddress();
+
+        $pdf = new PdfService();
+        $content = $pdf->generateConsolidatedPosition($position, $churchName, $churchAddress);
+
+        $filename = FinanceReconciliationService::consolidatedPositionExportFilename($position, 'pdf');
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo $content;
+        exit;
+    }
+
+    public function downloadPositionCsv(): void
+    {
+        Auth::requireAdmin();
+        FinanceReconciliationService::ensureTables();
+
+        $year = (int) ($_GET['year'] ?? date('Y'));
+        $position = FinanceReconciliationService::buildConsolidatedPosition($year);
+        $churchName = SettingsService::churchName() ?: ($this->churchConfig()['site_name'] ?? 'Church');
+        $csv = FinanceReconciliationService::consolidatedPositionToCsv($position, $churchName);
+
+        $filename = FinanceReconciliationService::consolidatedPositionExportFilename($position, 'csv');
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo $csv;
+        exit;
     }
 
     /** @return array{pageStyles: list<string>, pageScripts: list<string>} */

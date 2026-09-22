@@ -302,4 +302,109 @@ class PdfService
 
         return $dompdf->output();
     }
+
+    /**
+     * @param array<string, mixed> $position
+     */
+    public function generateConsolidatedPosition(array $position, string $churchName, string $churchAddress = ''): string
+    {
+        $esc = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+        $fmt = static fn (float $n): string => FinanceReconciliationService::formatPositionAmount($n);
+
+        $year = (int) ($position['year'] ?? date('Y'));
+        $priorYear = (int) ($position['prior_year'] ?? ($year - 1));
+        $addressLine = $churchAddress !== '' ? '<p class="addr">' . $esc($churchAddress) . '</p>' : '';
+
+        $body = '';
+        $note = 1;
+        foreach ($position['departments'] ?? [] as $dept) {
+            $body .= '<tr>'
+                . '<td>' . $esc((string) ($dept['label'] ?? '')) . '</td>'
+                . '<td class="note">' . $note . '</td>'
+                . '<td class="amt current">' . $fmt((float) ($dept['application_current'] ?? 0)) . '</td>'
+                . '<td class="amt prior">' . $fmt((float) ($dept['application_prior'] ?? 0)) . '</td>'
+                . '</tr>';
+            $note++;
+        }
+
+        $totals = $position['department_totals'] ?? [];
+        $foot = '<tr class="total">'
+            . '<td><strong>TOTAL</strong></td><td class="note"></td>'
+            . '<td class="amt current"><strong>' . $fmt((float) ($totals['application_current'] ?? 0)) . '</strong></td>'
+            . '<td class="amt prior"><strong>' . $fmt((float) ($totals['application_prior'] ?? 0)) . '</strong></td>'
+            . '</tr>';
+
+        $logoDataUri = FinanceReconciliationService::statementLogoDataUri();
+        $watermarkHtml = $logoDataUri !== ''
+            ? "<div class='watermark'><img src='" . $logoDataUri . "' alt=''></div>"
+            : '';
+        $headerLogoHtml = $logoDataUri !== ''
+            ? "<img src='" . $logoDataUri . "' alt='' class='header-logo'>"
+            : '';
+        $disclaimer = FinanceReconciliationService::STATEMENT_DISCLAIMER;
+
+        $html = "<!DOCTYPE html><html><head><style>
+            body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #0f172a; line-height: 1.4; }
+            .watermark { position: fixed; top: 34%; left: 0; right: 0; text-align: center; opacity: 0.06; z-index: -1; }
+            .watermark img { width: 260px; height: auto; }
+            .header { text-align: center; border-bottom: 2px solid #0b486d; padding-bottom: 12px; margin-bottom: 14px; }
+            .header-logo { width: 48px; height: auto; margin: 0 auto 6px; display: block; }
+            .org { font-size: 15px; font-weight: bold; color: #0b486d; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+            .addr { font-size: 9px; color: #64748b; margin: 0 0 6px; }
+            .doc-title { font-size: 12px; font-weight: bold; color: #0f172a; margin: 0; text-decoration: underline; }
+            .doc-asat { font-size: 10px; color: #334155; margin: 4px 0 0; }
+            .meta { margin-top: 8px; font-size: 9px; color: #64748b; }
+            .subtitle { color: #475569; margin: 0 0 14px; font-size: 9px; }
+            table.pos { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+            table.pos th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; padding: 7px 6px; border-bottom: 2px solid #0f172a; text-align: left; vertical-align: bottom; }
+            table.pos th.amt { text-align: right; }
+            table.pos th.current { background: #dcfce7; }
+            table.pos th.prior { background: #fce7f3; }
+            table.pos td { padding: 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+            table.pos td.amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+            table.pos td.note { text-align: center; width: 40px; color: #64748b; }
+            table.pos td.current { background: #f0fdf4; }
+            table.pos td.prior { background: #fdf2f8; }
+            table.pos tr.total td { font-weight: bold; text-transform: uppercase; border-top: 3px double #0f172a; border-bottom: 3px double #0f172a; background: #f8fafc; }
+            .footer { margin-top: 18px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8px; color: #64748b; text-align: center; }
+            .disclaimer { font-style: italic; max-width: 420px; margin: 0 auto 6px; }
+            .signoff { font-weight: bold; color: #334155; }
+        </style></head><body>
+            {$watermarkHtml}
+            <div class='header'>
+                {$headerLogoHtml}
+                <p class='org'>" . $esc(strtoupper($churchName)) . "</p>
+                {$addressLine}
+                <p class='doc-title'>Consolidated Statement of Financial Position</p>
+                <p class='doc-asat'>as at " . $esc((string) ($position['as_at_label'] ?? ('31st December ' . $year))) . "</p>
+                <p class='meta'>Generated " . date('j F Y, g:i a') . "</p>
+            </div>
+            <p class='subtitle'>" . $esc((string) ($position['period_subtitle'] ?? '')) . "</p>
+            <table class='pos'>
+                <thead>
+                    <tr>
+                        <th>Department</th>
+                        <th class='note'>Notes</th>
+                        <th class='amt current'>CONSOLIDATED<br>{$year}<br>(KShs)</th>
+                        <th class='amt prior'>CONSOLIDATED<br>{$priorYear}<br>(KShs)</th>
+                    </tr>
+                </thead>
+                <tbody>{$body}</tbody>
+                <tfoot>{$foot}</tfoot>
+            </table>
+            <div class='footer'>
+                <p class='disclaimer'>" . $esc($disclaimer) . "</p>
+                <p class='signoff'>" . $esc($churchName) . " · Finance Office</p>
+            </div>
+        </body></html>";
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->output();
+    }
 }

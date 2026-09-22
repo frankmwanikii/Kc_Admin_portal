@@ -164,6 +164,9 @@ $router->post('/admin/finance/collections/{id}/delete', [FinanceController::clas
 $router->get('/admin/finance/statement/pdf', [FinanceController::class, 'downloadStatementPdf']);
 $router->get('/admin/finance/statement/csv', [FinanceController::class, 'downloadStatementCsv']);
 $router->get('/admin/finance/statement/data', [FinanceController::class, 'statementData']);
+$router->get('/admin/finance/position/pdf', [FinanceController::class, 'downloadPositionPdf']);
+$router->get('/admin/finance/position/csv', [FinanceController::class, 'downloadPositionCsv']);
+$router->get('/admin/finance/position/data', [FinanceController::class, 'positionData']);
 $router->post('/admin/finance/budget', [FinanceController::class, 'storeBudgetMonth']);
 $router->post('/admin/finance/budget/lines', [FinanceController::class, 'storeBudgetLine']);
 $router->post('/admin/finance/budget/lines/{id}/delete', [FinanceController::class, 'deleteBudgetLine']);

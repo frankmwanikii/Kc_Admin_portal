@@ -1194,11 +1194,35 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
     <?php require __DIR__ . '/budget-tab.php'; ?>
     <?php elseif ($tabReports): ?>
     <div class="fin-reports">
-    <?php
-    $tabStatement = true;
-    $statementView = $_GET['view'] ?? 'monthly';
-    require __DIR__ . '/statement-tab.php';
-    ?>
+        <?php
+        $reportSub = in_array(($reportSub ?? ''), ['statement', 'position'], true)
+            ? $reportSub
+            : 'statement';
+        ?>
+        <div class="fin-reports-subnav no-print" role="tablist" aria-label="Report type">
+            <a href="/admin/finance?tab=reports&amp;sub=statement&amp;year=<?= (int) $year ?>&amp;month=<?= htmlspecialchars(urlencode($month)) ?>&amp;view=<?= htmlspecialchars(urlencode($statementView ?? 'monthly')) ?>"
+               class="fin-reports-subnav__btn<?= $reportSub === 'statement' ? ' fin-reports-subnav__btn--active' : '' ?>"
+               role="tab"
+               aria-selected="<?= $reportSub === 'statement' ? 'true' : 'false' ?>">
+                Financial Statement
+            </a>
+            <a href="/admin/finance?tab=reports&amp;sub=position&amp;year=<?= (int) $year ?>"
+               class="fin-reports-subnav__btn<?= $reportSub === 'position' ? ' fin-reports-subnav__btn--active' : '' ?>"
+               role="tab"
+               aria-selected="<?= $reportSub === 'position' ? 'true' : 'false' ?>">
+                Consolidated Position
+            </a>
+        </div>
+
+        <?php if ($reportSub === 'position'): ?>
+            <?php require __DIR__ . '/position-tab.php'; ?>
+        <?php else: ?>
+            <?php
+            $tabStatement = true;
+            $statementView = $_GET['view'] ?? 'monthly';
+            require __DIR__ . '/statement-tab.php';
+            ?>
+        <?php endif; ?>
     </div>
     <?php endif; ?>
 
