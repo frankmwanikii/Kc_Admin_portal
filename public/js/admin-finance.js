@@ -428,19 +428,22 @@
             },
 
             openBudgetEditor() {
-                const lines = (this.budgetEditLines || []).map((line) => ({
-                    ...line,
-                    amount: Number(line.amount) || 0,
-                }));
-                this.budgetEditLines = lines;
-                this.budgetNewLine = null;
-                this.showBudgetEditor = true;
-                this.$nextTick(() => window.lucide?.createIcons());
+                const params = new URLSearchParams({
+                    tab: 'budget',
+                    edit: '1',
+                    month: this.weeklyMonth || '',
+                    budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
+                });
+                window.location.href = '/admin/finance?' + params.toString();
             },
 
             closeBudgetEditor() {
-                this.showBudgetEditor = false;
-                this.budgetNewLine = null;
+                const params = new URLSearchParams({
+                    tab: 'budget',
+                    month: this.weeklyMonth || '',
+                    budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
+                });
+                window.location.href = '/admin/finance?' + params.toString();
             },
 
             get budgetEditIncomeLines() {
@@ -482,8 +485,12 @@
                 const form = event.target;
                 await this.postAjax(form, {
                     onSuccess: () => {
-                        this.closeBudgetEditor();
-                        window.location.reload();
+                        const params = new URLSearchParams({
+                            tab: 'budget',
+                            month: this.weeklyMonth || '',
+                            budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
+                        });
+                        window.location.href = '/admin/finance?' + params.toString();
                     },
                 });
             },
@@ -960,7 +967,7 @@
 
             validateArrearCatalog(row) {
                 if (!row.expense_group) {
-                    window.alert('Select a department (Admin Expenses or Operational Expenses).');
+                    window.alert('Select a department (Administration costs or Operational expenses).');
                     return false;
                 }
                 if (this.isAdminExpenses(row.expense_group)) {
@@ -1330,7 +1337,7 @@
 
             validateWeeklyCategory(row) {
                 if (!row.expense_group) {
-                    window.alert('Select a department (Admin Expenses or Operational Expenses).');
+                    window.alert('Select a department (Administration costs or Operational expenses).');
                     return false;
                 }
                 if (this.isAdminExpenses(row.expense_group)) {

@@ -38,7 +38,8 @@ $paymentIcons = [
 
 $expenseGroups = [];
 foreach ($categories as $slug => $meta) {
-    $group = trim($meta['department_label'] ?? '') ?: 'Other';
+    $group = trim($meta['group_label'] ?? '')
+        ?: (trim($meta['department_label'] ?? '') ?: 'Other');
     $expenseGroups[$group][] = array_merge($meta, ['slug' => $slug]);
 }
 
@@ -214,7 +215,7 @@ $nextMonthUrl = '/admin/finance?' . http_build_query(array_merge($monthNavBase, 
                                             </div>
                                         </div>
                                         <div class="fin-amt-row__field">
-                                            <span class="fin-amt-row__currency">KES</span>
+                                            <span class="fin-amt-row__currency" aria-hidden="true">KES</span>
                                             <input type="number"
                                                    id="modal_col_<?= htmlspecialchars($method) ?>"
                                                    name="collections[<?= htmlspecialchars($method) ?>]"
@@ -269,7 +270,7 @@ $nextMonthUrl = '/admin/finance?' . http_build_query(array_merge($monthNavBase, 
                                                     </div>
                                                 </div>
                                                 <div class="fin-amt-row__field">
-                                                    <span class="fin-amt-row__currency">KES</span>
+                                                    <span class="fin-amt-row__currency" aria-hidden="true">KES</span>
                                                     <input type="number"
                                                            id="modal_exp_<?= htmlspecialchars($slug) ?>"
                                                            name="expenses[<?= htmlspecialchars($slug) ?>]"
@@ -308,7 +309,7 @@ $nextMonthUrl = '/admin/finance?' . http_build_query(array_merge($monthNavBase, 
                                                 </div>
                                             </div>
                                             <div class="fin-amt-row__field">
-                                                <span class="fin-amt-row__currency">KES</span>
+                                                <span class="fin-amt-row__currency" aria-hidden="true">KES</span>
                                                 <input type="number"
                                                        id="modal_exp_<?= htmlspecialchars($slug) ?>"
                                                        name="expenses[<?= htmlspecialchars($slug) ?>]"

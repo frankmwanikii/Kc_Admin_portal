@@ -864,7 +864,8 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                 </form>
             </div>
             <div class="weekly-toolbar-actions">
-                <button type="button" @click="openSundayModal(null, 'expenses')" class="arrears-btn-new">Record Sunday</button>
+                <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month ?? date('Y-m')) ?>&amp;panel=expenses&amp;return_tab=ledger&amp;return_sub=expenses"
+                   class="arrears-btn-new">Record Sunday</a>
                 <button type="button" @click="openCategoryForm()" class="arrears-btn-outline">Add category</button>
             </div>
         </div>
@@ -975,7 +976,8 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     ?>
                 </form>
             </div>
-            <button type="button" @click="openSundayModal(null, 'collections')" class="arrears-btn-new">Record Sunday</button>
+            <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month ?? date('Y-m')) ?>&amp;panel=collections&amp;return_tab=ledger&amp;return_sub=collections"
+               class="arrears-btn-new">Record Sunday</a>
         </div>
 
         <div class="arrears-card finance-table-card">
@@ -1260,7 +1262,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         View details
                     </button>
                     <button type="button"
-                            @click="weeklyMenu = null; openSundayModal(null, 'expenses')"
+                            @click="weeklyMenu = null; goToSundayRecord(null, 'expenses')"
                             class="arrears-dropdown-item">
                         Edit in Record Sunday
                     </button>
@@ -1295,7 +1297,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         View details
                     </button>
                     <button type="button"
-                            @click="const d = reconciliationMenuRow.week_date; reconciliationMenu = null; openSundayModal(d)"
+                            @click="const d = reconciliationMenuRow.week_date; reconciliationMenu = null; goToSundayRecord(d)"
                             class="arrears-dropdown-item">
                         Edit in Record Sunday
                     </button>
@@ -1339,7 +1341,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         Edit amounts
                     </button>
                     <button type="button"
-                            @click="collectionMenu = null; openSundayModal(null, 'collections')"
+                            @click="collectionMenu = null; goToSundayRecord(null, 'collections')"
                             class="arrears-dropdown-item">
                         Edit in Record Sunday
                     </button>
@@ -1449,7 +1451,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         <div class="finance-modal-actions finance-modal-actions--end">
                             <button type="button" @click="weeklyViewRow = null" class="finance-btn-secondary">Close</button>
                             <button type="button"
-                                    @click="const slug = weeklyViewRow.slug; weeklyViewRow = null; openSundayModal(null, 'expenses')"
+                                    @click="weeklyViewRow = null; goToSundayRecord(null, 'expenses')"
                                     class="finance-btn-primary">
                                 Edit in Record Sunday
                             </button>
@@ -1504,7 +1506,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         <div class="finance-modal-actions finance-modal-actions--end">
                             <button type="button" @click="reconciliationViewRow = null" class="finance-btn-secondary">Close</button>
                             <button type="button"
-                                    @click="const d = reconciliationViewRow.week_date; reconciliationViewRow = null; openSundayModal(d)"
+                                    @click="const d = reconciliationViewRow.week_date; reconciliationViewRow = null; goToSundayRecord(d)"
                                     class="finance-btn-primary">
                                 Edit in Record Sunday
                             </button>
@@ -1545,7 +1547,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                             <div class="finance-field">
                                 <label class="finance-label" :for="'collection-edit-' + sun" x-text="formatSundayShort(sun)"></label>
                                 <div class="fin-amt-row__field" style="max-width:12rem">
-                                    <span class="fin-amt-row__currency">KES</span>
+                                    <span class="fin-amt-row__currency" aria-hidden="true">KES</span>
                                     <input type="number"
                                            :id="'collection-edit-' + sun"
                                            :name="'amounts[' + sun + ']'"
@@ -1884,5 +1886,5 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
         </div>
     </div>
 
-    <?php require __DIR__ . '/_sunday-modal.php'; ?>
+    <?php /* Record Sunday is a dedicated page: /admin/finance/sunday */ ?>
 </div>

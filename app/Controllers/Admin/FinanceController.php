@@ -229,6 +229,7 @@ class FinanceController
             'reportSub' => $reportSub,
             'budgetYear' => $budgetYear,
             'budget' => $budget,
+            'budgetEditMode' => $tab === 'budget' && isset($_GET['edit']),
             'hubConfig' => $hubConfig,
             'churchName' => SettingsService::churchName() ?: ($churchConfig['site_name'] ?? 'Church'),
             'statementLogoUrl' => FinanceReconciliationService::statementLogoUrl(),

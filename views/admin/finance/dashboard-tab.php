@@ -152,7 +152,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
                         <?php endforeach; ?>
                         <?php if ($colYtd <= 0 && $expYtd <= 0): ?>
                         <tr>
-                            <td colspan="4" class="fin-table__empty">No activity recorded yet. <button type="button" @click="openSundayModal()" class="fin-link">Record your first Sunday →</button></td>
+                            <td colspan="4" class="fin-table__empty">No activity recorded yet. <a href="/admin/finance/sunday?return_tab=dashboard" class="fin-link">Record your first Sunday →</a></td>
                         </tr>
                         <?php endif; ?>
                     </tbody>
@@ -201,7 +201,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
     <div class="fin-panel">
         <div class="fin-panel__head">
             <h3 class="fin-panel__title">Recent Sundays</h3>
-            <a href="#" @click.prevent="openSundayModal()" class="fin-link">Record Sunday →</a>
+            <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month ?? date('Y-m')) ?>&amp;return_tab=dashboard" class="fin-link">Record Sunday →</a>
         </div>
         <div class="fin-sundays-table" role="table" aria-label="Recent Sunday entries">
             <div class="fin-sundays-table__row fin-sundays-table__row--head" role="row">

@@ -885,10 +885,11 @@
 }
 
 .fin-sunday-cal__head {
-    display: flex;
+    display: grid;
+    grid-template-columns: 2.5rem 1fr 2.5rem;
     align-items: center;
-    justify-content: center;
-    padding: 0.85rem 0.85rem 0.55rem;
+    gap: 0.35rem;
+    padding: 0.85rem 0.65rem 0.55rem;
     background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
     border-bottom: 1px solid #eef2f7;
 }
@@ -905,6 +906,7 @@
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 0.65rem;
+    text-decoration: none;
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
@@ -1700,32 +1702,43 @@
     flex-direction: column;
     gap: 0;
     padding: 0;
-    margin: 0.35rem 0.85rem 0.85rem;
-    border: 1px solid #e8eef3;
-    border-radius: 0.65rem;
+    margin: 0.5rem 0.85rem 0.95rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
     overflow: hidden;
     background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
 .fin-amount-grid--collections {
-    margin: 0.35rem 0.85rem 0.85rem;
+    margin: 0.5rem 0.85rem 0.95rem;
 }
 
 .fin-expense-sections {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
-    padding: 0.65rem 0.85rem 0.95rem;
+    gap: 0;
+    margin: 0.5rem 0.85rem 0.95rem;
+    padding: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
 .fin-expense-section {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0;
     padding: 0;
     background: transparent;
     border: none;
     border-radius: 0;
+}
+
+.fin-expense-section + .fin-expense-section {
+    border-top: 1px solid #eef2f7;
 }
 
 .fin-amount-grid--expenses {
@@ -1734,34 +1747,43 @@
     gap: 0;
     padding: 0;
     margin: 0;
-    border: 1px solid #e8eef3;
-    border-radius: 0.65rem;
-    overflow: hidden;
-    background: #fff;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
 }
 
 .fin-expense-section .fin-expense-group__title {
-    padding: 0 0.15rem;
-    margin: 0 0 0.2rem;
+    padding: 0.65rem 1rem;
+    margin: 0;
+    background: #e8eef3;
+    border-bottom: 1px solid #d7e0e8;
 }
 
 .fin-expense-group__title {
-    font-size: 0.6875rem;
-    font-weight: 700;
+    font-size: 0.75rem;
+    font-weight: 750;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #64748b;
+    color: #0b486d;
 }
 
 .fin-amt-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.55rem 0.65rem;
-    border-bottom: 1px solid #eef2f6;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #eef0f2;
+    border-radius: 0;
     background: #fff;
     transition: background 0.12s ease;
+}
+
+/* Soft zebra striping — same pattern as data tables */
+.fin-amount-grid .fin-amt-row:nth-child(even) {
+    background: #f8f8f7;
 }
 
 .fin-amt-row:last-child {
@@ -1769,21 +1791,25 @@
 }
 
 .fin-amt-row:hover {
-    background: #f8fafc;
+    background: #f1f5f9;
+}
+
+.fin-amount-grid .fin-amt-row:nth-child(even):hover {
+    background: #eef2f6;
 }
 
 .fin-amt-row--filled {
-    background: #f7fbfe;
+    background: #f0f9ff !important;
 }
 
 .fin-amt-row--expense.fin-amt-row--filled {
-    background: #fffcf5;
+    background: #fffbeb !important;
 }
 
 .fin-amt-row__meta {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.65rem;
     min-width: 0;
     flex: 1;
 }
@@ -1792,9 +1818,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.65rem;
-    height: 1.65rem;
-    border-radius: 0.4rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.55rem;
     flex-shrink: 0;
 }
 
@@ -1808,10 +1834,11 @@
 
 .fin-amt-row__label {
     display: block;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 650;
     color: #0f172a;
-    line-height: 1.2;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
@@ -1820,69 +1847,86 @@
 
 .fin-amt-row__hint {
     display: block;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: #94a3b8;
-    margin-top: 0.1rem;
+    margin-top: 0.15rem;
+    line-height: 1.3;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
+/* Stripe-style currency field: one control, soft prefix, tabular amount */
 .fin-amt-row__field {
     display: flex;
     align-items: center;
-    width: 8.75rem;
+    width: 9.5rem;
     flex-shrink: 0;
-    height: 2rem;
-    border: 1px solid #d7e0e8;
-    border-radius: 0.4rem;
-    background: #f8fafc;
+    min-height: 2.75rem;
+    padding: 0 0.15rem 0 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.7rem;
+    background: #fff;
     overflow: hidden;
-    transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.fin-amt-row__field:hover {
+    border-color: #cbd5e1;
 }
 
 .fin-amt-row__field:focus-within {
     background: #fff;
-    border-color: #35afe6;
-    box-shadow: 0 0 0 3px rgba(53, 175, 230, 0.15);
+    border-color: #0b486d;
+    box-shadow:
+        0 0 0 3px rgba(11, 72, 109, 0.12),
+        0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .fin-amt-row--expense .fin-amt-row__field:focus-within {
-    border-color: #f59e0b;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    border-color: #0b486d;
+    box-shadow:
+        0 0 0 3px rgba(11, 72, 109, 0.12),
+        0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .fin-amt-row__currency {
     display: inline-flex;
     align-items: center;
-    height: 100%;
-    padding: 0 0.45rem;
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    color: #64748b;
-    background: #eef2f6;
-    border-right: 1px solid #d7e0e8;
+    height: auto;
+    padding: 0;
+    margin-right: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    color: #94a3b8;
+    background: transparent;
+    border-right: none;
+    user-select: none;
 }
 
 .fin-amt-row__input {
     flex: 1;
     min-width: 0;
     height: 100%;
-    padding: 0 0.5rem;
+    min-height: 2.65rem;
+    padding: 0 0.85rem 0 0.15rem;
     border: none;
     outline: none;
     background: transparent;
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     font-weight: 650;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
     color: #0f172a;
     text-align: right;
+    caret-color: #0b486d;
 }
 
 .fin-amt-row__input::placeholder {
-    color: #94a3b8;
+    color: #cbd5e1;
     font-weight: 500;
 }
 
@@ -1897,10 +1941,25 @@
     appearance: textfield;
 }
 
+.fin-amt-row--filled .fin-amt-row__currency {
+    color: #64748b;
+}
+
+.fin-amt-row--filled .fin-amt-row__field {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.fin-amt-row--filled .fin-amt-row__field:focus-within {
+    background: #fff;
+    border-color: #0b486d;
+}
+
 @media (max-width: 520px) {
     .fin-amt-row {
         flex-wrap: wrap;
-        gap: 0.45rem;
+        gap: 0.55rem;
+        align-items: stretch;
     }
 
     .fin-amt-row__field {
@@ -3758,28 +3817,31 @@
     background: #f8fafc;
 }
 
-.fin-sunday-panel--solo .fin-amount-grid--collections,
-.fin-sunday-panel--solo .fin-amount-grid--expenses {
-    padding: 0.15rem 0.35rem 0.35rem;
+.fin-sunday-panel--solo .fin-expense-sections {
+    margin: 0.5rem 0.85rem 0.95rem;
 }
 
 .fin-sunday-panel--solo .fin-amt-row {
-    margin: 0 0.35rem;
-    padding: 0.7rem 0.65rem;
-    border-radius: 0.55rem;
+    margin: 0;
+    padding: 0.85rem 1rem;
+    border-radius: 0;
 }
 
-.fin-sunday-panel--solo .fin-expense-group__title {
-    margin: 0.65rem 0.85rem 0.25rem;
-    font-size: 0.6875rem;
-    letter-spacing: 0.06em;
-    color: #94a3b8;
+.fin-sunday-panel--solo .fin-expense-group__title,
+.fin-sunday-panel--solo .fin-expense-section .fin-expense-group__title {
+    margin: 0;
+    padding: 0.65rem 1rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: #0b486d;
+    background: #e8eef3;
+    border-bottom: 1px solid #d7e0e8;
 }
 
 .fin-sunday-panel--solo .fin-expense-section + .fin-expense-section {
-    border-top: 1px solid #f1f5f9;
-    margin-top: 0.25rem;
-    padding-top: 0.15rem;
+    border-top: 1px solid #eef2f7;
+    margin-top: 0;
+    padding-top: 0;
 }
 
 .fin-sunday-modal__footer .fin-sunday-footer__summary {
@@ -4990,6 +5052,22 @@ input[type="date"].finance-input {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
+}
+
+.fin-budget-editor--page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-top: 0.5rem;
+    padding: 1.25rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.fin-budget-page--edit .fin-sunday-top {
+    margin-bottom: 1rem;
 }
 
 .fin-budget-editor__totals {

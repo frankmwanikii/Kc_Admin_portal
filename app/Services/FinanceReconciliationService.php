@@ -50,8 +50,8 @@ class FinanceReconciliationService
 
     /** @var array<string, string> */
     public const EXPENSE_GROUPS = [
-        'admin_expenses' => 'Admin Expenses',
-        'ministry_departments' => 'Operational Expenses',
+        'admin_expenses' => 'Administration costs',
+        'ministry_departments' => 'Operational expenses',
     ];
 
     /** @var list<array{slug: string, label: string, code_prefix: string, sort: int, group: string}> */
