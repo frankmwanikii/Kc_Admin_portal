@@ -83,6 +83,16 @@ $churchName = SettingsService::churchName();
                 <div x-show="showForgot" x-cloak class="login-alert login-alert--success login-forgot-note">
                     Contact your system administrator to reset your password.
                 </div>
+
+                <div class="login-demo">
+                    <p class="login-demo__label">Autofill</p>
+                    <button type="button"
+                            class="login-demo__user"
+                            @click="username = 'Admin'; password = '12345678'"
+                            title="Fill Admin login credentials">
+                        Admin login
+                    </button>
+                </div>
             </form>
         </div>
     </section>
