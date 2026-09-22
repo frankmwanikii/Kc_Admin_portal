@@ -41,6 +41,8 @@
                 presetTotals: {},
             },
             ledgerSub: config.ledgerSub === 'collections' ? 'collections' : 'expenses',
+            financeTab: config.financeTab || config.tab || 'dashboard',
+            sundayPanelLock: null,
             dashboard: config.dashboard || {},
             budget: config.budget || {},
             budgetYear: config.budgetYear || config.year || new Date().getFullYear(),
@@ -70,20 +72,33 @@
             reconciliationDropdownPos: { top: 0, left: 0 },
             reconciliationMenuIgnoreOutside: false,
             showSundayModal: false,
+            monthPickerOpen: false,
+            monthPickerYear: Number(String(config.weeklyMonth || config.month || '').slice(0, 4)) || Number(config.year) || new Date().getFullYear(),
+            monthNamesShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
             toast: null,
             toastTimer: null,
             ajaxBusy: false,
 
             init() {
                 this.$nextTick(() => window.lucide?.createIcons());
+                // Legacy ?record=1 bookmarks → dedicated Record Sunday page
                 if (config.openSundayModal) {
-                    this.showSundayModal = true;
-                    try {
-                        const url = new URL(window.location.href);
-                        url.searchParams.delete('record');
-                        url.searchParams.delete('record_date');
-                        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-                    } catch (_) { /* ignore */ }
+                    const params = new URLSearchParams();
+                    if (config.weeklyMonth || config.month) {
+                        params.set('month', config.weeklyMonth || config.month);
+                    }
+                    if (config.sundayFormBase?.weekDate) {
+                        params.set('week_date', config.sundayFormBase.weekDate);
+                    }
+                    if (config.financeTab === 'ledger') {
+                        params.set('panel', config.ledgerSub === 'collections' ? 'collections' : 'expenses');
+                        params.set('return_tab', 'ledger');
+                        params.set('return_sub', config.ledgerSub === 'collections' ? 'collections' : 'expenses');
+                    } else {
+                        params.set('return_tab', config.financeTab || 'dashboard');
+                    }
+                    window.location.replace('/admin/finance/sunday?' + params.toString());
+                    return;
                 }
                 this.$watch('search', () => { this.arrearsPage = 1; });
                 this.$watch('collectionSearch', () => { this.collectionsPage = 1; });
@@ -133,33 +148,57 @@
                 });
             },
 
-            openSundayModal(weekDate = null) {
-                if ((!this.weeklySundays || !this.weeklySundays.length)
-                    && Array.isArray(this.reconciliation?.weeks)
-                    && this.reconciliation.weeks.length) {
-                    this.weeklySundays = this.reconciliation.weeks.map((w) => w.week_date);
+            openSundayModal(weekDate = null, panel = null) {
+                this.goToSundayRecord(weekDate, panel);
+            },
+
+            goToSundayRecord(weekDate = null, panel = null) {
+                const params = new URLSearchParams();
+                const month = this.weeklyMonth || String(weekDate || '').slice(0, 7) || '';
+                if (month) params.set('month', month);
+                if (weekDate) params.set('week_date', weekDate);
+
+                let lock = null;
+                if (panel === 'collections' || panel === 'expenses') {
+                    lock = panel;
+                } else if (this.financeTab === 'ledger') {
+                    lock = this.ledgerSub === 'collections' ? 'collections' : 'expenses';
                 }
-                if (weekDate) {
-                    this.sundayFormBase = {
-                        ...(this.sundayFormBase || {}),
-                        weekDate,
-                    };
+                if (lock) params.set('panel', lock);
+
+                const tab = this.financeTab || 'ledger';
+                params.set('return_tab', tab);
+                if (tab === 'ledger') {
+                    params.set('return_sub', this.ledgerSub === 'collections' ? 'collections' : 'expenses');
                 }
-                this.reconciliationMenu = null;
-                this.weeklyMenu = null;
-                this.collectionMenu = null;
-                this.showSundayModal = true;
-                this.$nextTick(() => window.lucide?.createIcons());
+
+                window.location.href = '/admin/finance/sunday?' + params.toString();
+            },
+
+            ensureWeeklySundays() {
+                if (Array.isArray(this.weeklySundays) && this.weeklySundays.length) {
+                    return;
+                }
+                if (Array.isArray(this.reconciliation?.weeks) && this.reconciliation.weeks.length) {
+                    this.weeklySundays = this.reconciliation.weeks.map((w) => w.week_date).filter(Boolean);
+                    return;
+                }
+                const fromSessions = Object.keys(this.sundaySessionsByDate || {});
+                if (fromSessions.length) {
+                    this.weeklySundays = fromSessions.sort();
+                }
             },
 
             closeSundayModal() {
                 this.showSundayModal = false;
+                this.sundayPanelLock = null;
             },
 
             setLedgerSub(sub) {
                 if (sub !== 'expenses' && sub !== 'collections') return;
                 if (this.ledgerSub === sub) return;
                 this.ledgerSub = sub;
+                this.financeTab = 'ledger';
                 this.weeklyMenu = null;
                 this.collectionMenu = null;
                 this.reconciliationMenu = null;
@@ -169,13 +208,25 @@
 
             buildSundayFormConfig() {
                 const base = this.sundayFormBase || {};
+                const lock = this.sundayPanelLock;
+                let panel = 'expenses';
+                if (lock === 'collections' || lock === 'expenses') {
+                    panel = lock;
+                } else if (this.ledgerSub === 'collections') {
+                    panel = 'collections';
+                }
+                this.ensureWeeklySundays();
                 return {
                     weekDate: base.weekDate || '',
                     sessionsByDate: this.sundaySessionsByDate || {},
+                    weeklySundays: Array.isArray(this.weeklySundays) ? this.weeklySundays.slice() : [],
+                    weeklyMonth: this.weeklyMonth || '',
                     methods: base.methods || Object.keys(this.paymentMethods || {}),
                     categories: base.categories || [],
                     presets: base.presets || {},
                     presetTotals: base.presetTotals || {},
+                    activePanel: panel,
+                    panelLock: lock,
                 };
             },
 
@@ -296,6 +347,47 @@
                     year,
                     url: { month, year },
                 });
+            },
+
+            toggleMonthPicker() {
+                if (this.monthPickerOpen) {
+                    this.closeMonthPicker();
+                    return;
+                }
+                const parts = String(this.weeklyMonth || '').split('-');
+                this.monthPickerYear = Number(parts[0]) || Number(this.year) || new Date().getFullYear();
+                this.monthPickerOpen = true;
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            closeMonthPicker() {
+                this.monthPickerOpen = false;
+            },
+
+            shiftMonthPickerYear(delta) {
+                this.monthPickerYear = Number(this.monthPickerYear || new Date().getFullYear()) + (Number(delta) || 0);
+            },
+
+            isMonthPickerSelected(monthNum) {
+                const parts = String(this.weeklyMonth || '').split('-');
+                const y = Number(parts[0]);
+                const m = Number(parts[1]);
+                return y === Number(this.monthPickerYear) && m === Number(monthNum);
+            },
+
+            async pickMonthPickerMonth(monthNum) {
+                const y = Number(this.monthPickerYear) || new Date().getFullYear();
+                const month = `${y}-${String(monthNum).padStart(2, '0')}`;
+                this.closeMonthPicker();
+                await this.changeLedgerMonth(month);
+            },
+
+            async pickMonthPickerToday() {
+                const now = new Date();
+                const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                this.monthPickerYear = now.getFullYear();
+                this.closeMonthPicker();
+                await this.changeLedgerMonth(month);
             },
 
             async changeFinanceYear(year) {
@@ -868,7 +960,7 @@
 
             validateArrearCatalog(row) {
                 if (!row.expense_group) {
-                    window.alert('Select a department (Admin Expenses or Ministry & Departments).');
+                    window.alert('Select a department (Admin Expenses or Operational Expenses).');
                     return false;
                 }
                 if (this.isAdminExpenses(row.expense_group)) {
@@ -1238,7 +1330,7 @@
 
             validateWeeklyCategory(row) {
                 if (!row.expense_group) {
-                    window.alert('Select a department (Admin Expenses or Ministry & Departments).');
+                    window.alert('Select a department (Admin Expenses or Operational Expenses).');
                     return false;
                 }
                 if (this.isAdminExpenses(row.expense_group)) {
@@ -1558,6 +1650,13 @@
                 return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
             },
 
+            sundayDayNum(date) {
+                if (!date) return '';
+                const d = new Date(String(date) + 'T12:00:00');
+                if (Number.isNaN(d.getTime())) return '';
+                return String(d.getDate());
+            },
+
             formatDate(value) {
                 if (!value) return '—';
                 const d = new Date(value + 'T00:00:00');
@@ -1849,10 +1948,16 @@
         Alpine.data('sundayEntryForm', (config) => ({
             weekDate: config.weekDate || '',
             sessionsByDate: config.sessionsByDate || {},
+            weeklySundays: Array.isArray(config.weeklySundays) ? config.weeklySundays.slice() : [],
+            weeklyMonth: config.weeklyMonth || '',
             methods: config.methods || [],
             categories: config.categories || [],
             presets: config.presets || {},
             presetTotals: config.presetTotals || { standard: 12200, full: 17200 },
+            activePanel: config.activePanel === 'collections' ? 'collections' : 'expenses',
+            panelLock: config.panelLock === 'collections' || config.panelLock === 'expenses'
+                ? config.panelLock
+                : null,
             collectionFields: {},
             expenseFields: {},
             notes: '',
@@ -1862,19 +1967,144 @@
             activePreset: '',
 
             init() {
+                if (this.panelLock) {
+                    this.activePanel = this.panelLock;
+                }
+                this.pullFromHub();
+                this.refreshSundayOptions();
                 this.loadSession(this.weekDate);
-                this.$nextTick(() => window.lucide?.createIcons());
+                this.$nextTick(() => {
+                    this.pullFromHub();
+                    this.refreshSundayOptions();
+                    window.lucide?.createIcons();
+                });
                 this.$watch('weekDate', () => {
+                    this.$nextTick(() => window.lucide?.createIcons());
+                });
+                this.$watch('activePanel', () => {
                     this.$nextTick(() => window.lucide?.createIcons());
                 });
             },
 
-            get hasSavedData() {
-                const session = this.sessionsByDate[this.weekDate];
+            hub() {
+                let node = this.$el ? this.$el.parentElement : null;
+                while (node) {
+                    try {
+                        const data = window.Alpine && window.Alpine.$data(node);
+                        if (data && typeof data.shiftSundayMonth === 'function') {
+                            return data;
+                        }
+                    } catch (_) { /* keep walking */ }
+                    node = node.parentElement;
+                }
+                return null;
+            },
+
+            pullFromHub() {
+                const hub = this.hub();
+                if (!hub) return;
+                hub.ensureWeeklySundays?.();
+                if (Array.isArray(hub.weeklySundays) && hub.weeklySundays.length) {
+                    this.weeklySundays = hub.weeklySundays.slice();
+                }
+                if (hub.weeklyMonth) {
+                    this.weeklyMonth = hub.weeklyMonth;
+                }
+                if (hub.sundaySessionsByDate) {
+                    this.sessionsByDate = hub.sundaySessionsByDate;
+                }
+            },
+
+            setActivePanel(panel) {
+                if (this.panelLock) return;
+                this.activePanel = panel === 'collections' ? 'collections' : 'expenses';
+            },
+
+            get showPanelSwitch() {
+                return !this.panelLock;
+            },
+
+            get monthLabel() {
+                const month = this.weeklyMonth || '';
+                if (!month) return 'Select month';
+                const d = new Date(String(month) + '-01T12:00:00');
+                if (Number.isNaN(d.getTime())) return String(month);
+                return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+            },
+
+            get sundayDates() {
+                let sundays = Array.isArray(this.weeklySundays) ? this.weeklySundays.slice() : [];
+                if (!sundays.length) {
+                    sundays = Object.keys(this.sessionsByDate || {}).sort();
+                }
+                return sundays;
+            },
+
+            dayNum(date) {
+                if (!date) return '';
+                const parts = String(date).split('-');
+                if (parts.length === 3) {
+                    const day = Number(parts[2]);
+                    if (day > 0) return String(day);
+                }
+                const d = new Date(String(date) + 'T12:00:00');
+                if (Number.isNaN(d.getTime())) return '';
+                return String(d.getDate());
+            },
+
+            formatLong(date) {
+                if (!date) return '';
+                const d = new Date(String(date) + 'T12:00:00');
+                if (Number.isNaN(d.getTime())) return String(date);
+                return d.toLocaleDateString('en-GB', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                });
+            },
+
+            async shiftMonth(delta) {
+                const hub = this.hub();
+                if (!hub || typeof hub.shiftSundayMonth !== 'function') return;
+                await hub.shiftSundayMonth(delta);
+            },
+
+            syncSelectedSunday() {
+                const sundays = this.sundayDates;
+                if (!sundays.length) {
+                    if (this.weekDate) {
+                        this.weekDate = '';
+                    }
+                    return;
+                }
+                if (!sundays.includes(this.weekDate)) {
+                    this.weekDate = sundays[0];
+                    this.loadSession(this.weekDate);
+                }
+            },
+
+            selectSunday(sun) {
+                if (!sun || sun === this.weekDate) return;
+                this.weekDate = sun;
+                this.onDateChange();
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            sundayHasData(date) {
+                const session = this.sessionsByDate[date];
                 if (!session) return false;
                 const colSum = Object.values(session.collections || {}).reduce((s, v) => s + (Number(v) || 0), 0);
                 const expSum = Object.values(session.expenses || {}).reduce((s, v) => s + (Number(v) || 0), 0);
                 return colSum > 0 || expSum > 0 || Boolean(session.notes);
+            },
+
+            refreshSundayOptions() {
+                this.syncSelectedSunday();
+            },
+
+            get hasSavedData() {
+                return this.sundayHasData(this.weekDate);
             },
 
             get balanceLabel() {

@@ -10,7 +10,7 @@ $refId = 'POS-' . (int) ($position['year'] ?? $year) . '-' . date('YmdHis');
 <div class="arrears-page statement-page position-page">
     <div class="statement-toolbar no-print">
         <div class="statement-toolbar-row">
-            <h2 class="arrears-title statement-toolbar-title">Consolidated Financial Position</h2>
+            <h2 class="arrears-title statement-toolbar-title">Consolidated Income &amp; Expenditure</h2>
             <div class="statement-toolbar-actions">
                 <button type="button" @click="printStatement()" class="arrears-btn-outline" :disabled="positionBusy">
                     <i data-lucide="printer" class="w-4 h-4"></i>

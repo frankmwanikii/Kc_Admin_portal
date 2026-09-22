@@ -88,9 +88,9 @@ $nextMonthUrl = '/admin/finance?' . http_build_query(array_merge($monthNavBase, 
     <div class="finance-modal finance-modal--sunday" x-transition role="dialog" aria-modal="true" aria-labelledby="sunday-modal-title">
         <header class="finance-modal-header">
             <div class="finance-modal-header-text">
-                <p class="finance-modal-eyebrow">Ledger</p>
+                <p class="finance-modal-eyebrow">Records</p>
                 <h4 class="finance-modal-title" id="sunday-modal-title">Record Sunday</h4>
-                <p class="finance-modal-subtitle">Enter collections and expenses for one Sunday — saves to the ledger.</p>
+                <p class="finance-modal-subtitle">Enter collections and expenses for one Sunday — saves to the records.</p>
             </div>
             <button type="button"
                     @click="closeSundayModal()"
@@ -112,75 +112,85 @@ $nextMonthUrl = '/admin/finance?' . http_build_query(array_merge($monthNavBase, 
 
                     <div class="finance-modal-body finance-modal-body--sunday">
                         <section class="fin-sunday-controls">
-                            <div class="fin-sunday-toolbar">
-                                <div class="fin-sunday-month-nav">
-                                    <button type="button" class="fin-sunday-month-nav__btn" aria-label="Previous month" @click.prevent="$root.shiftSundayMonth(-1)">
-                                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                                    </button>
-                                    <span class="fin-sunday-month-nav__label" x-text="$root.monthLabel"><?= htmlspecialchars($monthLabel) ?></span>
-                                    <button type="button" class="fin-sunday-month-nav__btn" aria-label="Next month" @click.prevent="$root.shiftSundayMonth(1)">
-                                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                                    </button>
+                            <div class="fin-sunday-cal">
+                                <div class="fin-sunday-cal__head">
+                                    <div class="fin-sunday-cal__title">
+                                        <span class="fin-sunday-cal__month" x-text="monthLabel"><?= htmlspecialchars($monthLabel) ?></span>
+                                        <span class="fin-sunday-cal__caption">Choose a Sunday</span>
+                                    </div>
                                 </div>
 
-                                <div class="fin-sunday-date-field">
-                                    <label for="modal_week_date" class="fin-sunday-date-field__label">
-                                        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-                                        Sunday
-                                    </label>
-                                    <select id="modal_week_date"
-                                            name="week_date"
-                                            required
-                                            class="fin-sunday-date-field__select"
-                                            x-model="weekDate"
-                                            @change="onDateChange()">
-                                        <template x-for="sun in ($root.weeklySundays || Object.keys(sessionsByDate))" :key="sun">
-                                            <option :value="sun" x-text="$root.formatSundayLong(sun)"></option>
-                                        </template>
-                                    </select>
+                                <input type="hidden" name="week_date" :value="weekDate" required>
+
+                                <div class="fin-sunday-cal__days" role="listbox" aria-label="Sundays this month">
+                                    <template x-for="sun in sundayDates" :key="sun">
+                                        <button type="button"
+                                                role="option"
+                                                class="fin-sunday-cal__day"
+                                                :class="{
+                                                    'fin-sunday-cal__day--active': weekDate === sun,
+                                                    'fin-sunday-cal__day--saved': sundayHasData(sun)
+                                                }"
+                                                :aria-selected="weekDate === sun"
+                                                :aria-label="formatLong(sun)"
+                                                @click="selectSunday(sun)">
+                                            <span class="fin-sunday-cal__dow">Sun</span>
+                                            <span class="fin-sunday-cal__num" x-text="dayNum(sun)"></span>
+                                            <span class="fin-sunday-cal__dot" aria-hidden="true"></span>
+                                        </button>
+                                    </template>
+                                    <p class="fin-sunday-cal__empty" x-show="!sundayDates.length" x-cloak>No Sundays in this month</p>
                                 </div>
 
-                                <span class="fin-sunday-status" x-show="hasSavedData" x-cloak>
-                                    <i data-lucide="history" class="w-3.5 h-3.5"></i>
-                                    Editing saved entry
-                                </span>
+                                <div class="fin-sunday-cal__meta">
+                                    <span class="fin-sunday-cal__selected" x-show="weekDate" x-cloak>
+                                        <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i>
+                                        <span x-text="formatLong(weekDate)"></span>
+                                    </span>
+                                    <span class="fin-sunday-status" x-show="hasSavedData" x-cloak>
+                                        <i data-lucide="history" class="w-3.5 h-3.5"></i>
+                                        Editing saved entry
+                                    </span>
+                                </div>
                             </div>
                         </section>
 
-                        <div class="fin-sunday-live" :class="weekBalance >= 0 ? 'fin-sunday-live--surplus' : 'fin-sunday-live--deficit'">
-                            <div class="fin-sunday-live__item">
-                                <span class="fin-sunday-live__label">Money in</span>
-                                <span class="fin-sunday-live__value" x-text="formatMoney(collectionsTotal)"></span>
-                            </div>
-                            <div class="fin-sunday-live__divider" aria-hidden="true">−</div>
-                            <div class="fin-sunday-live__item">
-                                <span class="fin-sunday-live__label">Money out</span>
-                                <span class="fin-sunday-live__value" x-text="formatMoney(expensesTotal)"></span>
-                            </div>
-                            <div class="fin-sunday-live__divider" aria-hidden="true">=</div>
-                            <div class="fin-sunday-live__item fin-sunday-live__item--result">
-                                <span class="fin-sunday-live__label" x-text="balanceLabel"></span>
-                                <span class="fin-sunday-live__value fin-sunday-live__value--lg" x-text="formatMoney(weekBalance)"></span>
-                            </div>
+                        <div class="fin-sunday-seg"
+                             x-show="showPanelSwitch"
+                             x-cloak
+                             role="tablist"
+                             aria-label="Collections or expenses">
+                            <button type="button"
+                                    role="tab"
+                                    class="fin-sunday-seg__tab"
+                                    :class="activePanel === 'collections' && 'fin-sunday-seg__tab--active'"
+                                    :aria-selected="activePanel === 'collections'"
+                                    @click="setActivePanel('collections')">
+                                <span class="fin-sunday-seg__label">Collections</span>
+                                <span class="fin-sunday-seg__chip" x-text="formatMoney(collectionsTotal)"></span>
+                            </button>
+                            <button type="button"
+                                    role="tab"
+                                    class="fin-sunday-seg__tab"
+                                    :class="activePanel === 'expenses' && 'fin-sunday-seg__tab--active'"
+                                    :aria-selected="activePanel === 'expenses'"
+                                    @click="setActivePanel('expenses')">
+                                <span class="fin-sunday-seg__label">Expenses</span>
+                                <span class="fin-sunday-seg__chip" x-text="formatMoney(expensesTotal)"></span>
+                            </button>
                         </div>
 
-                        <div class="fin-sunday-panels">
-                            <section class="fin-sunday-panel fin-sunday-panel--in">
-                                <header class="fin-sunday-panel__head">
-                                    <div class="fin-sunday-panel__title-wrap">
-                                        <span class="fin-sunday-panel__badge fin-sunday-panel__badge--in">
-                                            <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
+                        <div class="fin-sunday-panels fin-sunday-panels--stacked">
+                            <section class="fin-sunday-panel fin-sunday-panel--in fin-sunday-panel--solo"
+                                     x-show="activePanel === 'collections'"
+                                     x-cloak
+                                     role="tabpanel">
+                                <header class="fin-sunday-panel__bar">
+                                    <p class="fin-sunday-panel__hint">Offering &amp; tithe for this Sunday</p>
+                                    <div class="fin-sunday-panel__bar-actions">
+                                        <span class="fin-sunday-panel__bar-total">
+                                            Total <strong x-text="formatMoney(collectionsTotal)"></strong>
                                         </span>
-                                        <div>
-                                            <h2 class="fin-sunday-panel__title">Collections</h2>
-                                            <p class="fin-sunday-panel__sub">Offering &amp; tithe received this Sunday</p>
-                                        </div>
-                                    </div>
-                                    <div class="fin-sunday-panel__head-actions">
-                                        <div class="fin-sunday-panel__total">
-                                            <span class="fin-sunday-panel__total-label">Total in</span>
-                                            <span class="fin-sunday-panel__total-value" x-text="formatMoney(collectionsTotal)"></span>
-                                        </div>
                                         <button type="button" class="fin-sunday-panel__clear" @click="clearCollections()">Clear</button>
                                     </div>
                                 </header>
@@ -224,22 +234,16 @@ $nextMonthUrl = '/admin/finance?' . http_build_query(array_merge($monthNavBase, 
                                 </div>
                             </section>
 
-                            <section class="fin-sunday-panel fin-sunday-panel--out">
-                                <header class="fin-sunday-panel__head">
-                                    <div class="fin-sunday-panel__title-wrap">
-                                        <span class="fin-sunday-panel__badge fin-sunday-panel__badge--out">
-                                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            <section class="fin-sunday-panel fin-sunday-panel--out fin-sunday-panel--solo"
+                                     x-show="activePanel === 'expenses'"
+                                     x-cloak
+                                     role="tabpanel">
+                                <header class="fin-sunday-panel__bar">
+                                    <p class="fin-sunday-panel__hint">Cash paid out this Sunday</p>
+                                    <div class="fin-sunday-panel__bar-actions">
+                                        <span class="fin-sunday-panel__bar-total">
+                                            Total <strong x-text="formatMoney(expensesTotal)"></strong>
                                         </span>
-                                        <div>
-                                            <h2 class="fin-sunday-panel__title">Expenses</h2>
-                                            <p class="fin-sunday-panel__sub">Cash paid out this Sunday</p>
-                                        </div>
-                                    </div>
-                                    <div class="fin-sunday-panel__head-actions">
-                                        <div class="fin-sunday-panel__total fin-sunday-panel__total--out">
-                                            <span class="fin-sunday-panel__total-label">Total out</span>
-                                            <span class="fin-sunday-panel__total-value" x-text="formatMoney(expensesTotal)"></span>
-                                        </div>
                                         <button type="button" class="fin-sunday-panel__clear" @click="clearExpenses()">Clear</button>
                                     </div>
                                 </header>

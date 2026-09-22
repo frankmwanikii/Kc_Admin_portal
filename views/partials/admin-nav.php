@@ -80,7 +80,7 @@ $sections = [
         ],
         [
             'href' => '/admin/finance?tab=ledger',
-            'label' => 'Ledger',
+            'label' => 'Records',
             'icon' => 'table-2',
             'active' => $currentPath === '/admin/finance' && $financeTab === 'ledger',
         ],

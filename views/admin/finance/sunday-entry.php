@@ -1,6 +1,20 @@
 <?php
-$monthLabel = date('F Y', strtotime($month . '-01'));
+/** Record Sunday — full page entry for collections and/or expenses. */
+$month = $month ?? date('Y-m');
+$weekDate = $weekDate ?? '';
+$sundays = $sundays ?? [];
+$categories = $categories ?? [];
+$sessionsByDate = $sessionsByDate ?? [];
+$presets = $presets ?? [];
+$paymentMethods = $paymentMethods ?? [];
+$panel = in_array(($panel ?? ''), ['collections', 'expenses'], true) ? $panel : '';
+$returnTab = in_array(($returnTab ?? ''), ['dashboard', 'bills', 'ledger', 'reconciliation', 'budget', 'reports'], true)
+    ? $returnTab
+    : 'ledger';
+$returnSub = in_array(($returnSub ?? ''), ['expenses', 'collections'], true) ? $returnSub : '';
 $saved = isset($_GET['saved']);
+
+$monthLabel = date('F Y', strtotime($month . '-01'));
 $yearNum = (int) substr($month, 0, 4);
 $monthNum = (int) substr($month, 5, 2);
 $prevMonth = $monthNum > 1
@@ -34,30 +48,65 @@ foreach ($expenseGroups as $groupName => $items) {
     }
 }
 
-$categorySlugs = array_keys($categories);
+$backQs = array_filter([
+    'tab' => $returnTab,
+    'month' => $month,
+    'year' => $yearNum,
+    'sub' => $returnTab === 'ledger' ? ($returnSub !== '' ? $returnSub : null) : null,
+]);
+$backUrl = '/admin/finance?' . http_build_query($backQs);
+$backLabel = match ($returnTab) {
+    'dashboard' => 'Overview',
+    'bills' => 'Bills',
+    'reconciliation' => 'Reconciliation',
+    'budget' => 'Budget',
+    'reports' => 'Reports',
+    default => 'Records',
+};
+
+$monthNavBase = array_filter([
+    'panel' => $panel !== '' ? $panel : null,
+    'return_tab' => $returnTab,
+    'return_sub' => $returnSub !== '' ? $returnSub : null,
+]);
+$prevMonthUrl = '/admin/finance/sunday?' . http_build_query(array_merge($monthNavBase, ['month' => $prevMonth]));
+$nextMonthUrl = '/admin/finance/sunday?' . http_build_query(array_merge($monthNavBase, ['month' => $nextMonth]));
+
 $jsConfig = [
-    'weekDate' => $weekDate ?? '',
-    'sessionsByDate' => $sessionsByDate ?? [],
-    'methods' => array_keys($paymentMethods ?? []),
-    'categories' => $categorySlugs,
-    'presets' => $presets ?? [],
+    'weekDate' => $weekDate,
+    'sessionsByDate' => $sessionsByDate,
+    'weeklySundays' => array_values($sundays),
+    'weeklyMonth' => $month,
+    'methods' => array_keys($paymentMethods),
+    'categories' => array_keys($categories),
+    'presets' => $presets,
     'presetTotals' => [
         'standard' => array_sum($presets['standard'] ?? []),
         'full' => array_sum($presets['full'] ?? []),
     ],
+    'activePanel' => $panel !== '' ? $panel : 'expenses',
+    'panelLock' => $panel !== '' ? $panel : null,
 ];
 ?>
 <div class="fin-sunday-page" x-cloak x-data="sundayEntryForm(<?= htmlspecialchars(json_encode($jsConfig), ENT_QUOTES) ?>)">
     <header class="fin-sunday-top">
-        <a href="/admin/finance?tab=dashboard&year=<?= $yearNum ?>" class="fin-sunday-back">
+        <a href="<?= htmlspecialchars($backUrl) ?>" class="fin-sunday-back">
             <i data-lucide="arrow-left" class="w-4 h-4"></i>
-            Overview
+            <?= htmlspecialchars($backLabel) ?>
         </a>
         <div class="fin-sunday-top__hero">
             <div class="fin-sunday-top__copy">
-                <p class="fin-sunday-top__eyebrow"><?= htmlspecialchars($monthLabel) ?></p>
+                <p class="fin-sunday-top__eyebrow">Records</p>
                 <h1 class="fin-sunday-top__title">Record Sunday</h1>
-                <p class="fin-sunday-top__sub">Enter what came in and what went out. Totals calculate automatically.</p>
+                <p class="fin-sunday-top__sub">
+                    <?php if ($panel === 'collections'): ?>
+                    Enter offering &amp; tithe for one Sunday.
+                    <?php elseif ($panel === 'expenses'): ?>
+                    Enter cash paid out for one Sunday.
+                    <?php else: ?>
+                    Enter what came in and what went out. Totals update as you type.
+                    <?php endif; ?>
+                </p>
             </div>
             <div class="fin-sunday-steps" aria-label="How to record">
                 <div class="fin-sunday-step"><span class="fin-sunday-step__num">1</span> Pick Sunday</div>
@@ -70,86 +119,100 @@ $jsConfig = [
     <?php if ($saved): ?>
     <div class="fin-toast fin-toast--success" role="status">
         <i data-lucide="check-circle" class="w-5 h-5"></i>
-        Saved! Your dashboard and reports are updated.
+        Saved. Your records and reports are updated.
     </div>
     <?php endif; ?>
 
     <form method="post" action="/admin/finance/sunday" class="fin-sunday-form" @submit="validateBeforeSubmit($event)">
-        <!-- Date controls -->
+        <input type="hidden" name="return_tab" value="<?= htmlspecialchars($returnTab) ?>">
+        <input type="hidden" name="return_sub" value="<?= htmlspecialchars($returnSub) ?>">
+
         <section class="fin-sunday-controls">
-            <div class="fin-sunday-toolbar">
-                <div class="fin-sunday-month-nav">
-                    <a href="/admin/finance/sunday?month=<?= htmlspecialchars($prevMonth) ?>" class="fin-sunday-month-nav__btn" aria-label="Previous month">
+            <div class="fin-sunday-cal">
+                <div class="fin-sunday-cal__head">
+                    <a href="<?= htmlspecialchars($prevMonthUrl) ?>" class="fin-sunday-cal__nav" aria-label="Previous month">
                         <i data-lucide="chevron-left" class="w-4 h-4"></i>
                     </a>
-                    <span class="fin-sunday-month-nav__label"><?= htmlspecialchars($monthLabel) ?></span>
-                    <a href="/admin/finance/sunday?month=<?= htmlspecialchars($nextMonth) ?>" class="fin-sunday-month-nav__btn" aria-label="Next month">
+                    <div class="fin-sunday-cal__title">
+                        <span class="fin-sunday-cal__month"><?= htmlspecialchars($monthLabel) ?></span>
+                        <span class="fin-sunday-cal__caption">Choose a Sunday</span>
+                    </div>
+                    <a href="<?= htmlspecialchars($nextMonthUrl) ?>" class="fin-sunday-cal__nav" aria-label="Next month">
                         <i data-lucide="chevron-right" class="w-4 h-4"></i>
                     </a>
                 </div>
 
-                <div class="fin-sunday-date-field">
-                    <label for="week_date" class="fin-sunday-date-field__label">
-                        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-                        Sunday
-                    </label>
-                    <select id="week_date"
-                            name="week_date"
-                            required
-                            class="fin-sunday-date-field__select"
-                            x-model="weekDate"
-                            @change="onDateChange()">
-                        <?php foreach ($sundays as $sun): ?>
-                        <option value="<?= htmlspecialchars($sun) ?>" <?= ($weekDate ?? '') === $sun ? 'selected' : '' ?>>
-                            <?= date('D, j M Y', strtotime($sun)) ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
+                <input type="hidden" name="week_date" :value="weekDate" required>
+
+                <div class="fin-sunday-cal__days" role="listbox" aria-label="Sundays this month">
+                    <template x-for="sun in sundayDates" :key="sun">
+                        <button type="button"
+                                role="option"
+                                class="fin-sunday-cal__day"
+                                :class="{
+                                    'fin-sunday-cal__day--active': weekDate === sun,
+                                    'fin-sunday-cal__day--saved': sundayHasData(sun)
+                                }"
+                                :aria-selected="weekDate === sun"
+                                :aria-label="formatLong(sun)"
+                                @click="selectSunday(sun)">
+                            <span class="fin-sunday-cal__dow">Sun</span>
+                            <span class="fin-sunday-cal__num" x-text="dayNum(sun)"></span>
+                            <span class="fin-sunday-cal__dot" aria-hidden="true"></span>
+                        </button>
+                    </template>
+                    <?php if ($sundays === []): ?>
+                    <p class="fin-sunday-cal__empty">No Sundays in this month</p>
+                    <?php endif; ?>
                 </div>
 
-                <span class="fin-sunday-status" x-show="hasSavedData" x-cloak>
-                    <i data-lucide="history" class="w-3.5 h-3.5"></i>
-                    Editing saved entry
-                </span>
+                <div class="fin-sunday-cal__meta">
+                    <span class="fin-sunday-cal__selected" x-show="weekDate" x-cloak>
+                        <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i>
+                        <span x-text="formatLong(weekDate)"></span>
+                    </span>
+                    <span class="fin-sunday-status" x-show="hasSavedData" x-cloak>
+                        <i data-lucide="history" class="w-3.5 h-3.5"></i>
+                        Editing saved entry
+                    </span>
+                </div>
             </div>
         </section>
 
-        <!-- Live summary strip -->
-        <div class="fin-sunday-live" :class="weekBalance >= 0 ? 'fin-sunday-live--surplus' : 'fin-sunday-live--deficit'">
-            <div class="fin-sunday-live__item">
-                <span class="fin-sunday-live__label">Money in</span>
-                <span class="fin-sunday-live__value" x-text="formatMoney(collectionsTotal)"></span>
-            </div>
-            <div class="fin-sunday-live__divider" aria-hidden="true">−</div>
-            <div class="fin-sunday-live__item">
-                <span class="fin-sunday-live__label">Money out</span>
-                <span class="fin-sunday-live__value" x-text="formatMoney(expensesTotal)"></span>
-            </div>
-            <div class="fin-sunday-live__divider" aria-hidden="true">=</div>
-            <div class="fin-sunday-live__item fin-sunday-live__item--result">
-                <span class="fin-sunday-live__label" x-text="balanceLabel"></span>
-                <span class="fin-sunday-live__value fin-sunday-live__value--lg" x-text="formatMoney(weekBalance)"></span>
-            </div>
+        <?php if ($panel === ''): ?>
+        <div class="fin-sunday-seg" role="tablist" aria-label="Collections or expenses">
+            <button type="button"
+                    role="tab"
+                    class="fin-sunday-seg__tab"
+                    :class="activePanel === 'collections' && 'fin-sunday-seg__tab--active'"
+                    :aria-selected="activePanel === 'collections'"
+                    @click="setActivePanel('collections')">
+                <span class="fin-sunday-seg__label">Collections</span>
+                <span class="fin-sunday-seg__chip" x-text="formatMoney(collectionsTotal)"></span>
+            </button>
+            <button type="button"
+                    role="tab"
+                    class="fin-sunday-seg__tab"
+                    :class="activePanel === 'expenses' && 'fin-sunday-seg__tab--active'"
+                    :aria-selected="activePanel === 'expenses'"
+                    @click="setActivePanel('expenses')">
+                <span class="fin-sunday-seg__label">Expenses</span>
+                <span class="fin-sunday-seg__chip" x-text="formatMoney(expensesTotal)"></span>
+            </button>
         </div>
+        <?php endif; ?>
 
-        <div class="fin-sunday-panels">
-            <!-- Collections -->
-            <section class="fin-sunday-panel fin-sunday-panel--in">
-                <header class="fin-sunday-panel__head">
-                    <div class="fin-sunday-panel__title-wrap">
-                        <span class="fin-sunday-panel__badge fin-sunday-panel__badge--in">
-                            <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
+        <div class="fin-sunday-panels fin-sunday-panels--stacked">
+            <section class="fin-sunday-panel fin-sunday-panel--in fin-sunday-panel--solo"
+                     x-show="activePanel === 'collections'"
+                     <?= $panel === 'collections' ? '' : 'x-cloak' ?>
+                     role="tabpanel">
+                <header class="fin-sunday-panel__bar">
+                    <p class="fin-sunday-panel__hint">Offering &amp; tithe for this Sunday</p>
+                    <div class="fin-sunday-panel__bar-actions">
+                        <span class="fin-sunday-panel__bar-total">
+                            Total <strong x-text="formatMoney(collectionsTotal)"></strong>
                         </span>
-                        <div>
-                            <h2 class="fin-sunday-panel__title">Collections</h2>
-                            <p class="fin-sunday-panel__sub">Offering &amp; tithe received this Sunday</p>
-                        </div>
-                    </div>
-                    <div class="fin-sunday-panel__head-actions">
-                        <div class="fin-sunday-panel__total">
-                            <span class="fin-sunday-panel__total-label">Total in</span>
-                            <span class="fin-sunday-panel__total-value" x-text="formatMoney(collectionsTotal)"></span>
-                        </div>
                         <button type="button" class="fin-sunday-panel__clear" @click="clearCollections()">Clear</button>
                     </div>
                 </header>
@@ -193,27 +256,19 @@ $jsConfig = [
                 </div>
             </section>
 
-            <!-- Expenses -->
-            <section class="fin-sunday-panel fin-sunday-panel--out">
-                <header class="fin-sunday-panel__head">
-                    <div class="fin-sunday-panel__title-wrap">
-                        <span class="fin-sunday-panel__badge fin-sunday-panel__badge--out">
-                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+            <section class="fin-sunday-panel fin-sunday-panel--out fin-sunday-panel--solo"
+                     x-show="activePanel === 'expenses'"
+                     <?= $panel === 'expenses' ? '' : 'x-cloak' ?>
+                     role="tabpanel">
+                <header class="fin-sunday-panel__bar">
+                    <p class="fin-sunday-panel__hint">Cash paid out this Sunday</p>
+                    <div class="fin-sunday-panel__bar-actions">
+                        <span class="fin-sunday-panel__bar-total">
+                            Total <strong x-text="formatMoney(expensesTotal)"></strong>
                         </span>
-                        <div>
-                            <h2 class="fin-sunday-panel__title">Expenses</h2>
-                            <p class="fin-sunday-panel__sub">Cash paid out this Sunday</p>
-                        </div>
-                    </div>
-                    <div class="fin-sunday-panel__head-actions">
-                        <div class="fin-sunday-panel__total fin-sunday-panel__total--out">
-                            <span class="fin-sunday-panel__total-label">Total out</span>
-                            <span class="fin-sunday-panel__total-value" x-text="formatMoney(expensesTotal)"></span>
-                        </div>
                         <button type="button" class="fin-sunday-panel__clear" @click="clearExpenses()">Clear</button>
                     </div>
                 </header>
-
                 <div class="fin-expense-sections">
                     <?php foreach ($multiItemExpenseGroups as $groupName => $items): ?>
                     <section class="fin-expense-section">
@@ -316,7 +371,7 @@ $jsConfig = [
                 <span class="fin-sunday-footer__value" x-text="formatMoney(weekBalance)"></span>
             </div>
             <div class="fin-sunday-footer__actions">
-                <a href="/admin/finance?tab=dashboard&year=<?= $yearNum ?>" class="fin-btn fin-btn--ghost">Cancel</a>
+                <a href="<?= htmlspecialchars($backUrl) ?>" class="fin-btn fin-btn--ghost">Cancel</a>
                 <button type="submit" class="fin-btn fin-btn--primary fin-btn--lg fin-btn--save">
                     <i data-lucide="save" class="w-5 h-5"></i>
                     Save Sunday

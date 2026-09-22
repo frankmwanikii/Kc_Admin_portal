@@ -19,8 +19,8 @@ $sectionMeta = match ($tabKey) {
         'sub' => 'Track what the church owes — paid amounts and balances still due.',
     ],
     'ledger' => [
-        'title' => 'Ledger',
-        'sub' => 'Weekly expenses and collections for each Sunday.',
+        'title' => 'Records',
+        'sub' => 'Expense and collection records for each Sunday.',
     ],
     'reconciliation' => [
         'title' => 'Reconciliation',

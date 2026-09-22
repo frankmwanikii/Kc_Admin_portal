@@ -68,7 +68,7 @@ PREPARE kc_weekly_stmt FROM @kc_weekly_sql;
 EXECUTE kc_weekly_stmt;
 DEALLOCATE PREPARE kc_weekly_stmt;
 
--- Top-level expense grouping: Admin Expenses | Ministry & Departments
+-- Top-level expense grouping: Admin Expenses | Operational Expenses
 SET @kc_exp_group := (
     SELECT COUNT(*) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()

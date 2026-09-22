@@ -98,7 +98,9 @@ class FinanceController
             'month' => $month,
             'paymentMethods' => $paymentMethods,
             'openSundayModal' => $recordSunday,
+            'financeTab' => $tab,
             'weeklyMonth' => $month,
+            'weeklySundays' => $sundays,
             'expenseGroups' => array_values($expenseCatalog),
             'sundaySessionsByDate' => $sundayForm['sundaySessionsByDate'],
             'sundayFormBase' => [
@@ -112,6 +114,9 @@ class FinanceController
                 ],
             ],
         ];
+        if ($tab === 'ledger') {
+            $hubConfig['ledgerSub'] = $ledgerSub;
+        }
 
         switch ($tab) {
             case 'dashboard':
@@ -195,7 +200,7 @@ class FinanceController
         $pageTitles = [
             'dashboard' => 'Finance overview',
             'bills' => 'Bills',
-            'ledger' => 'Ledger',
+            'ledger' => 'Records',
             'reconciliation' => 'Reconciliation',
             'budget' => 'Budget',
             'reports' => 'Reports',
@@ -390,15 +395,41 @@ class FinanceController
     public function sundayEntry(): void
     {
         Auth::requireAdmin();
-        $month = $_GET['month'] ?? date('Y-m');
+        FinanceReconciliationService::ensureTables();
+
+        $month = (string) ($_GET['month'] ?? date('Y-m'));
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $month = date('Y-m');
+        }
         $weekDate = trim((string) ($_GET['week_date'] ?? ''));
-        $qs = http_build_query(array_filter([
-            'tab' => 'ledger',
-            'month' => $month,
-            'record' => '1',
-            'record_date' => $weekDate !== '' ? $weekDate : null,
-        ]));
-        View::redirect('/admin/finance?' . $qs);
+        $panel = trim((string) ($_GET['panel'] ?? ''));
+        if (!in_array($panel, ['collections', 'expenses'], true)) {
+            $panel = '';
+        }
+        $returnTab = trim((string) ($_GET['return_tab'] ?? 'ledger'));
+        if (!in_array($returnTab, ['dashboard', 'bills', 'ledger', 'reconciliation', 'budget', 'reports'], true)) {
+            $returnTab = 'ledger';
+        }
+        $returnSub = trim((string) ($_GET['return_sub'] ?? ''));
+        if (!in_array($returnSub, ['expenses', 'collections'], true)) {
+            $returnSub = $panel !== '' ? $panel : '';
+        }
+
+        $payload = $this->sundayFormPayload($month, $weekDate !== '' ? $weekDate : null);
+
+        View::render('admin/finance/sunday-entry', array_merge([
+            'title' => 'Record Sunday',
+            'month' => $payload['sundayMonth'],
+            'weekDate' => $payload['sundayWeekDate'],
+            'sundays' => $payload['sundaySundays'],
+            'categories' => $payload['sundayCategories'],
+            'sessionsByDate' => $payload['sundaySessionsByDate'],
+            'presets' => $payload['sundayPresets'],
+            'paymentMethods' => $payload['sundayPaymentMethods'],
+            'panel' => $panel,
+            'returnTab' => $returnTab,
+            'returnSub' => $returnSub,
+        ], $this->financePageAssets()), 'layouts/admin');
     }
 
     public function storeSundayEntry(): void

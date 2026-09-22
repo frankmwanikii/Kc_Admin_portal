@@ -819,7 +819,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
     $monthLabel = date('F Y', strtotime($month . '-01'));
     ?>
     <div class="fin-ledger">
-        <div class="fin-subtabs no-print" role="tablist" aria-label="Ledger view">
+        <div class="fin-subtabs no-print" role="tablist" aria-label="Records view">
             <button type="button"
                     class="fin-subtabs__item"
                     :class="ledgerSub === 'expenses' && 'fin-subtabs__item--active'"
@@ -856,16 +856,15 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <input type="hidden" name="tab" value="ledger">
                     <input type="hidden" name="sub" :value="ledgerSub" value="expenses">
                     <input type="hidden" name="year" :value="year" value="<?= (int) $year ?>">
-                    <input type="month"
-                           name="month"
-                           :value="weeklyMonth"
-                           @change="changeLedgerMonth($event.target.value)"
-                           class="arrears-year-select"
-                           aria-label="Budget month">
+                    <input type="hidden" name="month" :value="weeklyMonth" value="<?= htmlspecialchars($month ?? '') ?>">
+                    <?php
+                    $monthPickerLabel = 'Budget month';
+                    require __DIR__ . '/_month-picker.php';
+                    ?>
                 </form>
             </div>
             <div class="weekly-toolbar-actions">
-                <button type="button" @click="openSundayModal()" class="arrears-btn-new">Record Sunday</button>
+                <button type="button" @click="openSundayModal(null, 'expenses')" class="arrears-btn-new">Record Sunday</button>
                 <button type="button" @click="openCategoryForm()" class="arrears-btn-outline">Add category</button>
             </div>
         </div>
@@ -969,15 +968,14 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <input type="hidden" name="tab" value="ledger">
                     <input type="hidden" name="sub" :value="ledgerSub" value="collections">
                     <input type="hidden" name="year" :value="year" value="<?= (int) $year ?>">
-                    <input type="month"
-                           name="month"
-                           :value="weeklyMonth"
-                           @change="changeLedgerMonth($event.target.value)"
-                           class="arrears-year-select"
-                           aria-label="Month">
+                    <input type="hidden" name="month" :value="weeklyMonth" value="<?= htmlspecialchars($month ?? '') ?>">
+                    <?php
+                    $monthPickerLabel = 'Month';
+                    require __DIR__ . '/_month-picker.php';
+                    ?>
                 </form>
             </div>
-            <button type="button" @click="openSundayModal()" class="arrears-btn-new">Record Sunday</button>
+            <button type="button" @click="openSundayModal(null, 'collections')" class="arrears-btn-new">Record Sunday</button>
         </div>
 
         <div class="arrears-card finance-table-card">
@@ -1104,13 +1102,11 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
                         <?php endfor; ?>
                     </select>
-                    <input type="month"
-                           name="month"
-                           :value="weeklyMonth"
-                           value="<?= htmlspecialchars($month) ?>"
-                           @change="changeLedgerMonth($event.target.value)"
-                           class="arrears-year-select"
-                           aria-label="Month">
+                    <input type="hidden" name="month" :value="weeklyMonth" value="<?= htmlspecialchars($month) ?>">
+                    <?php
+                    $monthPickerLabel = 'Month';
+                    require __DIR__ . '/_month-picker.php';
+                    ?>
                 </form>
             </div>
         </div>
@@ -1210,7 +1206,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                class="fin-reports-subnav__btn<?= $reportSub === 'position' ? ' fin-reports-subnav__btn--active' : '' ?>"
                role="tab"
                aria-selected="<?= $reportSub === 'position' ? 'true' : 'false' ?>">
-                Consolidated Position
+                Income &amp; Expenditure
             </a>
         </div>
 
@@ -1264,7 +1260,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         View details
                     </button>
                     <button type="button"
-                            @click="weeklyMenu = null; openSundayModal()"
+                            @click="weeklyMenu = null; openSundayModal(null, 'expenses')"
                             class="arrears-dropdown-item">
                         Edit in Record Sunday
                     </button>
@@ -1311,12 +1307,12 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <button type="button"
                             @click="goToLedger('expenses')"
                             class="arrears-dropdown-item">
-                        Open Ledger expenses
+                        Open Records expenses
                     </button>
                     <button type="button"
                             @click="goToLedger('collections')"
                             class="arrears-dropdown-item">
-                        Open Ledger collections
+                        Open Records collections
                     </button>
                 </div>
             </template>
@@ -1343,7 +1339,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         Edit amounts
                     </button>
                     <button type="button"
-                            @click="collectionMenu = null; openSundayModal()"
+                            @click="collectionMenu = null; openSundayModal(null, 'collections')"
                             class="arrears-dropdown-item">
                         Edit in Record Sunday
                     </button>
@@ -1453,7 +1449,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         <div class="finance-modal-actions finance-modal-actions--end">
                             <button type="button" @click="weeklyViewRow = null" class="finance-btn-secondary">Close</button>
                             <button type="button"
-                                    @click="const slug = weeklyViewRow.slug; weeklyViewRow = null; openSundayModal()"
+                                    @click="const slug = weeklyViewRow.slug; weeklyViewRow = null; openSundayModal(null, 'expenses')"
                                     class="finance-btn-primary">
                                 Edit in Record Sunday
                             </button>
