@@ -22,7 +22,7 @@ class FinanceController
         $rawSub = strtolower((string) ($_GET['sub'] ?? ''));
         $reportSub = $rawSub;
 
-        // Legacy aliases → simplified IA (Overview · Sundays · Bills · Reports)
+        // Legacy aliases → Overview · Sundays · Bills · Budget · Reports
         if ($tab === 'arrears') {
             $tab = 'bills';
         }
@@ -40,14 +40,14 @@ class FinanceController
             $tab = 'dashboard';
             $reportSub = '';
         }
-        // Budget lives under Reports
-        if ($tab === 'budget') {
-            $tab = 'reports';
-            $reportSub = 'budget';
+        // Legacy Reports → Budget now has its own sidebar item
+        if ($tab === 'reports' && $reportSub === 'budget') {
+            $tab = 'budget';
+            $reportSub = '';
         }
 
         if ($tab === 'reports') {
-            if (!in_array($reportSub, ['statement', 'position', 'budget'], true)) {
+            if (!in_array($reportSub, ['statement', 'position'], true)) {
                 $reportSub = 'statement';
             }
         } else {
@@ -195,16 +195,19 @@ class FinanceController
                 $hubConfig['ledgerSub'] = $ledgerSub;
                 break;
 
+            case 'budget':
+                FinanceBudgetService::ensureTables();
+                $budget = FinanceBudgetService::buildBudgetVsActual($budgetYear, $month);
+                $hubConfig['weeklyMonth'] = $month;
+                $hubConfig['budget'] = $budget;
+                $hubConfig['budgetYear'] = $budgetYear;
+                $hubConfig['budgetEditLines'] = FinanceBudgetService::linesForEdit($budgetYear, $month);
+                break;
+
             case 'reports':
                 $hubConfig['reportSub'] = $reportSub;
                 $hubConfig['weeklyMonth'] = $month;
-                if ($reportSub === 'budget') {
-                    FinanceBudgetService::ensureTables();
-                    $budget = FinanceBudgetService::buildBudgetVsActual($budgetYear, $month);
-                    $hubConfig['budget'] = $budget;
-                    $hubConfig['budgetYear'] = $budgetYear;
-                    $hubConfig['budgetEditLines'] = FinanceBudgetService::linesForEdit($budgetYear, $month);
-                } elseif ($reportSub === 'position') {
+                if ($reportSub === 'position') {
                     $position = FinanceReconciliationService::buildConsolidatedPosition($year);
                     $hubConfig['positionYear'] = $year;
                 } else {
@@ -225,6 +228,7 @@ class FinanceController
             'dashboard' => 'Finance overview',
             'bills' => 'Bills',
             'ledger' => 'Sundays',
+            'budget' => !empty($_GET['edit']) ? 'Set Budget' : 'Budget',
             'reports' => 'Reports',
         ];
 
@@ -252,7 +256,7 @@ class FinanceController
             'reportSub' => $reportSub,
             'budgetYear' => $budgetYear,
             'budget' => $budget,
-            'budgetEditMode' => $tab === 'reports' && $reportSub === 'budget' && isset($_GET['edit']),
+            'budgetEditMode' => $tab === 'budget' && isset($_GET['edit']),
             'hubConfig' => $hubConfig,
             'churchName' => SettingsService::churchName() ?: ($churchConfig['site_name'] ?? 'Church'),
             'statementLogoUrl' => FinanceReconciliationService::statementLogoUrl(),
@@ -437,15 +441,12 @@ class FinanceController
         if ($returnTab === 'reconciliation') {
             $returnTab = 'dashboard';
         }
-        if ($returnTab === 'budget') {
-            $returnTab = 'reports';
-        }
-        if (!in_array($returnTab, ['dashboard', 'bills', 'ledger', 'reports'], true)) {
+        if (!in_array($returnTab, ['dashboard', 'bills', 'ledger', 'budget', 'reports'], true)) {
             $returnTab = 'ledger';
         }
         $returnSub = trim((string) ($_GET['return_sub'] ?? ''));
         if ($returnTab === 'reports') {
-            if (!in_array($returnSub, ['statement', 'position', 'budget'], true)) {
+            if (!in_array($returnSub, ['statement', 'position'], true)) {
                 $returnSub = 'statement';
             }
         } elseif (!in_array($returnSub, ['expenses', 'collections'], true)) {
@@ -478,11 +479,7 @@ class FinanceController
         if ($returnTab === 'reconciliation') {
             $returnTab = 'dashboard';
         }
-        if ($returnTab === 'budget') {
-            $returnTab = 'reports';
-            $returnSub = 'budget';
-        }
-        if (!in_array($returnTab, ['dashboard', 'bills', 'ledger', 'reports'], true)) {
+        if (!in_array($returnTab, ['dashboard', 'bills', 'ledger', 'budget', 'reports'], true)) {
             $returnTab = 'ledger';
         }
 
@@ -518,7 +515,7 @@ class FinanceController
             'saved' => '1',
         ];
         if ($returnTab === 'reports') {
-            $qs['sub'] = in_array($returnSub, ['statement', 'position', 'budget'], true) ? $returnSub : 'statement';
+            $qs['sub'] = in_array($returnSub, ['statement', 'position'], true) ? $returnSub : 'statement';
         } elseif ($returnSub !== '' && in_array($returnSub, ['expenses', 'collections'], true)) {
             $qs['sub'] = $returnSub;
         }
@@ -819,14 +816,14 @@ class FinanceController
             FinanceBudgetService::saveMonthAmounts($budgetYear, $month, $amounts);
         } catch (\InvalidArgumentException $e) {
             $this->respondMutation(
-                '/admin/finance?tab=reports&sub=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+                '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
                 ['ok' => false, 'message' => $e->getMessage() ?: 'Could not save budget.'],
                 422
             );
         }
 
         $this->respondMutation(
-            '/admin/finance?tab=reports&sub=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+            '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
             array_merge(
                 ['ok' => true, 'message' => 'Budget saved. Tracking will use these figures.'],
                 $this->budgetAjaxPayload($budgetYear, $month)
@@ -855,14 +852,14 @@ class FinanceController
             }
         } catch (\InvalidArgumentException $e) {
             $this->respondMutation(
-                '/admin/finance?tab=reports&sub=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+                '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
                 ['ok' => false, 'message' => $e->getMessage() ?: 'Could not add budget line.'],
                 422
             );
         }
 
         $this->respondMutation(
-            '/admin/finance?tab=reports&sub=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+            '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
             array_merge(
                 ['ok' => true, 'message' => 'Budget line added.'],
                 $this->budgetAjaxPayload($budgetYear, $month)
@@ -883,14 +880,14 @@ class FinanceController
             FinanceBudgetService::deleteLine($budgetYear, $lineId);
         } catch (\InvalidArgumentException $e) {
             $this->respondMutation(
-                '/admin/finance?tab=reports&sub=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+                '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
                 ['ok' => false, 'message' => $e->getMessage() ?: 'Could not delete budget line.'],
                 422
             );
         }
 
         $this->respondMutation(
-            '/admin/finance?tab=reports&sub=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
+            '/admin/finance?tab=budget&budget_year=' . $budgetYear . '&month=' . urlencode($month),
             array_merge(
                 ['ok' => true, 'message' => 'Budget line deleted.'],
                 $this->budgetAjaxPayload($budgetYear, $month)

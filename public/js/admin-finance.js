@@ -65,7 +65,7 @@
             statementWeekDate: config.statementWeekDate || '',
             statementSundays: config.statementSundays || [],
             statementBusy: false,
-            reportSub: ['statement','position','budget'].includes(config.reportSub) ? config.reportSub : 'statement',
+            reportSub: ['statement','position'].includes(config.reportSub) ? config.reportSub : 'statement',
             positionBusy: false,
             yearReconciliation: config.yearReconciliation || { months: [], year_expenses: 0, year_collections: 0, year_balance: 0 },
             expenseGroups: config.expenseGroups || [],
@@ -438,6 +438,10 @@
                     this.billsMonthFilter = month;
                     return;
                 }
+                if (target === 'budget') {
+                    this.navigateBudgetMonth(month);
+                    return;
+                }
                 await this.changeLedgerMonth(month);
             },
 
@@ -459,7 +463,20 @@
                     this.billsMonthFilter = month;
                     return;
                 }
+                if (target === 'budget') {
+                    this.navigateBudgetMonth(month);
+                    return;
+                }
                 await this.changeLedgerMonth(month);
+            },
+
+            navigateBudgetMonth(month) {
+                const params = new URLSearchParams({
+                    tab: 'budget',
+                    month: month || this.weeklyMonth || '',
+                    budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
+                });
+                window.location.href = '/admin/finance?' + params.toString();
             },
 
             clearBillsMonthFilter() {
@@ -507,7 +524,7 @@
 
             openBudgetEditor() {
                 const params = new URLSearchParams({
-                    tab: 'reports', sub: 'budget',
+                    tab: 'budget',
                     edit: '1',
                     month: this.weeklyMonth || '',
                     budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
@@ -517,7 +534,7 @@
 
             closeBudgetEditor() {
                 const params = new URLSearchParams({
-                    tab: 'reports', sub: 'budget',
+                    tab: 'budget',
                     month: this.weeklyMonth || '',
                     budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
                 });
@@ -585,7 +602,7 @@
                 await this.postAjax(form, {
                     onSuccess: () => {
                         const params = new URLSearchParams({
-                            tab: 'reports', sub: 'budget',
+                            tab: 'budget',
                             month: this.weeklyMonth || '',
                             budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
                         });

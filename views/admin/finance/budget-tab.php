@@ -22,18 +22,19 @@ $statusClass = match ($focusMonth['status'] ?? 'neutral') {
 };
 $fyLabel = $b['label'] ?? ('FY ' . $budgetYear);
 $budgetBackUrl = '/admin/finance?' . http_build_query([
-    'tab' => 'reports',
-    'sub' => 'budget',
+    'tab' => 'budget',
     'budget_year' => (int) $budgetYear,
     'month' => $month,
 ]);
 $budgetEditUrl = '/admin/finance?' . http_build_query([
-    'tab' => 'reports',
-    'sub' => 'budget',
+    'tab' => 'budget',
     'edit' => '1',
     'budget_year' => (int) $budgetYear,
     'month' => $month,
 ]);
+$focusMonthLabel = date('F Y', strtotime($month . '-01'));
+$usedPct = $focusMonth['expense_used_pct'] ?? null;
+$expenseVar = (float) ($focusMonth['expense_variance'] ?? 0);
 
 if ($budgetEditMode):
 ?>
@@ -272,71 +273,96 @@ return;
 endif;
 ?>
 <div class="arrears-page fin-budget-page">
-    <div class="fin-budget-page__head">
-        <div>
-            <h2 class="arrears-title">Budget vs Actual</h2>
-            <p class="text-sm text-slate-500 -mt-3 mb-5">
-                <?= htmlspecialchars($fyLabel) ?> — set planned amounts, then compare against Sunday entries to stay on track
-            </p>
+    <div class="fin-report-bar no-print">
+        <div class="fin-report-bar__main">
+            <div class="fin-report-bar__identity">
+                <h2 class="fin-report-bar__title">Budget vs actual</h2>
+                <p class="fin-report-bar__hint"><?= htmlspecialchars($fyLabel) ?> — plan first, then track Sunday activity against it</p>
+            </div>
+            <div class="fin-report-bar__tools">
+                <form method="get" class="fin-budget-bar__controls" id="fin-budget-filters">
+                    <input type="hidden" name="tab" value="budget">
+                    <label class="fin-report-bar__year">
+                        <span class="fin-report-bar__year-label">Financial year</span>
+                        <select name="budget_year"
+                                class="fin-report-bar__select"
+                                aria-label="Financial year"
+                                onchange="this.form.submit()">
+                            <?php for ($y = (int) date('Y') + 1; $y >= 2024; $y--): ?>
+                            <option value="<?= $y ?>" <?= (int) $budgetYear === $y ? 'selected' : '' ?>>
+                                FY <?= $y ?>/<?= substr((string) ($y + 1), 2) ?>
+                            </option>
+                            <?php endfor; ?>
+                        </select>
+                    </label>
+                    <label class="fin-report-bar__year">
+                        <span class="fin-report-bar__year-label">Focus month</span>
+                        <?php
+                        $monthPickerLabel = 'Focus month';
+                        $monthPickerTarget = 'budget';
+                        $monthLabel = $focusMonthLabel;
+                        $monthPickerClass = 'fin-budget-bar__month';
+                        require __DIR__ . '/_month-picker.php';
+                        ?>
+                        <input type="hidden" name="month" :value="weeklyMonth" value="<?= htmlspecialchars($month) ?>">
+                    </label>
+                </form>
+                <a href="<?= htmlspecialchars($budgetEditUrl) ?>" class="fin-btn fin-btn--primary fin-budget-bar__cta">
+                    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                    Set Budget
+                </a>
+            </div>
         </div>
-        <a href="<?= htmlspecialchars($budgetEditUrl) ?>" class="arrears-btn-new">
-            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
-            Set Budget
-        </a>
-    </div>
-
-    <div class="fin-budget-toolbar">
-        <form method="get" class="inline-flex items-center gap-2">
-            <input type="hidden" name="tab" value="reports">
-            <input type="hidden" name="sub" value="budget">
-            <label class="fin-budget-toolbar__label">
-                Financial year
-                <select name="budget_year" onchange="this.form.submit()" class="arrears-year-select" aria-label="Financial year">
-                    <?php for ($y = (int) date('Y') + 1; $y >= 2024; $y--): ?>
-                    <option value="<?= $y ?>" <?= $budgetYear === $y ? 'selected' : '' ?>>FY <?= $y ?>/<?= substr((string) ($y + 1), 2) ?></option>
-                    <?php endfor; ?>
-                </select>
-            </label>
-            <label class="fin-budget-toolbar__label">
-                Focus month
-                <input type="month" name="month" value="<?= htmlspecialchars($month) ?>" onchange="this.form.submit()" class="arrears-year-select" aria-label="Month">
-            </label>
-        </form>
     </div>
 
     <?php if (!($b['has_budget'] ?? false)): ?>
     <div class="fin-budget-empty">
-        <p>No budget amounts for this month yet.</p>
-        <p class="fin-budget-empty__hint">Click <strong>Set Budget</strong> to enter planned income and expenses. Those figures drive on-track / over-budget status.</p>
-        <a href="<?= htmlspecialchars($budgetEditUrl) ?>" class="arrears-btn-new mt-3">Set Budget</a>
+        <div class="fin-budget-empty__icon" aria-hidden="true">
+            <i data-lucide="wallet" class="w-8 h-8"></i>
+        </div>
+        <h3 class="fin-budget-empty__title">No budget for <?= htmlspecialchars($focusMonthLabel) ?></h3>
+        <p class="fin-budget-empty__hint">
+            Set planned income and expenses for this month. Overview and status badges use these figures to show on-track or over-budget.
+        </p>
+        <a href="<?= htmlspecialchars($budgetEditUrl) ?>" class="fin-btn fin-btn--primary mt-4">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+            Set Budget
+        </a>
     </div>
     <?php else: ?>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        <div class="reconciliation-stat reconciliation-stat--expenses">
-            <p class="reconciliation-stat-label">Budgeted expenses (<?= htmlspecialchars(date('M Y', strtotime($month . '-01'))) ?>)</p>
-            <p class="reconciliation-stat-value">KES <?= $fmt((float) ($focusMonth['budget_expenses'] ?? 0)) ?></p>
+    <div class="fin-budget-pulse">
+        <div class="fin-budget-pulse__card">
+            <p class="fin-budget-pulse__label">Budgeted expenses</p>
+            <p class="fin-budget-pulse__value">KES <?= $fmt((float) ($focusMonth['budget_expenses'] ?? 0)) ?></p>
+            <p class="fin-budget-pulse__meta"><?= htmlspecialchars($focusMonthLabel) ?></p>
         </div>
-        <div class="reconciliation-stat reconciliation-stat--collected">
-            <p class="reconciliation-stat-label">Actual expenses</p>
-            <p class="reconciliation-stat-value">KES <?= $fmt((float) ($focusMonth['actual_expenses'] ?? 0)) ?></p>
+        <div class="fin-budget-pulse__card">
+            <p class="fin-budget-pulse__label">Actual expenses</p>
+            <p class="fin-budget-pulse__value">KES <?= $fmt((float) ($focusMonth['actual_expenses'] ?? 0)) ?></p>
+            <p class="fin-budget-pulse__meta">From Sunday entries</p>
         </div>
-        <div class="reconciliation-stat <?= ($focusMonth['expense_variance'] ?? 0) >= 0 ? 'reconciliation-stat--surplus' : 'reconciliation-stat--deficit' ?>">
-            <p class="reconciliation-stat-label">Variance (budget − actual)</p>
-            <p class="reconciliation-stat-value"><?= ($focusMonth['expense_variance'] ?? 0) < 0 ? '-' : '' ?>KES <?= $fmt(abs((float) ($focusMonth['expense_variance'] ?? 0))) ?></p>
+        <div class="fin-budget-pulse__card <?= $expenseVar >= 0 ? 'fin-budget-pulse__card--good' : 'fin-budget-pulse__card--bad' ?>">
+            <p class="fin-budget-pulse__label">Variance</p>
+            <p class="fin-budget-pulse__value"><?= $expenseVar < 0 ? '-' : '' ?>KES <?= $fmt(abs($expenseVar)) ?></p>
+            <p class="fin-budget-pulse__meta"><?= $expenseVar >= 0 ? 'Under budget' : 'Over budget' ?></p>
         </div>
-        <div class="reconciliation-stat fin-budget-status <?= $statusClass ?>">
-            <p class="reconciliation-stat-label">Status</p>
-            <p class="reconciliation-stat-value fin-budget-status__value"><?= htmlspecialchars($focusMonth['status_label'] ?? '') ?></p>
-            <?php if (($focusMonth['expense_used_pct'] ?? null) !== null): ?>
-            <p class="fin-budget-status__pct"><?= (float) $focusMonth['expense_used_pct'] ?>% of budget used</p>
+        <div class="fin-budget-pulse__card fin-budget-status <?= $statusClass ?>">
+            <p class="fin-budget-pulse__label">Status</p>
+            <p class="fin-budget-pulse__value fin-budget-status__value"><?= htmlspecialchars($focusMonth['status_label'] ?? '') ?></p>
+            <?php if ($usedPct !== null): ?>
+            <div class="fin-budget-meter fin-budget-meter--inline" role="progressbar" aria-valuenow="<?= (float) $usedPct ?>" aria-valuemin="0" aria-valuemax="100">
+                <div class="fin-budget-meter__fill <?= (float) $usedPct > 100 ? 'fin-budget-meter__fill--over' : '' ?>"
+                     style="width: <?= min(100, (float) $usedPct) ?>%"></div>
+            </div>
+            <p class="fin-budget-pulse__meta"><?= (float) $usedPct ?>% of budget used</p>
             <?php endif; ?>
         </div>
     </div>
 
     <div class="arrears-card finance-table-card fin-budget-card">
         <div class="finance-table-caption">
-            <span class="finance-table-caption-label">Executive summary</span>
+            <span class="finance-table-caption-label">Year at a glance</span>
             <span class="finance-table-caption-badge"><?= htmlspecialchars($b['label'] ?? '') ?></span>
             <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
         </div>
@@ -355,7 +381,7 @@ endif;
                 </thead>
                 <tbody>
                     <?php foreach ($b['months'] ?? [] as $m):
-                        if (!($m['has_activity'] ?? false)) {
+                        if (!($m['has_activity'] ?? false) && (float) ($m['budget_expenses'] ?? 0) <= 0 && (float) ($m['budget_income'] ?? 0) <= 0) {
                             continue;
                         }
                         $isFocus = ($m['month'] ?? '') === $month;
@@ -366,9 +392,23 @@ endif;
                             default => 'fin-badge--neutral',
                         };
                         $var = (float) ($m['expense_variance'] ?? 0);
+                        $rowMonth = (string) ($m['month'] ?? '');
+                        $rowHref = $rowMonth !== ''
+                            ? '/admin/finance?' . http_build_query([
+                                'tab' => 'budget',
+                                'budget_year' => (int) $budgetYear,
+                                'month' => $rowMonth,
+                            ])
+                            : '';
                     ?>
                     <tr class="arrears-row <?= $isFocus ? 'fin-budget-table__row--focus' : '' ?>">
-                        <td><span class="arrears-accent"><?= htmlspecialchars($m['label'] ?? '') ?></span></td>
+                        <td>
+                            <?php if ($rowHref !== '' && !$isFocus): ?>
+                            <a href="<?= htmlspecialchars($rowHref) ?>" class="fin-link arrears-accent"><?= htmlspecialchars($m['label'] ?? '') ?></a>
+                            <?php else: ?>
+                            <span class="arrears-accent"><?= htmlspecialchars($m['label'] ?? '') ?></span>
+                            <?php endif; ?>
+                        </td>
                         <td class="ft-td-accent ft-td--right"><span class="arrears-amount">KES <?= $fmt((float) ($m['budget_income'] ?? 0)) ?></span></td>
                         <td class="ft-td-accent ft-td--right"><span class="arrears-amount">KES <?= $fmt((float) ($m['actual_income'] ?? 0)) ?></span></td>
                         <td class="ft-td-accent ft-td--right"><span class="arrears-amount">KES <?= $fmt((float) ($m['budget_expenses'] ?? 0)) ?></span></td>
@@ -415,8 +455,9 @@ endif;
     <?php if (!empty($b['lines'])): ?>
     <div class="arrears-card finance-table-card fin-budget-card mt-5">
         <div class="finance-table-caption">
-            <span class="finance-table-caption-label">Expense lines — <?= htmlspecialchars(date('F Y', strtotime($month . '-01'))) ?></span>
+            <span class="finance-table-caption-label">Expense lines — <?= htmlspecialchars($focusMonthLabel) ?></span>
             <span class="finance-table-caption-badge">Budget vs actual</span>
+            <a href="<?= htmlspecialchars($budgetEditUrl) ?>" class="fin-link finance-table-caption-action">Edit amounts →</a>
         </div>
         <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Expense line budget comparison">
             <table class="arrears-table fin-budget-lines-table">

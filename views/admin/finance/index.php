@@ -4,20 +4,18 @@ $tab = $tab ?? 'dashboard';
 if ($tab === 'arrears') $tab = 'bills';
 if ($tab === 'weekly' || $tab === 'collections') $tab = 'ledger';
 if ($tab === 'reconciliation') $tab = 'dashboard';
-if ($tab === 'budget') $tab = 'reports';
 if ($tab === 'statement') $tab = 'reports';
+if ($tab === 'reports' && ($reportSub ?? '') === 'budget') $tab = 'budget';
 $tabDashboard = $tab === 'dashboard';
 $tabBills = $tab === 'bills';
 $tabLedger = $tab === 'ledger';
+$tabBudget = $tab === 'budget';
 $tabReports = $tab === 'reports';
 $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses';
 if ($tabReports) {
-    $reportSub = in_array(($reportSub ?? ''), ['statement', 'position', 'budget'], true)
+    $reportSub = in_array(($reportSub ?? ''), ['statement', 'position'], true)
         ? $reportSub
         : 'statement';
-    if ($reportSub === 'budget') {
-        $ledgerSub = 'expenses'; // avoid conflicting sub usage in URL helpers
-    }
 }
 ?>
 <div class="fin-hub" x-cloak x-data="financeHub(<?= htmlspecialchars(json_encode($hubConfig ?? ['year' => (int) ($year ?? date('Y')), 'paymentMethods' => $paymentMethods ?? []]), ENT_QUOTES) ?>)">
@@ -1073,15 +1071,16 @@ if ($tabReports) {
         </div>
     </div>
     </div>
+    <?php elseif ($tabBudget): ?>
+    <?php require __DIR__ . '/budget-tab.php'; ?>
+
     <?php elseif ($tabReports): ?>
     <div class="fin-reports">
         <?php
-        $reportSub = in_array(($reportSub ?? ''), ['statement', 'position', 'budget'], true)
+        $reportSub = in_array(($reportSub ?? ''), ['statement', 'position'], true)
             ? $reportSub
             : 'statement';
-        $budgetEditMode = !empty($budgetEditMode);
         ?>
-        <?php if (!$budgetEditMode): ?>
         <div class="fin-reports-subnav no-print" role="tablist" aria-label="Report type">
             <a href="/admin/finance?tab=reports&amp;sub=statement&amp;year=<?= (int) $year ?>&amp;month=<?= htmlspecialchars(urlencode($month)) ?>&amp;view=<?= htmlspecialchars(urlencode($statementView ?? 'monthly')) ?>"
                class="fin-reports-subnav__btn<?= $reportSub === 'statement' ? ' fin-reports-subnav__btn--active' : '' ?>"
@@ -1095,18 +1094,9 @@ if ($tabReports) {
                aria-selected="<?= $reportSub === 'position' ? 'true' : 'false' ?>">
                 Income &amp; Expenditure
             </a>
-            <a href="/admin/finance?tab=reports&amp;sub=budget&amp;budget_year=<?= (int) ($budgetYear ?? $year) ?>&amp;month=<?= htmlspecialchars(urlencode($month)) ?>"
-               class="fin-reports-subnav__btn<?= $reportSub === 'budget' ? ' fin-reports-subnav__btn--active' : '' ?>"
-               role="tab"
-               aria-selected="<?= $reportSub === 'budget' ? 'true' : 'false' ?>">
-                Budget vs actual
-            </a>
         </div>
-        <?php endif; ?>
 
-        <?php if ($reportSub === 'budget'): ?>
-            <?php require __DIR__ . '/budget-tab.php'; ?>
-        <?php elseif ($reportSub === 'position'): ?>
+        <?php if ($reportSub === 'position'): ?>
             <?php require __DIR__ . '/position-tab.php'; ?>
         <?php else: ?>
             <?php

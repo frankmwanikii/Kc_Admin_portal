@@ -5536,6 +5536,76 @@ input[type="date"].finance-input {
 .fin-badge--warn { background: #fef3c7; color: #b45309; }
 .fin-badge--neutral { background: #f1f5f9; color: #64748b; }
 
+.fin-budget-bar__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+}
+
+.fin-budget-bar__month .fin-month-picker__trigger {
+    min-width: 10.5rem;
+}
+
+.fin-budget-bar__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+}
+
+.fin-budget-pulse {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0 0 1.25rem;
+}
+
+.fin-budget-pulse__card {
+    padding: 1rem 1.1rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.fin-budget-pulse__card--good {
+    border-color: #bbf7d0;
+    background: linear-gradient(180deg, #f0fdf4 0%, #fff 70%);
+}
+
+.fin-budget-pulse__card--bad {
+    border-color: #fecaca;
+    background: linear-gradient(180deg, #fef2f2 0%, #fff 70%);
+}
+
+.fin-budget-pulse__label {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.fin-budget-pulse__value {
+    margin: 0.35rem 0 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+
+.fin-budget-pulse__meta {
+    margin: 0.35rem 0 0;
+    font-size: 0.8125rem;
+    color: #64748b;
+}
+
+.fin-budget-meter--inline {
+    margin-top: 0.55rem;
+}
+
 .fin-budget-page .fin-budget-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -5552,16 +5622,66 @@ input[type="date"].finance-input {
 }
 
 .fin-budget-empty {
-    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2.75rem 1.5rem;
     border: 1px dashed #cbd5e1;
-    border-radius: 0.75rem;
+    border-radius: 1rem;
     text-align: center;
     color: #64748b;
+    background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.fin-budget-empty__icon {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    margin-bottom: 0.85rem;
+    border-radius: 999px;
+    background: rgba(11, 72, 109, 0.08);
+    color: #0b486d;
+}
+
+.fin-budget-empty__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
 }
 
 .fin-budget-empty__hint {
     margin-top: 0.5rem;
+    max-width: 28rem;
     font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.finance-table-caption-action {
+    margin-left: auto;
+    font-size: 0.8125rem;
+}
+
+@media (max-width: 960px) {
+    .fin-budget-pulse {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .fin-budget-pulse {
+        grid-template-columns: 1fr;
+    }
+
+    .fin-budget-bar__controls {
+        width: 100%;
+    }
+
+    .fin-budget-bar__cta {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 .fin-budget-page__head {
@@ -5829,6 +5949,13 @@ input[type="date"].finance-input {
 }
 
 .fin-budget-status--warn .fin-budget-status__value { color: #b45309; }
+
+.fin-budget-status--neutral {
+    border-color: #e2e8f0;
+    background: #fff;
+}
+
+.fin-budget-status--neutral .fin-budget-status__value { color: #475569; }
 
 .fin-budget-status__pct {
     margin-top: 0.25rem;

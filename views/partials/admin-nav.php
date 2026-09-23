@@ -11,14 +11,14 @@ if (in_array($financeTab, ['arrears'], true)) {
 if (in_array($financeTab, ['weekly', 'collections'], true)) {
     $financeTab = 'ledger';
 }
-// Legacy tabs → simplified IA (Overview · Sundays · Bills · Reports)
+// Legacy tabs → Overview · Sundays · Bills · Budget · Reports
 if ($financeTab === 'reconciliation' || ($financeTab === 'reports' && $financeSub === 'reconciliation')) {
     $financeTab = 'dashboard';
     $financeSub = '';
 }
-if ($financeTab === 'budget') {
-    $financeTab = 'reports';
-    $financeSub = 'budget';
+if ($financeTab === 'reports' && $financeSub === 'budget') {
+    $financeTab = 'budget';
+    $financeSub = '';
 }
 if ($financeTab === 'statement') {
     $financeTab = 'reports';
@@ -89,6 +89,12 @@ $sections = [
             'label' => 'Bills',
             'icon' => 'receipt',
             'active' => $currentPath === '/admin/finance' && $financeTab === 'bills',
+        ],
+        [
+            'href' => '/admin/finance?tab=budget',
+            'label' => 'Budget',
+            'icon' => 'wallet',
+            'active' => $currentPath === '/admin/finance' && $financeTab === 'budget',
         ],
         [
             'href' => '/admin/finance?tab=reports&sub=statement',

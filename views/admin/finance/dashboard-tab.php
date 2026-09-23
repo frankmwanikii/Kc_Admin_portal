@@ -161,7 +161,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
             <p class="fin-highlight__value">KES <?= $fmt((float) ($budgetSnap['fy_budget_expenses'] ?? 0)) ?></p>
             <p class="fin-highlight__formula">Annual expense budget — no line items set for <?= htmlspecialchars($budgetSnap['label'] ?? 'this month') ?> yet</p>
             <?php endif; ?>
-            <a href="/admin/finance?tab=reports&sub=budget&budget_year=<?= $budgetYearDash ?>&month=<?= htmlspecialchars($month) ?>" class="fin-link fin-budget-link">Budget vs actual →</a>
+            <a href="/admin/finance?tab=budget&budget_year=<?= $budgetYearDash ?>&month=<?= htmlspecialchars($month) ?>" class="fin-link fin-budget-link">Open Budget →</a>
         </article>
         <?php else: ?>
         <article class="fin-highlight fin-highlight--neutral">
@@ -272,7 +272,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
         <div class="fin-panel fin-panel--wide">
             <div class="fin-panel__head">
                 <h3 class="fin-panel__title">Monthly breakdown</h3>
-                <a href="/admin/finance?tab=reports&sub=budget&month=<?= htmlspecialchars($month) ?>" class="fin-link">Budget vs actual →</a>
+                <a href="/admin/finance?tab=budget&month=<?= htmlspecialchars($month) ?>" class="fin-link">Open Budget →</a>
             </div>
             <div class="fin-table-wrap" tabindex="0" role="region" aria-label="Monthly performance">
                 <table class="fin-table">

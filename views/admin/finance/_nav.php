@@ -12,17 +12,20 @@ if (in_array($tabKey, ['weekly', 'collections'], true)) {
 if ($tabKey === 'reconciliation') {
     $tabKey = 'dashboard';
 }
-if ($tabKey === 'budget') {
-    $tabKey = 'reports';
-}
 if ($tabKey === 'statement') {
     $tabKey = 'reports';
 }
-
+// Legacy: reports&sub=budget → Budget tab (controller remaps; keep hero in sync)
 $reportSubKey = strtolower((string) ($reportSub ?? ($_GET['sub'] ?? '')));
-if ($tabKey === 'reports' && !in_array($reportSubKey, ['statement', 'position', 'budget'], true)) {
+if ($tabKey === 'reports' && $reportSubKey === 'budget') {
+    $tabKey = 'budget';
+    $reportSubKey = '';
+}
+if ($tabKey === 'reports' && !in_array($reportSubKey, ['statement', 'position'], true)) {
     $reportSubKey = 'statement';
 }
+
+$budgetEditMode = !empty($budgetEditMode);
 
 $sectionMeta = match ($tabKey) {
     'bills' => [
@@ -33,12 +36,17 @@ $sectionMeta = match ($tabKey) {
         'title' => 'Sundays',
         'sub' => 'Collections and expenses for each Sunday service.',
     ],
+    'budget' => [
+        'title' => $budgetEditMode ? 'Set Budget' : 'Budget',
+        'sub' => $budgetEditMode
+            ? 'Enter planned income and expenses for the focus month.'
+            : 'Plan the month, then compare against Sunday collections and spending.',
+    ],
     'reports' => [
         'title' => 'Reports',
         'sub' => match ($reportSubKey) {
             'position' => 'Year-over-year consolidated income and expenditure.',
-            'budget' => 'Planned amounts versus actual collections and spending.',
-            default => 'Operating statements, annual position, and budget vs actual.',
+            default => 'Operating statements and annual income & expenditure.',
         },
     ],
     default => [
@@ -47,6 +55,7 @@ $sectionMeta = match ($tabKey) {
     ],
 };
 ?>
+<?php if (!($tabKey === 'budget' && $budgetEditMode)): ?>
 <header class="fin-hero no-print">
     <div class="fin-hero__text">
         <p class="fin-hero__eyebrow">Finance</p>
@@ -63,3 +72,4 @@ $sectionMeta = match ($tabKey) {
     </div>
     <?php endif; ?>
 </header>
+<?php endif; ?>
