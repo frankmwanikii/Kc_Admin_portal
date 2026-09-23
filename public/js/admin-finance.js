@@ -24,6 +24,7 @@
             editRow: null,
             paymentRow: null,
             search: '',
+            billsMonthFilter: '',
             arrears: config.arrears || [],
             collections: config.collections || [],
             paymentMethods: config.paymentMethods || {},
@@ -112,6 +113,7 @@
                     return;
                 }
                 this.$watch('search', () => { this.arrearsPage = 1; });
+                this.$watch('billsMonthFilter', () => { this.arrearsPage = 1; });
                 this.$watch('collectionSearch', () => { this.collectionsPage = 1; });
                 this.$watch('weeklySearch', () => { this.weeklyPage = 1; });
                 this.$watch('filteredArrears', () => {
@@ -299,12 +301,18 @@
                 if (target === 'bill-edit') {
                     return String(this.editRow?.month_incurred || '');
                 }
+                if (target === 'bills-filter') {
+                    return String(this.billsMonthFilter || '');
+                }
                 return String(this.weeklyMonth || '');
             },
 
             monthPickerLabel(target = 'ledger') {
                 const value = this.monthPickerValue(target);
-                if (!value) return target === 'ledger' ? '' : 'Pick month';
+                if (!value) {
+                    if (target === 'bills-filter') return 'All months';
+                    return target === 'ledger' ? '' : 'Pick month';
+                }
                 const ym = this.toMonthInputValue(value);
                 if (!/^\d{4}-\d{2}$/.test(ym)) return value;
                 const d = new Date(String(ym) + '-01T12:00:00');
@@ -389,7 +397,11 @@
                 }
                 this.monthPickerTarget = target || 'ledger';
                 const parts = String(this.monthPickerValue(this.monthPickerTarget) || '').split('-');
-                this.monthPickerYear = Number(parts[0]) || Number(this.year) || new Date().getFullYear();
+                let year = Number(parts[0]);
+                if (!year && this.monthPickerTarget === 'bills-filter') {
+                    year = Number(this.year) || new Date().getFullYear();
+                }
+                this.monthPickerYear = year || Number(this.year) || new Date().getFullYear();
                 this.monthPickerOpen = true;
                 this.$nextTick(() => window.lucide?.createIcons());
             },
@@ -422,6 +434,10 @@
                     if (this.editRow) this.editRow.month_incurred = month;
                     return;
                 }
+                if (target === 'bills-filter') {
+                    this.billsMonthFilter = month;
+                    return;
+                }
                 await this.changeLedgerMonth(month);
             },
 
@@ -439,7 +455,16 @@
                     if (this.editRow) this.editRow.month_incurred = month;
                     return;
                 }
+                if (target === 'bills-filter') {
+                    this.billsMonthFilter = month;
+                    return;
+                }
                 await this.changeLedgerMonth(month);
+            },
+
+            clearBillsMonthFilter() {
+                this.billsMonthFilter = '';
+                this.closeMonthPicker();
             },
 
             async changeFinanceYear(year) {
@@ -448,6 +473,7 @@
                 const monthPart = String(this.weeklyMonth || '').slice(5, 7) || '01';
                 const month = `${nextYear}-${monthPart}`;
                 this.year = nextYear;
+                this.billsMonthFilter = '';
                 await this.loadFinanceData({
                     month,
                     year: nextYear,
@@ -888,8 +914,13 @@
 
             get filteredArrears() {
                 const q = this.search.trim().toLowerCase();
-                if (!q) return this.arrears;
+                const monthFilter = String(this.billsMonthFilter || '').trim();
                 return this.arrears.filter((r) => {
+                    if (monthFilter) {
+                        const incurred = this.toMonthInputValue(r.month_incurred, this.year);
+                        if (incurred !== monthFilter) return false;
+                    }
+                    if (!q) return true;
                     const hay = [
                         r.expense_item,
                         r.group_label,

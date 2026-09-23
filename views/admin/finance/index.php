@@ -48,21 +48,30 @@ if ($tabReports) {
                        placeholder="Search bills..."
                        aria-label="Search bills">
                 <span class="arrears-count" x-text="filteredArrears.length + (filteredArrears.length === 1 ? ' bill' : ' bills')"></span>
-                <form method="get" class="inline-flex" @submit.prevent>
-                    <input type="hidden" name="tab" value="bills">
-                    <select name="year"
-                            :value="year"
-                            @change="changeFinanceYear(Number($event.target.value))"
-                            class="arrears-year-select"
-                            aria-label="Year">
-                        <?php
-                        $yearOptions = $financeYears ?? range((int) date('Y') + 1, 2024);
-                        foreach ($yearOptions as $y):
-                        ?>
-                        <option value="<?= (int) $y ?>" <?= (int) $year === (int) $y ? 'selected' : '' ?>><?= (int) $y ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </form>
+                <div class="arrears-toolbar-filters">
+                    <?php
+                    $monthPickerLabel = 'Filter by month incurred';
+                    $monthPickerTarget = 'bills-filter';
+                    $monthPickerClass = 'fin-month-picker--toolbar';
+                    $monthLabel = 'All months';
+                    require __DIR__ . '/_month-picker.php';
+                    ?>
+                    <form method="get" class="inline-flex" @submit.prevent>
+                        <input type="hidden" name="tab" value="bills">
+                        <select name="year"
+                                :value="year"
+                                @change="changeFinanceYear(Number($event.target.value))"
+                                class="arrears-year-select"
+                                aria-label="Year">
+                            <?php
+                            $yearOptions = $financeYears ?? range((int) date('Y') + 1, 2024);
+                            foreach ($yearOptions as $y):
+                            ?>
+                            <option value="<?= (int) $y ?>" <?= (int) $year === (int) $y ? 'selected' : '' ?>><?= (int) $y ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                </div>
             </div>
             <button type="button" @click="openNewArrear()" class="arrears-btn-new">+ New Bill</button>
         </div>
@@ -90,8 +99,8 @@ if ($tabReports) {
                     <tbody>
                         <tr x-show="filteredArrears.length === 0">
                             <td colspan="8" class="arrears-empty">
-                                <span x-show="search.trim()">No bills match your search.</span>
-                                <span x-show="!search.trim()">No bills recorded for <?= (int) $year ?>. Click <strong>+ New Bill</strong> to add one.</span>
+                                <span x-show="search.trim() || billsMonthFilter">No bills match your filters.</span>
+                                <span x-show="!search.trim() && !billsMonthFilter">No bills recorded for <?= (int) $year ?>. Click <strong>+ New Bill</strong> to add one.</span>
                             </td>
                         </tr>
                         <template x-for="row in paginatedArrears" :key="row.id">

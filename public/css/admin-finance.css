@@ -2386,6 +2386,24 @@
     min-width: 0;
 }
 
+.arrears-toolbar-filters {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.fin-month-picker--toolbar .fin-month-picker__trigger {
+    min-width: 11.5rem;
+    height: 2.45rem;
+    border-color: var(--arrears-border, #e2e8f0);
+    color: #0b486d;
+}
+
+.fin-month-picker--toolbar .fin-month-picker__panel {
+    z-index: 40;
+}
+
 .arrears-search {
     width: 100%;
     max-width: 16rem;
@@ -2592,9 +2610,15 @@
 .fin-month-picker__footer {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    gap: 0.85rem;
     margin-top: 0.75rem;
     padding-top: 0.65rem;
     border-top: 1px solid #eef2f7;
+}
+
+.fin-month-picker__footer:has(.fin-month-picker__link:nth-child(2)) {
+    justify-content: space-between;
 }
 
 .fin-month-picker__link {

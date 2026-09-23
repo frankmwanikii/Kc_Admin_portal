@@ -53,6 +53,11 @@ $pickerClass = $monthPickerClass ?? '';
         </div>
 
         <div class="fin-month-picker__footer">
+            <button type="button"
+                    class="fin-month-picker__link"
+                    x-show="monthPickerTarget === 'bills-filter'"
+                    x-cloak
+                    @click="clearBillsMonthFilter()">All months</button>
             <button type="button" class="fin-month-picker__link" @click="pickMonthPickerToday()">This month</button>
         </div>
     </div>
