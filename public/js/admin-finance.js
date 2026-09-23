@@ -16,8 +16,10 @@
             newCollection: null,
             collectionSearch: '',
             openMenu: null,
-            arrearDropdownPos: { top: 0, left: 0 },
+            arrearDropdownPos: { top: 0, right: 8 },
             arrearMenuIgnoreOutside: false,
+            inlineEdit: null,
+            _inlineSaving: false,
             viewRow: null,
             editRow: null,
             paymentRow: null,
@@ -44,6 +46,14 @@
             financeTab: config.financeTab || config.tab || 'dashboard',
             sundayPanelLock: null,
             dashboard: config.dashboard || {},
+            financeYears: Array.isArray(config.financeYears) && config.financeYears.length
+                ? config.financeYears.map(Number)
+                : (() => {
+                    const list = [];
+                    const top = new Date().getFullYear() + 1;
+                    for (let y = top; y >= 2024; y -= 1) list.push(y);
+                    return list;
+                })(),
             budget: config.budget || {},
             budgetYear: config.budgetYear || config.year || new Date().getFullYear(),
             budgetEditLines: config.budgetEditLines || [],
@@ -54,7 +64,7 @@
             statementWeekDate: config.statementWeekDate || '',
             statementSundays: config.statementSundays || [],
             statementBusy: false,
-            reportSub: config.reportSub === 'position' ? 'position' : 'statement',
+            reportSub: ['statement','position','budget'].includes(config.reportSub) ? config.reportSub : 'statement',
             positionBusy: false,
             yearReconciliation: config.yearReconciliation || { months: [], year_expenses: 0, year_collections: 0, year_balance: 0 },
             expenseGroups: config.expenseGroups || [],
@@ -65,14 +75,15 @@
             weeklyPage: 1,
             _syncingEditCatalog: false,
             editFormKey: 0,
-            weeklyDropdownPos: { top: 0, left: 0 },
+            weeklyDropdownPos: { top: 0, right: 8 },
             weeklyMenuIgnoreOutside: false,
-            collectionDropdownPos: { top: 0, left: 0 },
+            collectionDropdownPos: { top: 0, right: 8 },
             collectionMenuIgnoreOutside: false,
-            reconciliationDropdownPos: { top: 0, left: 0 },
+            reconciliationDropdownPos: { top: 0, right: 8 },
             reconciliationMenuIgnoreOutside: false,
             showSundayModal: false,
             monthPickerOpen: false,
+            monthPickerTarget: 'ledger',
             monthPickerYear: Number(String(config.weeklyMonth || config.month || '').slice(0, 4)) || Number(config.year) || new Date().getFullYear(),
             monthNamesShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
             toast: null,
@@ -145,6 +156,11 @@
                 this.$watch('showSundayModal', (open) => {
                     document.body.style.overflow = open ? 'hidden' : '';
                     this.$nextTick(() => window.lucide?.createIcons());
+                });
+                this.$nextTick(() => {
+                    if (typeof window.initFinanceOverviewCharts === 'function') {
+                        window.initFinanceOverviewCharts();
+                    }
                 });
             },
 
@@ -273,9 +289,26 @@
             },
 
             get monthLabel() {
-                if (!this.weeklyMonth) return '';
-                const d = new Date(String(this.weeklyMonth) + '-01T12:00:00');
-                if (Number.isNaN(d.getTime())) return String(this.weeklyMonth);
+                return this.monthPickerLabel('ledger');
+            },
+
+            monthPickerValue(target = 'ledger') {
+                if (target === 'bill-new') {
+                    return String(this.newArrear?.month_incurred || '');
+                }
+                if (target === 'bill-edit') {
+                    return String(this.editRow?.month_incurred || '');
+                }
+                return String(this.weeklyMonth || '');
+            },
+
+            monthPickerLabel(target = 'ledger') {
+                const value = this.monthPickerValue(target);
+                if (!value) return target === 'ledger' ? '' : 'Pick month';
+                const ym = this.toMonthInputValue(value);
+                if (!/^\d{4}-\d{2}$/.test(ym)) return value;
+                const d = new Date(String(ym) + '-01T12:00:00');
+                if (Number.isNaN(d.getTime())) return value;
                 return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
             },
 
@@ -349,12 +382,13 @@
                 });
             },
 
-            toggleMonthPicker() {
-                if (this.monthPickerOpen) {
+            toggleMonthPicker(target = 'ledger') {
+                if (this.monthPickerOpen && this.monthPickerTarget === target) {
                     this.closeMonthPicker();
                     return;
                 }
-                const parts = String(this.weeklyMonth || '').split('-');
+                this.monthPickerTarget = target || 'ledger';
+                const parts = String(this.monthPickerValue(this.monthPickerTarget) || '').split('-');
                 this.monthPickerYear = Number(parts[0]) || Number(this.year) || new Date().getFullYear();
                 this.monthPickerOpen = true;
                 this.$nextTick(() => window.lucide?.createIcons());
@@ -369,7 +403,7 @@
             },
 
             isMonthPickerSelected(monthNum) {
-                const parts = String(this.weeklyMonth || '').split('-');
+                const parts = String(this.monthPickerValue(this.monthPickerTarget) || '').split('-');
                 const y = Number(parts[0]);
                 const m = Number(parts[1]);
                 return y === Number(this.monthPickerYear) && m === Number(monthNum);
@@ -378,7 +412,16 @@
             async pickMonthPickerMonth(monthNum) {
                 const y = Number(this.monthPickerYear) || new Date().getFullYear();
                 const month = `${y}-${String(monthNum).padStart(2, '0')}`;
+                const target = this.monthPickerTarget || 'ledger';
                 this.closeMonthPicker();
+                if (target === 'bill-new') {
+                    if (this.newArrear) this.newArrear.month_incurred = month;
+                    return;
+                }
+                if (target === 'bill-edit') {
+                    if (this.editRow) this.editRow.month_incurred = month;
+                    return;
+                }
                 await this.changeLedgerMonth(month);
             },
 
@@ -386,7 +429,16 @@
                 const now = new Date();
                 const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                 this.monthPickerYear = now.getFullYear();
+                const target = this.monthPickerTarget || 'ledger';
                 this.closeMonthPicker();
+                if (target === 'bill-new') {
+                    if (this.newArrear) this.newArrear.month_incurred = month;
+                    return;
+                }
+                if (target === 'bill-edit') {
+                    if (this.editRow) this.editRow.month_incurred = month;
+                    return;
+                }
                 await this.changeLedgerMonth(month);
             },
 
@@ -429,7 +481,7 @@
 
             openBudgetEditor() {
                 const params = new URLSearchParams({
-                    tab: 'budget',
+                    tab: 'reports', sub: 'budget',
                     edit: '1',
                     month: this.weeklyMonth || '',
                     budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
@@ -439,7 +491,7 @@
 
             closeBudgetEditor() {
                 const params = new URLSearchParams({
-                    tab: 'budget',
+                    tab: 'reports', sub: 'budget',
                     month: this.weeklyMonth || '',
                     budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
                 });
@@ -454,6 +506,27 @@
                 return (this.budgetEditLines || []).filter((l) => l.line_type !== 'income');
             },
 
+            get budgetExpenseSections() {
+                return ['Administration', 'Ministry & Departments', 'Finance Costs', 'Other expenses'];
+            },
+
+            get budgetEditExpenseGroups() {
+                const order = this.budgetExpenseSections;
+                const groups = {};
+                order.forEach((name) => {
+                    groups[name] = { section: name, lines: [], total: 0 };
+                });
+                (this.budgetEditExpenseLines || []).forEach((line) => {
+                    const section = String(line.section || '').trim() || 'Other expenses';
+                    if (!groups[section]) {
+                        groups[section] = { section, lines: [], total: 0 };
+                    }
+                    groups[section].lines.push(line);
+                    groups[section].total += Number(line.amount) || 0;
+                });
+                return Object.values(groups).filter((g) => g.lines.length > 0);
+            },
+
             get budgetEditIncomeTotal() {
                 return this.budgetEditIncomeLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
             },
@@ -465,7 +538,7 @@
             startBudgetNewLine(type) {
                 this.budgetNewLine = {
                     line_type: type === 'income' ? 'income' : 'expense',
-                    section: type === 'income' ? 'Incomes' : 'Other expenses',
+                    section: type === 'income' ? 'Incomes' : 'Administration',
                     label: '',
                     amount: 0,
                 };
@@ -486,7 +559,7 @@
                 await this.postAjax(form, {
                     onSuccess: () => {
                         const params = new URLSearchParams({
-                            tab: 'budget',
+                            tab: 'reports', sub: 'budget',
                             month: this.weeklyMonth || '',
                             budget_year: String(this.budgetYear || this.year || new Date().getFullYear()),
                         });
@@ -689,7 +762,7 @@
 
             async deleteArrearAjax(id) {
                 if (!id) return;
-                if (!window.confirm('Delete this arrear entry?')) return;
+                if (!window.confirm('Delete this bill?')) return;
                 this.openMenu = null;
                 this.viewRow = null;
                 const form = document.createElement('form');
@@ -846,10 +919,77 @@
                 return groupSlug === 'ministry_departments';
             },
 
+            isFinanceCosts(groupSlug) {
+                return groupSlug === 'finance_costs';
+            },
+
             administrationDepartmentId() {
                 const grp = this.expenseGroups.find((g) => g.slug === 'admin_expenses');
                 const admin = grp?.departments?.find((d) => d.slug === 'administration');
                 return admin?.id || '';
+            },
+
+            financeCostsDepartmentId() {
+                const grp = this.expenseGroups.find((g) => g.slug === 'finance_costs');
+                const fin = grp?.departments?.find((d) => d.slug === 'finance_costs');
+                return fin?.id || grp?.departments?.[0]?.id || '';
+            },
+
+            primaryDepartmentIdForGroup(groupSlug) {
+                if (this.isAdminExpenses(groupSlug)) {
+                    return this.administrationDepartmentId();
+                }
+                if (this.isFinanceCosts(groupSlug)) {
+                    return this.financeCostsDepartmentId();
+                }
+                const depts = this.departmentsForGroup(groupSlug);
+                return depts[0]?.id || '';
+            },
+
+            /** Flat expense items for a top-level category (group). */
+            expenseItemsForGroup(groupSlug, keepCategoryId = null) {
+                const depts = this.departmentsForGroup(groupSlug);
+                const items = [];
+                for (const dept of depts) {
+                    for (const cat of (dept.categories || [])) {
+                        items.push({
+                            ...cat,
+                            department_id: dept.id,
+                            department_label: dept.label,
+                        });
+                    }
+                }
+                if (keepCategoryId != null && keepCategoryId !== '' && keepCategoryId !== '__new__') {
+                    const keepId = Number(keepCategoryId);
+                    const hasKeep = items.some((cat) => Number(cat.id) === keepId);
+                    if (!hasKeep && Number.isFinite(keepId) && keepId > 0) {
+                        items.unshift({
+                            id: keepId,
+                            label: 'Selected item',
+                            slug: '',
+                            account_code: '',
+                            department_id: this.primaryDepartmentIdForGroup(groupSlug),
+                            department_label: '',
+                        });
+                    }
+                }
+                return items;
+            },
+
+            syncDepartmentFromExpenseItem(row, categoryField = 'category_id') {
+                if (!row) return;
+                const catId = row[categoryField];
+                if (!catId || catId === '__new__') {
+                    if (!row.department_id) {
+                        row.department_id = this.primaryDepartmentIdForGroup(row.expense_group);
+                    }
+                    return;
+                }
+                const items = this.expenseItemsForGroup(row.expense_group, catId);
+                const match = items.find((c) => String(c.id) === String(catId));
+                if (match?.department_id) {
+                    row.department_id = String(match.department_id);
+                }
             },
 
             adminExpenseLineItems() {
@@ -915,21 +1055,31 @@
 
             onNewGroupChange() {
                 if (!this.newArrear) return;
-                this.newArrear.department_id = '';
                 this.newArrear.category_id = '';
                 this.newArrear.new_category_label = '';
-                if (this.isAdminExpenses(this.newArrear.expense_group)) {
-                    this.newArrear.department_id = this.administrationDepartmentId();
-                }
+                this.newArrear.department_id = this.primaryDepartmentIdForGroup(this.newArrear.expense_group);
             },
 
             onEditGroupChange() {
                 if (!this.editRow || this._syncingEditCatalog) return;
-                this.editRow.department_id = '';
                 this.editRow.category_id = '';
                 this.editRow.new_category_label = '';
-                if (this.isAdminExpenses(this.editRow.expense_group)) {
-                    this.editRow.department_id = this.administrationDepartmentId();
+                this.editRow.department_id = this.primaryDepartmentIdForGroup(this.editRow.expense_group);
+            },
+
+            onNewExpenseItemChange() {
+                if (!this.newArrear) return;
+                this.syncDepartmentFromExpenseItem(this.newArrear, 'category_id');
+                if (this.newArrear.category_id !== '__new__') {
+                    this.newArrear.new_category_label = '';
+                }
+            },
+
+            onEditExpenseItemChange() {
+                if (!this.editRow || this._syncingEditCatalog) return;
+                this.syncDepartmentFromExpenseItem(this.editRow, 'category_id');
+                if (this.editRow.category_id !== '__new__') {
+                    this.editRow.new_category_label = '';
                 }
             },
 
@@ -947,60 +1097,55 @@
 
             onNewWeeklyGroupChange() {
                 if (!this.newCategory) return;
-                this.newCategory.department_id = '';
                 this.newCategory.expense_category_id = '';
                 this.newCategory.new_category_item_label = '';
-                if (this.isAdminExpenses(this.newCategory.expense_group)) {
-                    this.newCategory.department_id = this.administrationDepartmentId();
-                }
+                this.newCategory.department_id = this.primaryDepartmentIdForGroup(this.newCategory.expense_group);
             },
 
             onWeeklyEditGroupChange() {
                 if (!this.weeklyEditRow) return;
-                this.weeklyEditRow.department_id = '';
                 this.weeklyEditRow.expense_category_id = '';
                 this.weeklyEditRow.new_category_item_label = '';
-                if (this.isAdminExpenses(this.weeklyEditRow.expense_group)) {
-                    this.weeklyEditRow.department_id = this.administrationDepartmentId();
+                this.weeklyEditRow.department_id = this.primaryDepartmentIdForGroup(this.weeklyEditRow.expense_group);
+            },
+
+            onNewWeeklyExpenseItemChange() {
+                if (!this.newCategory) return;
+                this.syncDepartmentFromExpenseItem(this.newCategory, 'expense_category_id');
+                if (this.newCategory.expense_category_id !== '__new__') {
+                    this.newCategory.new_category_item_label = '';
+                }
+            },
+
+            onWeeklyEditExpenseItemChange() {
+                if (!this.weeklyEditRow) return;
+                this.syncDepartmentFromExpenseItem(this.weeklyEditRow, 'expense_category_id');
+                if (this.weeklyEditRow.expense_category_id !== '__new__') {
+                    this.weeklyEditRow.new_category_item_label = '';
                 }
             },
 
             validateArrearCatalog(row) {
                 if (!row.expense_group) {
-                    window.alert('Select a department (Administration costs or Operational expenses).');
+                    window.alert('Select a category (Administration, Ministry & Departments, or Finance Costs).');
                     return false;
                 }
-                if (this.isAdminExpenses(row.expense_group)) {
-                    if (!row.department_id) {
-                        row.department_id = this.administrationDepartmentId();
-                    }
-                    if (!Number(row.department_id)) {
-                        window.alert('Select a category for this expense.');
+                if (!row.department_id) {
+                    row.department_id = this.primaryDepartmentIdForGroup(row.expense_group);
+                }
+                this.syncDepartmentFromExpenseItem(row, 'category_id');
+                if (!Number(row.department_id)) {
+                    window.alert('Select a category for this expense.');
+                    return false;
+                }
+                if (row.category_id === '__new__') {
+                    if (!String(row.new_category_label || '').trim()) {
+                        window.alert('Enter a custom expense item name.');
                         return false;
                     }
-                    if (row.category_id === '__new__') {
-                        if (!String(row.new_category_label || '').trim()) {
-                            window.alert('Enter a custom category item name.');
-                            return false;
-                        }
-                    } else if (!Number(row.category_id)) {
-                        window.alert('Select an expense item (e.g. Rent, Water, Electricity).');
-                        return false;
-                    }
-                } else {
-                    if (!Number(row.department_id)) {
-                        window.alert('Select a category for this expense.');
-                        return false;
-                    }
-                    if (row.category_id === '__new__') {
-                        if (!String(row.new_category_label || '').trim()) {
-                            window.alert('Enter a custom category item name.');
-                            return false;
-                        }
-                    } else if (!Number(row.category_id)) {
-                        window.alert('Select an expense item (e.g. Drummer, Keyboardist).');
-                        return false;
-                    }
+                } else if (!Number(row.category_id)) {
+                    window.alert('Select an expense item.');
+                    return false;
                 }
                 const due = Number(row.amount_due) || 0;
                 const paid = Number(row.amount_paid) || 0;
@@ -1135,7 +1280,7 @@
                 return this.paginate(this.filteredWeekly, this.weeklyPage);
             },
 
-            positionFixedDropdown(rect, menuWidth = 200, menuHeight = 168) {
+            positionFixedDropdown(rect, menuWidth = 188, menuHeight = 168) {
                 const margin = 8;
                 const gap = 6;
                 const spaceBelow = window.innerHeight - rect.bottom - margin;
@@ -1144,11 +1289,12 @@
                 const top = placeAbove
                     ? Math.max(margin, rect.top - menuHeight - gap)
                     : rect.bottom + gap;
-                const left = Math.min(
-                    Math.max(margin, rect.right - menuWidth),
-                    window.innerWidth - menuWidth - margin
-                );
-                return { top, left };
+                // Anchor to the trigger's right edge so the menu never stretches left.
+                let right = Math.max(margin, window.innerWidth - rect.right);
+                if (rect.right - menuWidth < margin) {
+                    right = Math.max(margin, window.innerWidth - menuWidth - margin);
+                }
+                return { top, right };
             },
 
             toggleMenu(id, event) {
@@ -1253,6 +1399,7 @@
                 if (!weekDate) return;
                 const params = new URLSearchParams({
                     tab: 'reports',
+                    sub: 'statement',
                     view: 'weekly',
                     week_date: weekDate,
                     month: this.weeklyMonth || String(weekDate).slice(0, 7),
@@ -1282,18 +1429,16 @@
                         el.classList.remove('arrears-dropdown--fixed');
                         el.style.top = '';
                         el.style.left = '';
+                        el.style.right = '';
                     }
                 });
 
                 dropdown.classList.add('arrears-dropdown--fixed');
                 const rect = button.getBoundingClientRect();
-                const width = dropdown.offsetWidth || 168;
-                const left = Math.min(
-                    Math.max(8, rect.right - width),
-                    window.innerWidth - width - 8
-                );
-                dropdown.style.top = `${rect.bottom + 6}px`;
-                dropdown.style.left = `${left}px`;
+                const pos = this.positionFixedDropdown(rect);
+                dropdown.style.top = `${pos.top}px`;
+                dropdown.style.right = `${pos.right}px`;
+                dropdown.style.left = 'auto';
             },
 
             findArrear(id) {
@@ -1307,12 +1452,14 @@
             },
 
             openNewArrear() {
+                const now = new Date();
+                const monthIncurred = String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0');
                 this.newArrear = {
                     expense_group: '',
                     department_id: '',
                     category_id: '',
                     new_category_label: '',
-                    month_incurred: '',
+                    month_incurred: monthIncurred,
                     amount_due: '',
                     amount_paid: '0',
                     date_paid: '',
@@ -1337,40 +1484,25 @@
 
             validateWeeklyCategory(row) {
                 if (!row.expense_group) {
-                    window.alert('Select a department (Administration costs or Operational expenses).');
+                    window.alert('Select a category (Administration, Ministry & Departments, or Finance Costs).');
                     return false;
                 }
-                if (this.isAdminExpenses(row.expense_group)) {
-                    if (!row.department_id) {
-                        row.department_id = this.administrationDepartmentId();
-                    }
-                    if (!Number(row.department_id)) {
-                        window.alert('Select a category for this expense.');
+                if (!row.department_id) {
+                    row.department_id = this.primaryDepartmentIdForGroup(row.expense_group);
+                }
+                this.syncDepartmentFromExpenseItem(row, 'expense_category_id');
+                if (!Number(row.department_id)) {
+                    window.alert('Select a category for this expense.');
+                    return false;
+                }
+                if (row.expense_category_id === '__new__') {
+                    if (!String(row.new_category_item_label || '').trim()) {
+                        window.alert('Enter a custom expense item name.');
                         return false;
                     }
-                    if (row.expense_category_id === '__new__') {
-                        if (!String(row.new_category_item_label || '').trim()) {
-                            window.alert('Enter a custom category item name.');
-                            return false;
-                        }
-                    } else if (!Number(row.expense_category_id)) {
-                        window.alert('Select an expense item (e.g. Rent, Water, Electricity).');
-                        return false;
-                    }
-                } else {
-                    if (!Number(row.department_id)) {
-                        window.alert('Select a category for this expense.');
-                        return false;
-                    }
-                    if (row.expense_category_id === '__new__') {
-                        if (!String(row.new_category_item_label || '').trim()) {
-                            window.alert('Enter a custom category item name.');
-                            return false;
-                        }
-                    } else if (!Number(row.expense_category_id)) {
-                        window.alert('Select an expense item (e.g. Drummer, Keyboardist).');
-                        return false;
-                    }
+                } else if (!Number(row.expense_category_id)) {
+                    window.alert('Select an expense item.');
+                    return false;
                 }
                 row.label = this.weeklyLineLabel(row);
                 if (!String(row.label || '').trim()) {
@@ -1435,7 +1567,7 @@
                     expense_item: row.expense_item || row.category_label || '',
                     amount_paid: Number(row.amount_paid) || 0,
                     amount_due: Number(row.amount_due) || 0,
-                    month_incurred: row.month_incurred || '',
+                    month_incurred: this.toMonthInputValue(row.month_incurred, row.budget_year || this.year),
                     date_paid: row.date_paid || '',
                     paid_by_ref: row.paid_by_ref || '',
                     notes: row.notes || '',
@@ -1584,6 +1716,223 @@
                 }
             },
 
+            isInlineEditing(scope, key, field) {
+                return !!this.inlineEdit
+                    && this.inlineEdit.scope === scope
+                    && String(this.inlineEdit.key) === String(key)
+                    && this.inlineEdit.field === field;
+            },
+
+            startInlineEdit(row, field) {
+                if (!row || !['amount_due', 'amount_paid'].includes(field)) return;
+                this.openMenu = null;
+                this.weeklyMenu = null;
+                this.collectionMenu = null;
+                this.inlineEdit = {
+                    scope: 'arrear',
+                    key: Number(row.id),
+                    field,
+                    value: Number(row[field]) || 0,
+                };
+            },
+
+            startWeeklyInlineEdit(scope, key, sun, currentValue) {
+                if (!key || !sun || !['weeklyExpense', 'weeklyCollection'].includes(scope)) return;
+                this.openMenu = null;
+                this.weeklyMenu = null;
+                this.collectionMenu = null;
+                this.inlineEdit = {
+                    scope,
+                    key: String(key),
+                    field: String(sun),
+                    value: Number(currentValue) || 0,
+                };
+            },
+
+            cancelInlineEdit() {
+                this.inlineEdit = null;
+                this._inlineSaving = false;
+            },
+
+            async commitInlineEdit(row) {
+                if (!this.inlineEdit || this.inlineEdit.scope !== 'arrear' || !row) return;
+                if (Number(this.inlineEdit.key) !== Number(row.id)) return;
+                if (this._inlineSaving) return;
+
+                const field = this.inlineEdit.field;
+                let value = Number(this.inlineEdit.value);
+                if (!Number.isFinite(value) || value < 0) value = 0;
+                value = Math.round(value * 100) / 100;
+
+                const due = field === 'amount_due' ? value : (Number(row.amount_due) || 0);
+                const paid = field === 'amount_paid' ? value : (Number(row.amount_paid) || 0);
+                if (paid > due) {
+                    this.showToast('Amount paid cannot exceed amount due.', 'error');
+                    return;
+                }
+
+                const unchanged = field === 'amount_due'
+                    ? value === (Number(row.amount_due) || 0)
+                    : value === (Number(row.amount_paid) || 0);
+                if (unchanged) {
+                    this.inlineEdit = null;
+                    return;
+                }
+
+                const previous = { ...row };
+                this.syncArrearInTable({ ...row, amount_due: due, amount_paid: paid });
+                this.recomputeArrearsTotals();
+                this.inlineEdit = null;
+                this._inlineSaving = true;
+
+                const formData = new FormData();
+                formData.append('budget_year', String(row.budget_year || this.year || ''));
+                formData.append('department_id', String(row.department_id || ''));
+                formData.append('category_id', String(row.category_id || ''));
+                formData.append('expense_item', String(row.expense_item || ''));
+                formData.append('month_incurred', String(row.month_incurred || ''));
+                formData.append('amount_due', String(due));
+                formData.append('amount_paid', String(paid));
+                formData.append('date_paid', String(row.date_paid || ''));
+                formData.append('paid_by_ref', String(row.paid_by_ref || ''));
+                formData.append('notes', String(row.notes || ''));
+
+                try {
+                    const response = await fetch('/admin/finance/arrears/' + row.id, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (_) {
+                        throw new Error('Unexpected server response.');
+                    }
+                    if (!response.ok || !data?.ok) {
+                        throw new Error(data?.message || 'Could not save amount.');
+                    }
+                    this.applyLedgerData(data);
+                    this.showToast(data.message || 'Amount updated.');
+                } catch (err) {
+                    this.syncArrearInTable(previous);
+                    this.recomputeArrearsTotals();
+                    this.showToast(err?.message || 'Could not save amount.', 'error');
+                } finally {
+                    this._inlineSaving = false;
+                }
+            },
+
+            patchWeeklyRowAmount(listKey, idKey, idValue, sun, amount) {
+                const rows = this[listKey];
+                if (!Array.isArray(rows)) return null;
+                const idx = rows.findIndex((r) => String(r[idKey]) === String(idValue));
+                if (idx < 0) return null;
+                const previous = {
+                    ...rows[idx],
+                    amounts: { ...(rows[idx].amounts || {}) },
+                };
+                const next = {
+                    ...rows[idx],
+                    amounts: { ...(rows[idx].amounts || {}) },
+                };
+                next.amounts[sun] = amount;
+                next.total = Object.values(next.amounts).reduce((sum, v) => sum + (Number(v) || 0), 0);
+                rows.splice(idx, 1, next);
+                return previous;
+            },
+
+            async commitWeeklyInlineEdit(scope, key) {
+                if (!this.inlineEdit || this.inlineEdit.scope !== scope) return;
+                if (String(this.inlineEdit.key) !== String(key)) return;
+                if (this._inlineSaving) return;
+
+                const sun = this.inlineEdit.field;
+                let value = Number(this.inlineEdit.value);
+                if (!Number.isFinite(value) || value < 0) value = 0;
+                value = Math.round(value * 100) / 100;
+
+                const isExpense = scope === 'weeklyExpense';
+                const listKey = isExpense ? 'weeklyRows' : 'weeklyCollectionRows';
+                const idKey = isExpense ? 'slug' : 'method';
+                const rows = this[listKey] || [];
+                const row = rows.find((r) => String(r[idKey]) === String(key));
+                const current = Number(row?.amounts?.[sun]) || 0;
+                if (value === current) {
+                    this.inlineEdit = null;
+                    return;
+                }
+
+                const previous = this.patchWeeklyRowAmount(listKey, idKey, key, sun, value);
+                this.inlineEdit = null;
+                this._inlineSaving = true;
+
+                const formData = new FormData();
+                formData.append('week_date', String(sun));
+                formData.append('amount', String(value));
+                formData.append('month', String(this.weeklyMonth || sun.slice(0, 7)));
+                if (isExpense) {
+                    formData.append('category_slug', String(key));
+                } else {
+                    formData.append('method', String(key));
+                }
+
+                const url = isExpense
+                    ? '/admin/finance/weekly/cell'
+                    : '/admin/finance/collections/weekly/cell';
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (_) {
+                        throw new Error('Unexpected server response.');
+                    }
+                    if (!response.ok || !data?.ok) {
+                        throw new Error(data?.message || 'Could not save amount.');
+                    }
+                    this.applyLedgerData(data);
+                    this.showToast(data.message || 'Amount updated.');
+                } catch (err) {
+                    if (previous) {
+                        const idx = (this[listKey] || []).findIndex((r) => String(r[idKey]) === String(key));
+                        if (idx >= 0) this[listKey].splice(idx, 1, previous);
+                    }
+                    this.showToast(err?.message || 'Could not save amount.', 'error');
+                } finally {
+                    this._inlineSaving = false;
+                }
+            },
+
+            recomputeArrearsTotals() {
+                let due = 0;
+                let paid = 0;
+                let balance = 0;
+                for (const row of this.arrears) {
+                    due += Number(row.amount_due) || 0;
+                    paid += Number(row.amount_paid) || 0;
+                    balance += Number(row.balance_owing) || 0;
+                }
+                this.arrearsTotals = {
+                    due: Math.round(due * 100) / 100,
+                    paid: Math.round(paid * 100) / 100,
+                    balance: Math.round(balance * 100) / 100,
+                };
+            },
+
             async submitArrearEdit(event) {
                 event.preventDefault();
                 const form = event.target;
@@ -1671,6 +2020,66 @@
                 return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
             },
 
+            /** Display YYYY-MM (or legacy free text) as "MMM YYYY". */
+            formatMonthIncurred(value) {
+                const raw = String(value || '').trim();
+                if (!raw) return '—';
+                const ym = this.toMonthInputValue(raw);
+                if (/^\d{4}-\d{2}$/.test(ym)) {
+                    const [y, m] = ym.split('-').map(Number);
+                    const d = new Date(y, m - 1, 1);
+                    if (!Number.isNaN(d.getTime())) {
+                        return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+                    }
+                }
+                return raw;
+            },
+
+            /** Normalize stored period text into YYYY-MM for <input type="month">. */
+            toMonthInputValue(value, fallbackYear) {
+                const raw = String(value || '').trim();
+                if (/^\d{4}-\d{2}$/.test(raw)) {
+                    return raw;
+                }
+                if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+                    return raw.slice(0, 7);
+                }
+                const months = {
+                    jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3,
+                    apr: 4, april: 4, may: 5, jun: 6, june: 6, jul: 7, july: 7,
+                    aug: 8, august: 8, sep: 9, sept: 9, september: 9,
+                    oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
+                };
+                const lower = raw.toLowerCase();
+                const yearMatch = lower.match(/\b(20\d{2})\b/);
+                const year = yearMatch ? Number(yearMatch[1]) : (Number(fallbackYear) || new Date().getFullYear());
+                let monthNum = 0;
+                Object.keys(months).forEach((key) => {
+                    if (monthNum) return;
+                    if (new RegExp('\\b' + key + '\\b').test(lower)) {
+                        monthNum = months[key];
+                    }
+                });
+                if (!monthNum) {
+                    const mMatch = lower.match(/\b(0?[1-9]|1[0-2])\b/);
+                    if (mMatch && !yearMatch) {
+                        monthNum = Number(mMatch[1]);
+                    } else if (mMatch && lower.indexOf(mMatch[0]) < lower.indexOf(String(year))) {
+                        monthNum = Number(mMatch[1]);
+                    }
+                }
+                if (monthNum >= 1 && monthNum <= 12) {
+                    return String(year) + '-' + String(monthNum).padStart(2, '0');
+                }
+                if (/^\d{4}$/.test(raw)) {
+                    return raw + '-01';
+                }
+                // Unparseable legacy text — land on selected finance year / current month so the picker is usable
+                const y = Number(fallbackYear) || new Date().getFullYear();
+                const m = new Date().getMonth() + 1;
+                return String(y) + '-' + String(m).padStart(2, '0');
+            },
+
             dateMain(value) {
                 if (!value) return null;
                 const d = new Date(value + 'T00:00:00');
@@ -1704,7 +2113,7 @@
             },
 
             setReportSub(sub) {
-                if (!['statement', 'position'].includes(sub) || sub === this.reportSub) return;
+                if (!['statement', 'position', 'budget'].includes(sub) || sub === this.reportSub) return;
                 const params = new URLSearchParams({
                     tab: 'reports',
                     sub,
@@ -1716,6 +2125,9 @@
                     if (this.statementView === 'weekly' && this.statementWeekDate) {
                         params.set('week_date', this.statementWeekDate);
                     }
+                } else if (sub === 'budget') {
+                    if (this.weeklyMonth) params.set('month', this.weeklyMonth);
+                    params.set('budget_year', String(this.budgetYear || this.year || new Date().getFullYear()));
                 }
                 window.location.href = '/admin/finance?' + params.toString();
             },
@@ -1751,6 +2163,9 @@
                         return null;
                     }
                     this.year = data.year || year;
+                    if (Array.isArray(data.financeYears) && data.financeYears.length) {
+                        this.financeYears = data.financeYears.map(Number);
+                    }
                     this.reportSub = 'position';
                     if (this.$refs.positionDocumentWrap && data.html) {
                         this.$refs.positionDocumentWrap.innerHTML = data.html;
@@ -2198,5 +2613,195 @@
     document.addEventListener('alpine:init', registerFinanceAlpine);
     if (window.Alpine) {
         registerFinanceAlpine();
+    }
+
+    window.initFinanceOverviewCharts = function initFinanceOverviewCharts() {
+        if (typeof Chart === 'undefined') {
+            return;
+        }
+        const dataEl = document.getElementById('fin-dashboard-charts-data');
+        if (!dataEl) {
+            return;
+        }
+
+        let charts;
+        try {
+            charts = JSON.parse(dataEl.textContent || '{}');
+        } catch (_) {
+            return;
+        }
+
+        const fmtKes = (v) => 'KES ' + Number(v || 0).toLocaleString('en-KE', { maximumFractionDigits: 0 });
+        const tooltipTheme = {
+            backgroundColor: '#0b486d',
+            padding: 10,
+            cornerRadius: 8,
+            titleFont: { size: 12, weight: '600' },
+            bodyFont: { size: 12 },
+            callbacks: {
+                label(ctx) {
+                    const label = ctx.dataset.label || ctx.label || '';
+                    const val = ctx.parsed.y !== undefined ? ctx.parsed.y : ctx.parsed;
+                    return ' ' + label + ': ' + fmtKes(val);
+                },
+            },
+        };
+
+        Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+        Chart.defaults.color = '#64748b';
+
+        const trend = charts.trend || {};
+        const trendCanvas = document.getElementById('finChartTrend');
+        if (trendCanvas && Array.isArray(trend.labels) && trend.labels.length) {
+            const existing = Chart.getChart(trendCanvas);
+            if (existing) existing.destroy();
+            new Chart(trendCanvas, {
+                type: 'bar',
+                data: {
+                    labels: trend.labels,
+                    datasets: [
+                        {
+                            label: 'Collections',
+                            data: trend.collections || [],
+                            backgroundColor: 'rgba(45, 160, 217, 0.85)',
+                            borderRadius: 6,
+                            maxBarThickness: 28,
+                            order: 2,
+                        },
+                        {
+                            label: 'Expenses',
+                            data: trend.expenses || [],
+                            backgroundColor: 'rgba(232, 119, 34, 0.88)',
+                            borderRadius: 6,
+                            maxBarThickness: 28,
+                            order: 2,
+                        },
+                        {
+                            label: 'Expense budget',
+                            data: trend.budget_expenses || [],
+                            type: 'line',
+                            borderColor: '#0f766e',
+                            backgroundColor: 'rgba(15, 118, 110, 0.08)',
+                            borderWidth: 2.5,
+                            borderDash: [6, 4],
+                            pointRadius: 3,
+                            pointBackgroundColor: '#0f766e',
+                            tension: 0.25,
+                            order: 1,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: tooltipTheme,
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 11, weight: '600' } },
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(148, 163, 184, 0.18)' },
+                            ticks: {
+                                callback(value) {
+                                    const n = Number(value);
+                                    if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+                                    if (Math.abs(n) >= 1_000) return Math.round(n / 1_000) + 'k';
+                                    return n;
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+        }
+
+        const pieTooltip = {
+            ...tooltipTheme,
+            callbacks: {
+                label(ctx) {
+                    const total = (ctx.dataset.data || []).reduce((s, n) => s + Number(n || 0), 0);
+                    const val = Number(ctx.parsed || 0);
+                    const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                    return ' ' + (ctx.label || '') + ': ' + fmtKes(val) + ' (' + pct + '%)';
+                },
+            },
+        };
+
+        const pieOpts = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 14,
+                        font: { size: 11, weight: '600' },
+                    },
+                },
+                tooltip: pieTooltip,
+            },
+        };
+
+        const expensePie = charts.expense_groups || {};
+        const expenseCanvas = document.getElementById('finChartExpensePie');
+        if (expenseCanvas && Array.isArray(expensePie.amounts) && expensePie.amounts.some((n) => Number(n) > 0)) {
+            const existing = Chart.getChart(expenseCanvas);
+            if (existing) existing.destroy();
+            new Chart(expenseCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: expensePie.labels || [],
+                    datasets: [{
+                        data: expensePie.amounts || [],
+                        backgroundColor: ['#0b486d', '#e87722', '#2da0d9'],
+                        borderWidth: 0,
+                        hoverOffset: 6,
+                    }],
+                },
+                options: {
+                    ...pieOpts,
+                    cutout: '58%',
+                },
+            });
+        }
+
+        const methodPie = charts.collection_methods || {};
+        const methodCanvas = document.getElementById('finChartCollectionPie');
+        if (methodCanvas && Array.isArray(methodPie.amounts) && methodPie.amounts.some((n) => Number(n) > 0)) {
+            const existing = Chart.getChart(methodCanvas);
+            if (existing) existing.destroy();
+            new Chart(methodCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: methodPie.labels || [],
+                    datasets: [{
+                        data: methodPie.amounts || [],
+                        backgroundColor: ['#2da0d9', '#0b486d', '#e87722'],
+                        borderWidth: 0,
+                        hoverOffset: 6,
+                    }],
+                },
+                options: {
+                    ...pieOpts,
+                    cutout: '58%',
+                },
+            });
+        }
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => window.initFinanceOverviewCharts());
+    } else {
+        window.initFinanceOverviewCharts();
     }
 })();

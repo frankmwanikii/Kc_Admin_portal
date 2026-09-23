@@ -22,12 +22,14 @@ $statusClass = match ($focusMonth['status'] ?? 'neutral') {
 };
 $fyLabel = $b['label'] ?? ('FY ' . $budgetYear);
 $budgetBackUrl = '/admin/finance?' . http_build_query([
-    'tab' => 'budget',
+    'tab' => 'reports',
+    'sub' => 'budget',
     'budget_year' => (int) $budgetYear,
     'month' => $month,
 ]);
 $budgetEditUrl = '/admin/finance?' . http_build_query([
-    'tab' => 'budget',
+    'tab' => 'reports',
+    'sub' => 'budget',
     'edit' => '1',
     'budget_year' => (int) $budgetYear,
     'month' => $month,
@@ -38,8 +40,13 @@ if ($budgetEditMode):
 <div class="arrears-page fin-budget-page fin-budget-page--edit">
     <header class="fin-sunday-top">
         <a href="<?= htmlspecialchars($budgetBackUrl) ?>" class="fin-sunday-back">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i>
-            Budget
+            <span class="fin-sunday-back__icon" aria-hidden="true">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            </span>
+            <span class="fin-sunday-back__text">
+                <span class="fin-sunday-back__prefix">Back to</span>
+                Budget vs actual
+            </span>
         </a>
         <div class="fin-sunday-top__hero">
             <div class="fin-sunday-top__copy">
@@ -76,33 +83,44 @@ if ($budgetEditMode):
                 <h3>Income</h3>
                 <button type="button" class="fin-link" @click="startBudgetNewLine('income')">+ Add income line</button>
             </div>
-            <template x-for="line in budgetEditIncomeLines" :key="'in-' + line.id">
-                <div class="fin-budget-editor__row">
-                    <div class="fin-budget-editor__meta">
-                        <span class="fin-budget-editor__label" x-text="line.label"></span>
-                    </div>
-                    <div class="fin-budget-editor__controls">
-                        <div class="fin-amt-row__field">
-                            <span class="fin-amt-row__currency" aria-hidden="true">KES</span>
-                            <input type="number"
-                                   min="0"
-                                   step="1"
-                                   inputmode="numeric"
-                                   class="fin-amt-row__input finance-input"
-                                   :name="'amounts[' + line.id + ']'"
-                                   x-model.number="line.amount"
-                                   @focus="$el.select()">
+            <div class="fin-amount-grid fin-budget-editor__grid">
+                <template x-for="line in budgetEditIncomeLines" :key="'in-' + line.id">
+                    <div class="fin-amt-row"
+                         :class="Number(line.amount) > 0 && 'fin-amt-row--filled'">
+                        <div class="fin-amt-row__meta">
+                            <div class="fin-amt-row__text">
+                                <label class="fin-amt-row__label"
+                                       :for="'budget-in-' + line.id"
+                                       x-text="line.label"></label>
+                            </div>
                         </div>
-                        <button type="button"
-                                class="fin-budget-editor__delete"
-                                title="Delete income line"
-                                aria-label="Delete income line"
-                                @click="deleteBudgetLine(line)">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
+                        <div class="fin-amt-row__actions">
+                            <div class="fin-amt-row__field">
+                                <span class="fin-amt-row__currency" aria-hidden="true">KES</span>
+                                <input type="number"
+                                       :id="'budget-in-' + line.id"
+                                       min="0"
+                                       step="1"
+                                       inputmode="numeric"
+                                       pattern="[0-9]*"
+                                       placeholder="0"
+                                       class="fin-amt-row__input"
+                                       :name="'amounts[' + line.id + ']'"
+                                       x-model.number="line.amount"
+                                       @focus="$el.select()"
+                                       :aria-label="(line.label || 'Income') + ' amount in Kenyan Shillings'">
+                            </div>
+                            <button type="button"
+                                    class="fin-budget-editor__delete"
+                                    title="Delete income line"
+                                    aria-label="Delete income line"
+                                    @click="deleteBudgetLine(line)">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </template>
+                </template>
+            </div>
             <p class="finance-field-hint" x-show="budgetEditIncomeLines.length === 0 && !(budgetNewLine && budgetNewLine.line_type === 'income')">No income lines yet — add one above.</p>
             <div class="fin-budget-newline"
                  x-show="budgetNewLine && budgetNewLine.line_type === 'income'"
@@ -123,10 +141,14 @@ if ($budgetEditMode):
                                 <input type="number"
                                        min="0"
                                        step="1"
-                                       class="fin-amt-row__input finance-input"
+                                       inputmode="numeric"
+                                       pattern="[0-9]*"
                                        placeholder="0"
+                                       class="fin-amt-row__input"
                                        x-model.number="budgetNewLine.amount"
-                                       @keydown.enter.prevent="saveBudgetNewLine()">
+                                       @focus="$el.select()"
+                                       @keydown.enter.prevent="saveBudgetNewLine()"
+                                       aria-label="New income amount in Kenyan Shillings">
                             </div>
                             <button type="button" class="finance-btn-primary" @click="saveBudgetNewLine()">Add</button>
                             <button type="button" class="finance-btn-secondary" @click="budgetNewLine = null">Cancel</button>
@@ -141,34 +163,55 @@ if ($budgetEditMode):
                 <h3>Expenses</h3>
                 <button type="button" class="fin-link" @click="startBudgetNewLine('expense')">+ Add expense line</button>
             </div>
-            <template x-for="line in budgetEditExpenseLines" :key="'ex-' + line.id">
-                <div class="fin-budget-editor__row">
-                    <div class="fin-budget-editor__meta">
-                        <span class="fin-budget-editor__section-tag" x-show="line.section" x-text="line.section"></span>
-                        <span class="fin-budget-editor__label" x-text="line.label"></span>
+
+            <template x-for="group in budgetEditExpenseGroups" :key="'exg-' + group.section">
+                <div class="fin-budget-editor__category">
+                    <div class="fin-budget-editor__category-head">
+                        <h4 class="fin-budget-editor__category-title" x-text="group.section"></h4>
+                        <span class="fin-budget-editor__category-total"
+                              x-text="'KES ' + formatMoneyPlain(group.total)"></span>
                     </div>
-                    <div class="fin-budget-editor__controls">
-                        <div class="fin-amt-row__field">
-                            <span class="fin-amt-row__currency" aria-hidden="true">KES</span>
-                            <input type="number"
-                                   min="0"
-                                   step="1"
-                                   inputmode="numeric"
-                                   class="fin-amt-row__input finance-input"
-                                   :name="'amounts[' + line.id + ']'"
-                                   x-model.number="line.amount"
-                                   @focus="$el.select()">
-                        </div>
-                        <button type="button"
-                                class="fin-budget-editor__delete"
-                                title="Delete expense line"
-                                aria-label="Delete expense line"
-                                @click="deleteBudgetLine(line)">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
+                    <div class="fin-amount-grid fin-budget-editor__grid">
+                        <template x-for="line in group.lines" :key="'ex-' + line.id">
+                            <div class="fin-amt-row fin-amt-row--expense"
+                                 :class="Number(line.amount) > 0 && 'fin-amt-row--filled'">
+                                <div class="fin-amt-row__meta">
+                                    <div class="fin-amt-row__text">
+                                        <label class="fin-amt-row__label"
+                                               :for="'budget-ex-' + line.id"
+                                               x-text="line.label"></label>
+                                    </div>
+                                </div>
+                                <div class="fin-amt-row__actions">
+                                    <div class="fin-amt-row__field">
+                                        <span class="fin-amt-row__currency" aria-hidden="true">KES</span>
+                                        <input type="number"
+                                               :id="'budget-ex-' + line.id"
+                                               min="0"
+                                               step="1"
+                                               inputmode="numeric"
+                                               pattern="[0-9]*"
+                                               placeholder="0"
+                                               class="fin-amt-row__input"
+                                               :name="'amounts[' + line.id + ']'"
+                                               x-model.number="line.amount"
+                                               @focus="$el.select()"
+                                               :aria-label="(line.label || 'Expense') + ' amount in Kenyan Shillings'">
+                                    </div>
+                                    <button type="button"
+                                            class="fin-budget-editor__delete"
+                                            title="Delete expense line"
+                                            aria-label="Delete expense line"
+                                            @click="deleteBudgetLine(line)">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </template>
+
             <p class="finance-field-hint" x-show="budgetEditExpenseLines.length === 0 && !(budgetNewLine && budgetNewLine.line_type === 'expense')">No expense lines yet — add one above.</p>
             <div class="fin-budget-newline"
                  x-show="budgetNewLine && budgetNewLine.line_type === 'expense'"
@@ -178,6 +221,13 @@ if ($budgetEditMode):
                     <div>
                         <p class="fin-budget-newline__title">New expense line</p>
                         <div class="fin-budget-newline__fields">
+                            <select class="finance-input fin-budget-newline__section"
+                                    x-model="budgetNewLine.section"
+                                    aria-label="Expense category">
+                                <template x-for="sec in budgetExpenseSections" :key="'sec-' + sec">
+                                    <option :value="sec" x-text="sec"></option>
+                                </template>
+                            </select>
                             <input type="text"
                                    required
                                    class="finance-input"
@@ -189,10 +239,14 @@ if ($budgetEditMode):
                                 <input type="number"
                                        min="0"
                                        step="1"
-                                       class="fin-amt-row__input finance-input"
+                                       inputmode="numeric"
+                                       pattern="[0-9]*"
                                        placeholder="0"
+                                       class="fin-amt-row__input"
                                        x-model.number="budgetNewLine.amount"
-                                       @keydown.enter.prevent="saveBudgetNewLine()">
+                                       @focus="$el.select()"
+                                       @keydown.enter.prevent="saveBudgetNewLine()"
+                                       aria-label="New expense amount in Kenyan Shillings">
                             </div>
                             <button type="button" class="finance-btn-primary" @click="saveBudgetNewLine()">Add</button>
                             <button type="button" class="finance-btn-secondary" @click="budgetNewLine = null">Cancel</button>
@@ -233,7 +287,8 @@ endif;
 
     <div class="fin-budget-toolbar">
         <form method="get" class="inline-flex items-center gap-2">
-            <input type="hidden" name="tab" value="budget">
+            <input type="hidden" name="tab" value="reports">
+            <input type="hidden" name="sub" value="budget">
             <label class="fin-budget-toolbar__label">
                 Financial year
                 <select name="budget_year" onchange="this.form.submit()" class="arrears-year-select" aria-label="Financial year">
@@ -377,7 +432,18 @@ endif;
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($b['lines'] as $line):
+                    <?php
+                    $prevSection = null;
+                    foreach ($b['lines'] as $line):
+                        $section = (string) ($line['section'] ?? '');
+                        if ($section !== '' && $section !== $prevSection):
+                            $prevSection = $section;
+                    ?>
+                    <tr class="fin-budget-lines-table__section">
+                        <td colspan="7"><?= htmlspecialchars($section) ?></td>
+                    </tr>
+                    <?php
+                        endif;
                         $lineStatus = match ($line['status'] ?? 'neutral') {
                             'over' => 'fin-badge--deficit',
                             'unbudgeted' => 'fin-badge--warn',
@@ -387,7 +453,7 @@ endif;
                         $lineVar = (float) ($line['variance'] ?? 0);
                     ?>
                     <tr class="arrears-row">
-                        <td class="arrears-muted"><?= htmlspecialchars($line['section'] ?? '') ?></td>
+                        <td class="arrears-muted"><?= htmlspecialchars($section) ?></td>
                         <td>
                             <span class="arrears-accent"><?= htmlspecialchars($line['label'] ?? '') ?></span>
                         </td>

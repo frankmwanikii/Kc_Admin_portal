@@ -67,15 +67,15 @@ $statCards = [
         'sub' => $monthLabel,
         'icon' => 'trending-up',
         'accent' => 'from-emerald-400 to-emerald-600',
-        'href' => '/admin/finance?tab=collections',
+        'href' => '/admin/finance?tab=ledger&sub=collections',
     ],
     [
-        'label' => 'Arrears outstanding',
+        'label' => 'Bills outstanding',
         'value' => 'KES ' . number_format($stats['arrears_outstanding'], 0),
-        'sub' => 'Expense arrears ' . date('Y'),
+        'sub' => 'Outstanding bills ' . date('Y'),
         'icon' => 'alert-circle',
         'accent' => 'from-rose-400 to-red-600',
-        'href' => '/admin/finance?tab=arrears',
+        'href' => '/admin/finance?tab=bills',
     ],
 ];
 ?>
@@ -264,9 +264,9 @@ $statCards = [
             <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
                 <?php
                 $links = [
-                    ['/admin/finance?tab=arrears', 'Expense arrears', 'alert-circle', 'text-rose-600 bg-rose-50'],
-                    ['/admin/finance?tab=weekly', 'Weekly expenses', 'receipt', 'text-church-600 bg-church-50'],
-                    ['/admin/finance?tab=collections', 'Collections', 'banknote', 'text-emerald-600 bg-emerald-50'],
+                    ['/admin/finance?tab=bills', 'Outstanding bills', 'alert-circle', 'text-rose-600 bg-rose-50'],
+                    ['/admin/finance/sunday?return_tab=ledger', 'Record Sunday', 'calendar-days', 'text-church-600 bg-church-50'],
+                    ['/admin/finance?tab=reports&sub=statement', 'Operating statement', 'file-bar-chart', 'text-emerald-600 bg-emerald-50'],
                     ['/admin/inventory', 'Inventory (' . (int) ($stats['inventory'] ?? 0) . ')', 'package', 'text-violet-600 bg-violet-50'],
                     ['/admin/communications', 'Communications', 'megaphone', 'text-amber-600 bg-amber-50'],
                     ['/admin/settings', 'Settings', 'settings', 'text-slate-600 bg-slate-100'],

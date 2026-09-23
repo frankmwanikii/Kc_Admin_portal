@@ -13,18 +13,26 @@ $fmt = static function (float $n, bool $outflow = false): string {
 
 $year = (int) ($position['year'] ?? $year ?? date('Y'));
 $priorYear = (int) ($position['prior_year'] ?? ($year - 1));
+$columnYears = $position['column_years'] ?? [$year, $priorYear];
+$columnYears = array_values(array_map('intval', $columnYears));
+if ($columnYears === []) {
+    $columnYears = [$year, $priorYear];
+}
+$colCount = count($columnYears);
 $generatedAt = $generatedAt ?? date('j F Y, g:i a');
 $refId = $refId ?? ('POS-' . $year . '-' . date('YmdHis'));
 $rows = $position['rows'] ?? [];
 $docTitle = (string) ($position['document_title'] ?? 'Consolidated Statement of Income and Expenditure');
 
-$currentAmt = static function (array $amounts, bool $outflow) use ($fmt): string {
+$yearAmt = static function (array $amounts, int $colYear, bool $outflow) use ($fmt, $year): string {
+    $byYear = $amounts['by_year'] ?? null;
+    if (is_array($byYear)) {
+        return $fmt((float) ($byYear[$colYear] ?? 0), $outflow);
+    }
     $bucket = $amounts['group'] ?? $amounts['entity'] ?? ['current' => 0, 'prior' => 0];
-
-    return $fmt((float) ($bucket['current'] ?? 0), $outflow);
-};
-$priorAmt = static function (array $amounts, bool $outflow) use ($fmt): string {
-    $bucket = $amounts['group'] ?? $amounts['entity'] ?? ['current' => 0, 'prior' => 0];
+    if ($colYear === $year) {
+        return $fmt((float) ($bucket['current'] ?? 0), $outflow);
+    }
 
     return $fmt((float) ($bucket['prior'] ?? 0), $outflow);
 };
@@ -56,28 +64,44 @@ $priorAmt = static function (array $amounts, bool $outflow) use ($fmt): string {
         <table class="citam-ie-table" aria-label="Consolidated statement of income and expenditure">
             <thead>
                 <tr>
-                    <th class="citam-ie-table__label">Items</th>
-                    <th class="citam-ie-table__amt citam-ie-table__col--g-cur"><?= (int) $year ?><br><span>KShs</span></th>
-                    <th class="citam-ie-table__amt citam-ie-table__col--g-pri"><?= (int) $priorYear ?><br><span>KShs</span></th>
+                    <th class="citam-ie-table__label" scope="col">Items</th>
+                    <?php foreach ($columnYears as $idx => $colYear): ?>
+                    <th class="citam-ie-table__amt citam-ie-table__col--y<?= (int) $idx ?>" scope="col">
+                        <span class="citam-ie-table__year"><?= (int) $colYear ?></span>
+                        <span class="citam-ie-table__currency">KShs</span>
+                    </th>
+                    <?php endforeach; ?>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($rows as $row):
                     $type = (string) ($row['type'] ?? 'line');
                     $outflow = !empty($row['outflow']);
-                    $amounts = $row['amounts'] ?? [
-                        'group' => ['current' => 0, 'prior' => 0],
-                    ];
+                    $amounts = $row['amounts'] ?? ['by_year' => [], 'group' => ['current' => 0, 'prior' => 0]];
                     if ($type === 'section'): ?>
                 <tr class="citam-ie-table__section">
-                    <td colspan="3"><?= htmlspecialchars((string) ($row['label'] ?? '')) ?></td>
+                    <td colspan="<?= 1 + $colCount ?>"><?= htmlspecialchars((string) ($row['label'] ?? '')) ?></td>
                 </tr>
                     <?php continue; endif; ?>
 
                 <tr class="citam-ie-table__<?= htmlspecialchars($type) ?>">
                     <td class="citam-ie-table__label"><?= htmlspecialchars((string) ($row['label'] ?? '')) ?></td>
-                    <td class="citam-ie-table__amt citam-ie-table__col--g-cur"><?= $currentAmt($amounts, $outflow) ?></td>
-                    <td class="citam-ie-table__amt citam-ie-table__col--g-pri"><?= $priorAmt($amounts, $outflow) ?></td>
+                    <?php foreach ($columnYears as $idx => $colYear):
+                        $cellClass = 'citam-ie-table__amt citam-ie-table__col--y' . (int) $idx;
+                        if ($type === 'final') {
+                            $byYear = $amounts['by_year'] ?? [];
+                            $cellVal = is_array($byYear)
+                                ? (float) ($byYear[$colYear] ?? 0)
+                                : 0.0;
+                            if (abs($cellVal) >= 0.005) {
+                                $cellClass .= $cellVal >= 0
+                                    ? ' citam-ie-table__amt--surplus'
+                                    : ' citam-ie-table__amt--deficit';
+                            }
+                        }
+                    ?>
+                    <td class="<?= $cellClass ?>"><?= $yearAmt($amounts, (int) $colYear, $outflow) ?></td>
+                    <?php endforeach; ?>
                 </tr>
                 <?php endforeach; ?>
             </tbody>

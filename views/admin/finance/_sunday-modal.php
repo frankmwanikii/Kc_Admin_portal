@@ -232,6 +232,10 @@ $nextMonthUrl = '/admin/finance?' . http_build_query(array_merge($monthNavBase, 
                                         </div>
                                     </div>
                                     <?php endforeach; ?>
+                                    <div class="fin-amt-total" role="status" aria-live="polite">
+                                        <span class="fin-amt-total__label">Total collections</span>
+                                        <strong class="fin-amt-total__value" x-text="formatMoney(collectionsTotal)">KES 0</strong>
+                                    </div>
                                 </div>
                             </section>
 

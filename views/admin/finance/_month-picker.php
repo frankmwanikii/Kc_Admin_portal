@@ -1,22 +1,25 @@
 <?php
 /** Modern month/year picker (replaces native input[type=month]). */
 $ariaLabel = $monthPickerLabel ?? 'Month';
+$pickerTarget = $monthPickerTarget ?? 'ledger';
+$pickerClass = $monthPickerClass ?? '';
 ?>
-<div class="fin-month-picker"
-     @keydown.escape.window="closeMonthPicker()"
-     @click.outside="closeMonthPicker()">
+<div class="fin-month-picker <?= htmlspecialchars($pickerClass) ?>"
+     @keydown.escape.window="monthPickerTarget === '<?= htmlspecialchars($pickerTarget) ?>' && closeMonthPicker()"
+     @click.outside="monthPickerTarget === '<?= htmlspecialchars($pickerTarget) ?>' && closeMonthPicker()">
     <button type="button"
             class="fin-month-picker__trigger"
-            :aria-expanded="monthPickerOpen"
+            :aria-expanded="monthPickerOpen && monthPickerTarget === '<?= htmlspecialchars($pickerTarget) ?>'"
             aria-haspopup="dialog"
             aria-label="<?= htmlspecialchars($ariaLabel) ?>"
-            @click="toggleMonthPicker()">
-        <span class="fin-month-picker__value" x-text="monthLabel"><?= htmlspecialchars($monthLabel ?? '') ?></span>
+            @click="toggleMonthPicker('<?= htmlspecialchars($pickerTarget) ?>')">
+        <span class="fin-month-picker__value"
+              x-text="monthPickerLabel('<?= htmlspecialchars($pickerTarget) ?>')"><?= htmlspecialchars($monthLabel ?? '') ?></span>
         <i data-lucide="calendar" class="fin-month-picker__icon w-4 h-4"></i>
     </button>
 
     <div class="fin-month-picker__panel"
-         x-show="monthPickerOpen"
+         x-show="monthPickerOpen && monthPickerTarget === '<?= htmlspecialchars($pickerTarget) ?>'"
          x-cloak
          x-transition.opacity.duration.150ms
          role="dialog"
@@ -54,3 +57,6 @@ $ariaLabel = $monthPickerLabel ?? 'Month';
         </div>
     </div>
 </div>
+<?php
+unset($monthPickerLabel, $monthPickerTarget, $monthPickerClass, $monthLabel, $ariaLabel, $pickerTarget, $pickerClass);
+?>

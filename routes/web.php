@@ -145,6 +145,7 @@ $router->post('/admin/finance/arrears/{id}/delete', [FinanceController::class, '
 $router->get('/admin/finance/weekly/entry', [FinanceController::class, 'weeklyEntry']);
 
 $router->post('/admin/finance/weekly', [FinanceController::class, 'storeWeekly']);
+$router->post('/admin/finance/weekly/cell', [FinanceController::class, 'saveWeeklyExpenseCell']);
 
 $router->post('/admin/finance/weekly/categories', [FinanceController::class, 'storeWeeklyCategory']);
 
@@ -155,6 +156,7 @@ $router->post('/admin/finance/weekly/categories/{slug}/delete', [FinanceControll
 $router->get('/admin/finance/collections/weekly/entry', [FinanceController::class, 'weeklyCollectionsEntry']);
 
 $router->post('/admin/finance/collections/weekly', [FinanceController::class, 'storeWeeklyCollections']);
+$router->post('/admin/finance/collections/weekly/cell', [FinanceController::class, 'saveWeeklyCollectionCell']);
 $router->post('/admin/finance/collections/weekly/methods/{method}', [FinanceController::class, 'updateWeeklyCollectionMethod']);
 $router->post('/admin/finance/collections/weekly/methods/{method}/clear', [FinanceController::class, 'clearWeeklyCollectionMethod']);
 

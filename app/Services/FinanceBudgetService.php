@@ -287,15 +287,17 @@ class FinanceBudgetService
         $colStmt = $db->prepare('
             SELECT COALESCE(SUM(amount), 0) FROM finance_weekly_collections
             WHERE week_date >= ? AND week_date < ?
+              AND amount < ?
         ');
-        $colStmt->execute([$start, $end]);
+        $colStmt->execute([$start, $end, FinanceReconciliationService::MAX_WEEKLY_LINE_AMOUNT]);
         $actualIncome = round((float) $colStmt->fetchColumn(), 2);
 
         $expStmt = $db->prepare('
             SELECT COALESCE(SUM(amount), 0) FROM finance_weekly_expenses
             WHERE week_date >= ? AND week_date < ?
+              AND amount < ?
         ');
-        $expStmt->execute([$start, $end]);
+        $expStmt->execute([$start, $end, FinanceReconciliationService::MAX_WEEKLY_LINE_AMOUNT]);
         $actualExpenses = round((float) $expStmt->fetchColumn(), 2);
 
         $expenseVariance = round($budgetExpenses - $actualExpenses, 2);
@@ -416,9 +418,10 @@ class FinanceBudgetService
             SELECT DATE_FORMAT(week_date, "%Y-%m") AS ym, SUM(amount) AS total
             FROM finance_weekly_collections
             WHERE week_date >= ? AND week_date < ?
+              AND amount < ?
             GROUP BY ym
         ');
-        $colStmt->execute([$start, $end]);
+        $colStmt->execute([$start, $end, FinanceReconciliationService::MAX_WEEKLY_LINE_AMOUNT]);
         foreach ($colStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $ym = (string) $row['ym'];
             if (isset($out[$ym])) {
@@ -430,9 +433,10 @@ class FinanceBudgetService
             SELECT DATE_FORMAT(week_date, "%Y-%m") AS ym, SUM(amount) AS total
             FROM finance_weekly_expenses
             WHERE week_date >= ? AND week_date < ?
+              AND amount < ?
             GROUP BY ym
         ');
-        $expStmt->execute([$start, $end]);
+        $expStmt->execute([$start, $end, FinanceReconciliationService::MAX_WEEKLY_LINE_AMOUNT]);
         foreach ($expStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $ym = (string) $row['ym'];
             if (isset($out[$ym])) {
@@ -474,7 +478,20 @@ class FinanceBudgetService
             ];
         }
 
-        usort($rows, static fn (array $a, array $b): int => ($b['actual'] <=> $a['actual']) ?: ($a['sort_order'] <=> $b['sort_order']));
+        usort($rows, static function (array $a, array $b): int {
+            $sectionOrder = [
+                'Administration' => 1,
+                'Ministry & Departments' => 2,
+                'Finance Costs' => 3,
+            ];
+            $sa = $sectionOrder[$a['section'] ?? ''] ?? 50;
+            $sb = $sectionOrder[$b['section'] ?? ''] ?? 50;
+            if ($sa !== $sb) {
+                return $sa <=> $sb;
+            }
+
+            return ($a['sort_order'] <=> $b['sort_order']) ?: strcmp((string) ($a['label'] ?? ''), (string) ($b['label'] ?? ''));
+        });
 
         return $rows;
     }
@@ -482,14 +499,23 @@ class FinanceBudgetService
     /** @return list<array<string, mixed>> */
     private static function budgetLinesForMonth(int $budgetYear, string $yearMonth): array
     {
-        $stmt = Database::connection()->prepare('
+        $stmt = Database::connection()->prepare("
             SELECT l.id, l.line_type, l.section, l.label, l.account_code, l.sort_order,
                    COALESCE(m.amount, 0) AS amount
             FROM finance_budget_lines l
             LEFT JOIN finance_budget_monthly m ON m.budget_line_id = l.id AND m.budget_month = ?
             WHERE l.budget_year = ?
-            ORDER BY l.line_type ASC, l.sort_order ASC, l.id ASC
-        ');
+            ORDER BY l.line_type ASC,
+                     CASE l.section
+                        WHEN 'Incomes' THEN 0
+                        WHEN 'Administration' THEN 1
+                        WHEN 'Ministry & Departments' THEN 2
+                        WHEN 'Finance Costs' THEN 3
+                        ELSE 9
+                     END ASC,
+                     l.sort_order ASC,
+                     l.id ASC
+        ");
         $stmt->execute([$yearMonth, $budgetYear]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -510,9 +536,10 @@ class FinanceBudgetService
             INNER JOIN finance_weekly_categories c ON c.slug = e.category_slug
             INNER JOIN finance_expense_categories ec ON ec.id = c.expense_category_id
             WHERE e.week_date >= ? AND e.week_date < ?
+              AND e.amount < ?
             GROUP BY ec.account_code
         ');
-        $adminStmt->execute([$start, $end]);
+        $adminStmt->execute([$start, $end, FinanceReconciliationService::MAX_WEEKLY_LINE_AMOUNT]);
         foreach ($adminStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $code = (string) $row['account_code'];
             $byCode[$code] = round((float) ($byCode[$code] ?? 0) + (float) $row['total'], 2);
@@ -524,9 +551,10 @@ class FinanceBudgetService
             INNER JOIN finance_weekly_categories c ON c.slug = e.category_slug
             INNER JOIN finance_expense_departments d ON d.id = c.department_id
             WHERE e.week_date >= ? AND e.week_date < ?
+              AND e.amount < ?
             GROUP BY d.slug
         ');
-        $deptStmt->execute([$start, $end]);
+        $deptStmt->execute([$start, $end, FinanceReconciliationService::MAX_WEEKLY_LINE_AMOUNT]);
         foreach ($deptStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $slug = (string) $row['slug'];
             $code = self::DEPARTMENT_BUDGET_CODES[$slug] ?? null;

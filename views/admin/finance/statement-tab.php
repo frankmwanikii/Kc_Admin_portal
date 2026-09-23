@@ -13,26 +13,39 @@ $generatedAt = date('j F Y, g:i a');
 $refId = 'STMT-' . strtoupper($statement['view'] ?? 'M') . '-' . ($statement['year'] ?? $year) . '-' . date('YmdHis');
 ?>
 <div class="arrears-page statement-page">
-    <div class="statement-toolbar no-print">
-        <div class="statement-toolbar-row">
-            <h2 class="arrears-title statement-toolbar-title">Financial Statement</h2>
-            <div class="statement-toolbar-actions">
-                <button type="button" @click="printStatement()" class="arrears-btn-outline" :disabled="statementBusy">
-                    <i data-lucide="printer" class="w-4 h-4"></i>
-                    Print
-                </button>
-                <a :href="statementExportUrl('pdf')" class="arrears-btn-new no-underline">
-                    <i data-lucide="file-text" class="w-4 h-4"></i>
-                    Download PDF
-                </a>
-                <a :href="statementExportUrl('csv')" class="arrears-btn-outline no-underline">
-                    <i data-lucide="table-2" class="w-4 h-4"></i>
-                    Download CSV
-                </a>
+    <div class="fin-report-bar no-print">
+        <div class="fin-report-bar__main">
+            <div class="fin-report-bar__identity">
+                <h2 class="fin-report-bar__title">Operating Statement</h2>
+                <p class="fin-report-bar__hint">Collections and spending for the selected period</p>
+            </div>
+            <div class="fin-report-bar__tools">
+                <div class="fin-export-group" role="group" aria-label="Export statement">
+                    <button type="button"
+                            class="fin-export-group__btn"
+                            @click="printStatement()"
+                            :disabled="statementBusy"
+                            title="Print">
+                        <i data-lucide="printer" class="w-4 h-4"></i>
+                        <span>Print</span>
+                    </button>
+                    <a :href="statementExportUrl('pdf')"
+                       class="fin-export-group__btn fin-export-group__btn--primary no-underline"
+                       title="Download PDF">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        <span>PDF</span>
+                    </a>
+                    <a :href="statementExportUrl('csv')"
+                       class="fin-export-group__btn no-underline"
+                       title="Download CSV">
+                        <i data-lucide="table-2" class="w-4 h-4"></i>
+                        <span>CSV</span>
+                    </a>
+                </div>
             </div>
         </div>
 
-        <div class="statement-controls">
+        <div class="fin-report-bar__filters">
             <div class="statement-view-toggle" role="tablist" aria-label="Statement period">
                 <button type="button"
                         role="tab"
@@ -57,10 +70,10 @@ $refId = 'STMT-' . strtoupper($statement['view'] ?? 'M') . '-' . ($statement['ye
                         @click="setStatementView('annual')">Annual</button>
             </div>
 
-            <div class="statement-period-form">
+            <div class="fin-report-bar__period">
                 <select x-show="statementView === 'weekly'"
                         x-cloak
-                        class="arrears-year-select"
+                        class="fin-report-bar__select"
                         aria-label="Sunday week"
                         :value="statementWeekDate"
                         :disabled="statementBusy"
@@ -74,23 +87,23 @@ $refId = 'STMT-' . strtoupper($statement['view'] ?? 'M') . '-' . ($statement['ye
                 <input x-show="statementView !== 'annual'"
                        x-cloak
                        type="month"
-                       class="arrears-year-select"
+                       class="fin-report-bar__select"
                        aria-label="Month"
                        :value="weeklyMonth"
                        :disabled="statementBusy"
                        @change="changeStatementMonth($event.target.value)">
-                <select class="arrears-year-select"
+                <select class="fin-report-bar__select"
                         aria-label="Year"
                         :value="year"
                         :disabled="statementBusy"
                         @change="changeStatementYear(Number($event.target.value))">
-                    <?php for ($y = (int) date('Y') + 1; $y >= 2024; $y--): ?>
-                    <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
-                    <?php endfor; ?>
+                    <template x-for="y in financeYears" :key="'stmt-y-' + y">
+                        <option :value="y" :selected="Number(year) === Number(y)" x-text="y"></option>
+                    </template>
                 </select>
             </div>
         </div>
-        <p class="finance-field-hint" x-show="statementBusy" x-cloak>Updating statement…</p>
+        <p class="fin-report-bar__status" x-show="statementBusy" x-cloak>Updating statement…</p>
     </div>
 
     <div x-ref="statementDocumentWrap">

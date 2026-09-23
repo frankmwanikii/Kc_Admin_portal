@@ -35,7 +35,7 @@ $refId = $refId ?? ('STMT-' . strtoupper($statement['view'] ?? 'M') . '-' . ($st
                      alt="<?= htmlspecialchars($churchName) ?>"
                      class="finance-statement__logo">
                 <p class="finance-statement__org"><?= htmlspecialchars($churchName) ?></p>
-                <p class="finance-statement__doc-title">Financial Statement</p>
+                <p class="finance-statement__doc-title">Operating Statement</p>
                 <div class="finance-statement__meta">
                     <p><span class="finance-statement__meta-label">Statement period</span><br><?= htmlspecialchars($statement['period_label'] ?? '') ?></p>
                     <p><span class="finance-statement__meta-label">Generated</span><br><?= htmlspecialchars($generatedAt) ?></p>

@@ -3,14 +3,22 @@ $fmt = static fn (float $n): string => number_format($n, 0);
 $tab = $tab ?? 'dashboard';
 if ($tab === 'arrears') $tab = 'bills';
 if ($tab === 'weekly' || $tab === 'collections') $tab = 'ledger';
+if ($tab === 'reconciliation') $tab = 'dashboard';
+if ($tab === 'budget') $tab = 'reports';
 if ($tab === 'statement') $tab = 'reports';
 $tabDashboard = $tab === 'dashboard';
 $tabBills = $tab === 'bills';
 $tabLedger = $tab === 'ledger';
-$tabReconciliation = $tab === 'reconciliation';
-$tabBudget = $tab === 'budget';
 $tabReports = $tab === 'reports';
 $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses';
+if ($tabReports) {
+    $reportSub = in_array(($reportSub ?? ''), ['statement', 'position', 'budget'], true)
+        ? $reportSub
+        : 'statement';
+    if ($reportSub === 'budget') {
+        $ledgerSub = 'expenses'; // avoid conflicting sub usage in URL helpers
+    }
+}
 ?>
 <div class="fin-hub" x-cloak x-data="financeHub(<?= htmlspecialchars(json_encode($hubConfig ?? ['year' => (int) ($year ?? date('Y')), 'paymentMethods' => $paymentMethods ?? []]), ENT_QUOTES) ?>)">
     <div class="fin-ajax-toast" x-show="toast" x-cloak x-transition.opacity role="status" aria-live="polite">
@@ -37,37 +45,40 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                 <input type="search"
                        x-model="search"
                        class="arrears-search"
-                       placeholder="Search arrears..."
-                       aria-label="Search arrears">
-                <span class="arrears-count" x-text="filteredArrears.length + (filteredArrears.length === 1 ? ' arrear' : ' arrears')"></span>
+                       placeholder="Search bills..."
+                       aria-label="Search bills">
+                <span class="arrears-count" x-text="filteredArrears.length + (filteredArrears.length === 1 ? ' bill' : ' bills')"></span>
                 <form method="get" class="inline-flex" @submit.prevent>
                     <input type="hidden" name="tab" value="bills">
                     <select name="year"
                             :value="year"
                             @change="changeFinanceYear(Number($event.target.value))"
                             class="arrears-year-select"
-                            aria-label="Budget year">
-                        <?php for ($y = (int) date('Y') + 1; $y >= 2024; $y--): ?>
-                        <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
-                        <?php endfor; ?>
+                            aria-label="Year">
+                        <?php
+                        $yearOptions = $financeYears ?? range((int) date('Y') + 1, 2024);
+                        foreach ($yearOptions as $y):
+                        ?>
+                        <option value="<?= (int) $y ?>" <?= (int) $year === (int) $y ? 'selected' : '' ?>><?= (int) $y ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </form>
             </div>
-            <button type="button" @click="openNewArrear()" class="arrears-btn-new">+ New Arrear</button>
+            <button type="button" @click="openNewArrear()" class="arrears-btn-new">+ New Bill</button>
         </div>
 
         <div class="arrears-card finance-table-card">
             <div class="finance-table-caption">
-                <span class="finance-table-caption-label">Expense arrears</span>
+                <span class="finance-table-caption-label">Outstanding bills</span>
                 <span class="finance-table-caption-badge"><?= (int) $year ?></span>
                 <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
             </div>
-            <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Expense arrears — scroll horizontally on small screens">
+            <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Outstanding bills — scroll horizontally on small screens">
                 <table class="arrears-table">
                     <thead>
                         <tr>
                             <th>Expense item</th>
-                            <th>Period incurred</th>
+                            <th>Month incurred</th>
                             <th>Date paid</th>
                             <th class="ft-th-accent ft-th--right">Amount paid</th>
                             <th class="ft-th-accent ft-th--right">Amount due</th>
@@ -79,8 +90,8 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <tbody>
                         <tr x-show="filteredArrears.length === 0">
                             <td colspan="8" class="arrears-empty">
-                                <span x-show="search.trim()">No arrears match your search.</span>
-                                <span x-show="!search.trim()">No arrears recorded for <?= (int) $year ?>. Click <strong>+ New Arrear</strong> to add one.</span>
+                                <span x-show="search.trim()">No bills match your search.</span>
+                                <span x-show="!search.trim()">No bills recorded for <?= (int) $year ?>. Click <strong>+ New Bill</strong> to add one.</span>
                             </td>
                         </tr>
                         <template x-for="row in paginatedArrears" :key="row.id">
@@ -88,7 +99,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                                 <td>
                                     <span class="arrears-accent" x-text="row.category_label || row.expense_item"></span>
                                 </td>
-                                <td class="arrears-muted" x-text="row.month_incurred"></td>
+                                <td class="arrears-muted" x-text="formatMonthIncurred(row.month_incurred)"></td>
                                 <td>
                                     <template x-if="dateMain(row.date_paid)">
                                         <div class="arrears-date">
@@ -101,17 +112,59 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                                     </template>
                                 </td>
                                 <td class="ft-td-accent">
-                                    <span class="arrears-amount"
-                                          :class="Number(row.amount_paid) > 0 ? '' : 'arrears-amount--muted'"
-                                          x-text="formatMoneyPlain(row.amount_paid)"></span>
+                                    <template x-if="isInlineEditing('arrear', row.id, 'amount_paid')">
+                                        <input type="number"
+                                               class="arrears-inline-input"
+                                               min="0"
+                                               step="1"
+                                               inputmode="numeric"
+                                               x-model.number="inlineEdit.value"
+                                               @click.stop
+                                               @keydown.enter.prevent="commitInlineEdit(row)"
+                                               @keydown.escape.prevent="cancelInlineEdit()"
+                                               @blur="commitInlineEdit(row)"
+                                               x-init="$nextTick(() => { $el.focus(); $el.select(); })"
+                                               :aria-label="'Edit amount paid for ' + (row.expense_item || 'bill')">
+                                    </template>
+                                    <template x-if="!isInlineEditing('arrear', row.id, 'amount_paid')">
+                                        <button type="button"
+                                                class="arrears-amount arrears-amount--editable"
+                                                :class="Number(row.amount_paid) > 0 ? '' : 'arrears-amount--muted'"
+                                                @click.stop="startInlineEdit(row, 'amount_paid')"
+                                                x-text="formatMoneyPlain(row.amount_paid)"
+                                                title="Click to edit amount paid"
+                                                :aria-label="'Edit amount paid for ' + (row.expense_item || 'bill')"></button>
+                                    </template>
                                 </td>
                                 <td class="ft-td-accent">
-                                    <span class="arrears-amount" x-text="formatMoneyPlain(row.amount_due)"></span>
+                                    <template x-if="isInlineEditing('arrear', row.id, 'amount_due')">
+                                        <input type="number"
+                                               class="arrears-inline-input"
+                                               min="0"
+                                               step="1"
+                                               inputmode="numeric"
+                                               x-model.number="inlineEdit.value"
+                                               @click.stop
+                                               @keydown.enter.prevent="commitInlineEdit(row)"
+                                               @keydown.escape.prevent="cancelInlineEdit()"
+                                               @blur="commitInlineEdit(row)"
+                                               x-init="$nextTick(() => { $el.focus(); $el.select(); })"
+                                               :aria-label="'Edit amount due for ' + (row.expense_item || 'bill')">
+                                    </template>
+                                    <template x-if="!isInlineEditing('arrear', row.id, 'amount_due')">
+                                        <button type="button"
+                                                class="arrears-amount arrears-amount--editable"
+                                                @click.stop="startInlineEdit(row, 'amount_due')"
+                                                x-text="formatMoneyPlain(row.amount_due)"
+                                                title="Click to edit amount due"
+                                                :aria-label="'Edit amount due for ' + (row.expense_item || 'bill')"></button>
+                                    </template>
                                 </td>
                                 <td class="ft-td-accent">
                                     <span class="arrears-amount"
                                           :class="Number(row.balance_owing) > 0 ? 'arrears-amount--owing' : ''"
-                                          x-text="formatMoneyPlain(row.balance_owing)"></span>
+                                          x-text="formatMoneyPlain(row.balance_owing)"
+                                          title="Balance owing updates automatically"></span>
                                 </td>
                                 <td class="ft-td-accent">
                                     <span class="arrears-status" :class="statusClass(row.payment_status)" x-text="statusLabel(row.payment_status)"></span>
@@ -134,13 +187,13 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         <tr class="finance-table-footer">
                             <td colspan="3" class="finance-table-footer-label">Year totals</td>
                             <td class="ft-td-accent">
-                                <span class="finance-table-footer-amount">KES <?= $fmt($arrearsTotals['paid'] ?? 0) ?></span>
+                                <span class="finance-table-footer-amount" x-text="'KES ' + formatMoneyPlain(arrearsTotals.paid)"></span>
                             </td>
                             <td class="ft-td-accent">
-                                <span class="finance-table-footer-amount">KES <?= $fmt($arrearsTotals['due'] ?? 0) ?></span>
+                                <span class="finance-table-footer-amount" x-text="'KES ' + formatMoneyPlain(arrearsTotals.due)"></span>
                             </td>
                             <td class="ft-td-accent">
-                                <span class="finance-table-footer-amount finance-table-footer-amount--grand">KES <?= $fmt($arrearsTotals['balance'] ?? 0) ?></span>
+                                <span class="finance-table-footer-amount finance-table-footer-amount--grand" x-text="'KES ' + formatMoneyPlain(arrearsTotals.balance)"></span>
                             </td>
                             <td class="ft-td-accent"></td>
                             <td class="ft-td-actions"></td>
@@ -151,8 +204,8 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
             <?php
             $pageKey = 'arrearsPage';
             $listKey = 'filteredArrears';
-            $itemLabel = 'arrears';
-            $navLabel = 'Expense arrears pages';
+            $itemLabel = 'bills';
+            $navLabel = 'Bills pages';
             require __DIR__ . '/../partials/table-pagination.php';
             ?>
         </div>
@@ -169,7 +222,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                 <div>
                     <header class="finance-modal-header">
                         <div class="finance-modal-header-text">
-                            <p class="finance-modal-eyebrow">Arrear details</p>
+                            <p class="finance-modal-eyebrow">Bill details</p>
                             <h4 class="finance-modal-title" x-text="viewRow.expense_item"></h4>
                             <span class="arrear-view-status"
                                   :class="statusClass(viewRow.payment_status)"
@@ -212,8 +265,8 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                                 <p class="finance-detail-value" x-text="viewRow.category_label || viewRow.expense_item"></p>
                             </div>
                             <div class="finance-detail-item">
-                                <p class="finance-detail-label">Period incurred</p>
-                                <p class="finance-detail-value" x-text="viewRow.month_incurred"></p>
+                                <p class="finance-detail-label">Month incurred</p>
+                                <p class="finance-detail-value" x-text="formatMonthIncurred(viewRow.month_incurred)"></p>
                             </div>
                             <div class="finance-detail-item">
                                 <p class="finance-detail-label">Date paid</p>
@@ -274,7 +327,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <input type="hidden" name="notes" :value="paymentRow.notes || ''">
                     <header class="finance-modal-header">
                         <div class="finance-modal-header-text">
-                            <p class="finance-modal-eyebrow">Expense arrears</p>
+                            <p class="finance-modal-eyebrow">Bills</p>
                             <h4 class="finance-modal-title">Record payment</h4>
                             <p class="finance-modal-subtitle" x-text="paymentRow.expense_item"></p>
                         </div>
@@ -387,7 +440,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <input type="hidden" name="budget_year" :value="editRow.budget_year">
                     <header class="finance-modal-header">
                         <div class="finance-modal-header-text">
-                            <p class="finance-modal-eyebrow">Expense arrears</p>
+                            <p class="finance-modal-eyebrow">Bills</p>
                             <h4 class="finance-modal-title">Edit expense</h4>
                             <p class="finance-modal-subtitle">Update the title, category, amounts, and notes for this bill.</p>
                         </div>
@@ -411,13 +464,13 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                             <p class="finance-field-hint">This is the name shown in the outstanding bills table.</p>
                         </div>
                         <div class="finance-field finance-field--full">
-                            <label class="finance-label" for="edit-expense-group">Department</label>
+                            <label class="finance-label" for="edit-expense-group">Category</label>
                             <select id="edit-expense-group"
                                     required
                                     class="finance-input"
                                     x-model="editRow.expense_group"
                                     @change="onEditGroupChange()">
-                                <option value="">Select department…</option>
+                                <option value="">Select category…</option>
                                 <template x-for="grp in expenseGroups" :key="grp.slug">
                                     <option :value="grp.slug"
                                             :selected="editRow.expense_group === grp.slug"
@@ -425,82 +478,28 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                                 </template>
                             </select>
                         </div>
-                        <template x-if="isMinistryDepartments(editRow.expense_group)">
-                            <div class="finance-catalog-fields finance-field--full">
-                            <div class="finance-field finance-field--full">
-                                <label class="finance-label" for="edit-department">Category</label>
-                                <select id="edit-department"
-                                        name="department_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="editRow.department_id"
-                                        @change="onEditDepartmentChange()">
-                                    <option value="">Select category…</option>
-                                    <template x-for="dept in departmentsForGroup('ministry_departments')" :key="dept.id">
-                                        <option :value="String(dept.id)"
-                                                :selected="String(editRow.department_id) === String(dept.id)"
-                                                x-text="dept.label"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div class="finance-field finance-field--full" x-show="editRow.department_id" x-cloak>
-                                <label class="finance-label" for="edit-ministry-item">Expense item</label>
-                                <select id="edit-ministry-item"
-                                        name="category_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="editRow.category_id">
-                                    <option value="">Select expense item…</option>
-                                    <template x-for="cat in expenseItemsForDepartment(editRow.department_id, editRow.category_id)" :key="cat.id">
-                                        <option :value="String(cat.id)"
-                                                :selected="String(editRow.category_id) === String(cat.id)"
-                                                x-text="cat.label"></option>
-                                    </template>
-                                    <option value="__new__">+ Add custom category item…</option>
-                                </select>
-                            </div>
-                            </div>
-                        </template>
-                        <template x-if="isAdminExpenses(editRow.expense_group)">
-                            <div class="finance-catalog-fields finance-field--full">
-                            <div class="finance-field finance-field--full">
-                                <label class="finance-label" for="edit-admin-department">Category</label>
-                                <select id="edit-admin-department"
-                                        name="department_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="editRow.department_id"
-                                        @change="onEditDepartmentChange()">
-                                    <option value="">Select category…</option>
-                                    <template x-for="dept in departmentsForGroup('admin_expenses')" :key="dept.id">
-                                        <option :value="String(dept.id)"
-                                                :selected="String(editRow.department_id) === String(dept.id)"
-                                                x-text="dept.label"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div class="finance-field finance-field--full" x-show="editRow.department_id" x-cloak>
-                                <label class="finance-label" for="edit-admin-item">Expense item</label>
-                                <select id="edit-admin-item"
-                                        name="category_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="editRow.category_id">
-                                    <option value="">Select expense item…</option>
-                                    <template x-for="cat in expenseItemsForDepartment(editRow.department_id, editRow.category_id)" :key="cat.id">
-                                        <option :value="String(cat.id)"
-                                                :selected="String(editRow.category_id) === String(cat.id)"
-                                                x-text="cat.label"></option>
-                                    </template>
-                                    <option value="__new__">+ Add custom category item…</option>
-                                </select>
-                            </div>
-                            </div>
-                        </template>
+                        <div class="finance-field finance-field--full" x-show="editRow.expense_group" x-cloak>
+                            <label class="finance-label" for="edit-expense-item">Expense item</label>
+                            <select id="edit-expense-item"
+                                    name="category_id"
+                                    required
+                                    class="finance-input"
+                                    x-model="editRow.category_id"
+                                    @change="onEditExpenseItemChange()">
+                                <option value="">Select expense item…</option>
+                                <template x-for="cat in expenseItemsForGroup(editRow.expense_group, editRow.category_id)" :key="cat.id">
+                                    <option :value="String(cat.id)"
+                                            :selected="String(editRow.category_id) === String(cat.id)"
+                                            x-text="cat.label"></option>
+                                </template>
+                                <option value="__new__">+ Add custom expense item…</option>
+                            </select>
+                            <input type="hidden" name="department_id" :value="editRow.department_id">
+                        </div>
                         <div class="finance-field finance-field--full"
-                             x-show="(isAdminExpenses(editRow.expense_group) && editRow.category_id === '__new__') || (isMinistryDepartments(editRow.expense_group) && editRow.category_id === '__new__')"
+                             x-show="editRow.expense_group && editRow.category_id === '__new__'"
                              x-cloak>
-                            <label class="finance-label" for="edit-new-category">Custom category item</label>
+                            <label class="finance-label" for="edit-new-category">Custom expense item</label>
                             <input type="text"
                                    id="edit-new-category"
                                    name="new_category_label"
@@ -510,14 +509,20 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                             <p class="finance-field-hint">Saved to the database for future selections.</p>
                         </div>
                         <div class="finance-field">
-                            <label class="finance-label" for="edit-month-incurred">Period incurred</label>
-                            <input type="text"
+                            <label class="finance-label" for="edit-month-incurred">Month incurred</label>
+                            <input type="hidden"
                                    id="edit-month-incurred"
                                    name="month_incurred"
                                    required
-                                   class="finance-input"
-                                   x-model="editRow.month_incurred"
-                                   placeholder="e.g. 2025">
+                                   :value="editRow.month_incurred">
+                            <?php
+                            $monthPickerLabel = 'Month incurred';
+                            $monthPickerTarget = 'bill-edit';
+                            $monthPickerClass = 'fin-month-picker--field';
+                            $monthLabel = '';
+                            require __DIR__ . '/_month-picker.php';
+                            ?>
+                            <p class="finance-field-hint">Pick the month this bill relates to.</p>
                         </div>
                         <div class="finance-field">
                             <label class="finance-label" for="edit-amount-due">Amount due (KES)</label>
@@ -607,8 +612,8 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <input type="hidden" name="budget_year" :value="newArrear.budget_year">
                     <header class="finance-modal-header">
                         <div class="finance-modal-header-text">
-                            <p class="finance-modal-eyebrow">Expense arrears</p>
-                            <h4 class="finance-modal-title">New arrear entry</h4>
+                            <p class="finance-modal-eyebrow">Bills</p>
+                            <h4 class="finance-modal-title">New bill</h4>
                         </div>
                         <button type="button"
                                 @click="newArrear = null"
@@ -619,86 +624,38 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     </header>
                     <div class="finance-modal-body finance-modal-body--grid">
                         <div class="finance-field finance-field--full">
-                            <label class="finance-label" for="new-expense-group">Department</label>
+                            <label class="finance-label" for="new-expense-group">Category</label>
                             <select id="new-expense-group"
                                     required
                                     class="finance-input"
                                     x-model="newArrear.expense_group"
                                     @change="onNewGroupChange()">
-                                <option value="">Select department…</option>
+                                <option value="">Select category…</option>
                                 <template x-for="grp in expenseGroups" :key="grp.slug">
                                     <option :value="grp.slug" x-text="grp.label"></option>
                                 </template>
                             </select>
                         </div>
-                        <template x-if="isMinistryDepartments(newArrear.expense_group)">
-                            <div class="finance-catalog-fields finance-field--full">
-                            <div class="finance-field finance-field--full">
-                                <label class="finance-label" for="new-department">Category</label>
-                                <select id="new-department"
-                                        name="department_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="newArrear.department_id"
-                                        @change="onNewDepartmentChange()">
-                                    <option value="">Select category…</option>
-                                    <template x-for="dept in departmentsForGroup('ministry_departments')" :key="dept.id">
-                                        <option :value="dept.id" x-text="dept.label"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div class="finance-field finance-field--full" x-show="newArrear.department_id" x-cloak>
-                                <label class="finance-label" for="new-ministry-item">Expense item</label>
-                                <select id="new-ministry-item"
-                                        name="category_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="newArrear.category_id">
-                                    <option value="">Select expense item…</option>
-                                    <template x-for="cat in expenseItemsForDepartment(newArrear.department_id)" :key="cat.id">
-                                        <option :value="cat.id" x-text="cat.label"></option>
-                                    </template>
-                                    <option value="__new__">+ Add custom category item…</option>
-                                </select>
-                            </div>
-                            </div>
-                        </template>
-                        <template x-if="isAdminExpenses(newArrear.expense_group)">
-                            <div class="finance-catalog-fields finance-field--full">
-                            <div class="finance-field finance-field--full">
-                                <label class="finance-label" for="new-admin-department">Category</label>
-                                <select id="new-admin-department"
-                                        name="department_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="newArrear.department_id"
-                                        @change="onNewDepartmentChange()">
-                                    <option value="">Select category…</option>
-                                    <template x-for="dept in departmentsForGroup('admin_expenses')" :key="dept.id">
-                                        <option :value="dept.id" x-text="dept.label"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div class="finance-field finance-field--full" x-show="newArrear.department_id" x-cloak>
-                                <label class="finance-label" for="new-admin-item">Expense item</label>
-                                <select id="new-admin-item"
-                                        name="category_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="newArrear.category_id">
-                                    <option value="">Select expense item…</option>
-                                    <template x-for="cat in expenseItemsForDepartment(newArrear.department_id)" :key="cat.id">
-                                        <option :value="cat.id" x-text="cat.label"></option>
-                                    </template>
-                                    <option value="__new__">+ Add custom category item…</option>
-                                </select>
-                            </div>
-                            </div>
-                        </template>
+                        <div class="finance-field finance-field--full" x-show="newArrear.expense_group" x-cloak>
+                            <label class="finance-label" for="new-expense-item">Expense item</label>
+                            <select id="new-expense-item"
+                                    name="category_id"
+                                    required
+                                    class="finance-input"
+                                    x-model="newArrear.category_id"
+                                    @change="onNewExpenseItemChange()">
+                                <option value="">Select expense item…</option>
+                                <template x-for="cat in expenseItemsForGroup(newArrear.expense_group)" :key="cat.id">
+                                    <option :value="cat.id" x-text="cat.label"></option>
+                                </template>
+                                <option value="__new__">+ Add custom expense item…</option>
+                            </select>
+                            <input type="hidden" name="department_id" :value="newArrear.department_id">
+                        </div>
                         <div class="finance-field finance-field--full"
-                             x-show="(isAdminExpenses(newArrear.expense_group) && newArrear.category_id === '__new__') || (isMinistryDepartments(newArrear.expense_group) && newArrear.category_id === '__new__')"
+                             x-show="newArrear.expense_group && newArrear.category_id === '__new__'"
                              x-cloak>
-                            <label class="finance-label" for="new-new-category">Custom category item</label>
+                            <label class="finance-label" for="new-new-category">Custom expense item</label>
                             <input type="text"
                                    id="new-new-category"
                                    name="new_category_label"
@@ -708,14 +665,20 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                             <p class="finance-field-hint">Saved to the database for future selections.</p>
                         </div>
                         <div class="finance-field">
-                            <label class="finance-label" for="new-month-incurred">Period incurred</label>
-                            <input type="text"
+                            <label class="finance-label" for="new-month-incurred">Month incurred</label>
+                            <input type="hidden"
                                    id="new-month-incurred"
                                    name="month_incurred"
                                    required
-                                   class="finance-input"
-                                   x-model="newArrear.month_incurred"
-                                   placeholder="e.g. Jan – Mar 2026">
+                                   :value="newArrear.month_incurred">
+                            <?php
+                            $monthPickerLabel = 'Month incurred';
+                            $monthPickerTarget = 'bill-new';
+                            $monthPickerClass = 'fin-month-picker--field';
+                            $monthLabel = '';
+                            require __DIR__ . '/_month-picker.php';
+                            ?>
+                            <p class="finance-field-hint">Pick the month this bill relates to.</p>
                         </div>
                         <div class="finance-field">
                             <label class="finance-label" for="new-amount-due">Amount due (KES)</label>
@@ -819,7 +782,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
     $monthLabel = date('F Y', strtotime($month . '-01'));
     ?>
     <div class="fin-ledger">
-        <div class="fin-subtabs no-print" role="tablist" aria-label="Records view">
+        <div class="fin-subtabs no-print" role="tablist" aria-label="Sundays view">
             <button type="button"
                     class="fin-subtabs__item"
                     :class="ledgerSub === 'expenses' && 'fin-subtabs__item--active'"
@@ -841,7 +804,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
         </div>
 
     <div class="arrears-page weekly-page fin-section" x-show="ledgerSub === 'expenses'" x-cloak>
-        <h2 class="arrears-title">Weekly Expenses</h2>
+        <h2 class="arrears-title">Sunday expenses</h2>
         <p class="finance-tab-hint">Money spent each Sunday — use Record Sunday to enter or update.</p>
 
         <div class="arrears-toolbar-row">
@@ -906,9 +869,29 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                                 </td>
                                 <template x-for="sun in weeklySundays" :key="row.slug + '-' + sun">
                                     <td class="weekly-amount-cell">
-                                        <span class="arrears-amount"
-                                              :class="Number(row.amounts?.[sun] || 0) > 0 ? '' : 'arrears-amount--muted'"
-                                              x-text="formatMoneyPlain(row.amounts?.[sun])"></span>
+                                        <template x-if="isInlineEditing('weeklyExpense', row.slug, sun)">
+                                            <input type="number"
+                                                   class="arrears-inline-input"
+                                                   min="0"
+                                                   step="1"
+                                                   inputmode="numeric"
+                                                   x-model.number="inlineEdit.value"
+                                                   @click.stop
+                                                   @keydown.enter.prevent="commitWeeklyInlineEdit('weeklyExpense', row.slug)"
+                                                   @keydown.escape.prevent="cancelInlineEdit()"
+                                                   @blur="commitWeeklyInlineEdit('weeklyExpense', row.slug)"
+                                                   x-init="$nextTick(() => { $el.focus(); $el.select(); })"
+                                                   :aria-label="'Edit ' + row.label + ' for ' + formatSundayShort(sun)">
+                                        </template>
+                                        <template x-if="!isInlineEditing('weeklyExpense', row.slug, sun)">
+                                            <button type="button"
+                                                    class="arrears-amount arrears-amount--editable"
+                                                    :class="Number(row.amounts?.[sun] || 0) > 0 ? '' : 'arrears-amount--muted'"
+                                                    @click.stop="startWeeklyInlineEdit('weeklyExpense', row.slug, sun, row.amounts?.[sun])"
+                                                    x-text="formatMoneyPlain(row.amounts?.[sun])"
+                                                    title="Click to edit amount"
+                                                    :aria-label="'Edit ' + row.label + ' for ' + formatSundayShort(sun)"></button>
+                                        </template>
                                     </td>
                                 </template>
                                 <td class="weekly-amount-cell weekly-col-total">
@@ -959,7 +942,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
     </div>
 
     <div class="arrears-page collections-page fin-section" x-show="ledgerSub === 'collections'" x-cloak>
-        <h2 class="arrears-title">Weekly Collections</h2>
+        <h2 class="arrears-title">Sunday collections</h2>
         <p class="finance-tab-hint">Giving received each Sunday by payment method.</p>
 
         <div class="arrears-toolbar-row">
@@ -982,7 +965,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
 
         <div class="arrears-card finance-table-card">
             <div class="finance-table-caption">
-                <span class="finance-table-caption-label">Weekly collections</span>
+                <span class="finance-table-caption-label">Sunday collections</span>
                 <span class="finance-table-caption-badge" x-text="monthLabel"><?= htmlspecialchars($monthLabel) ?></span>
                 <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
             </div>
@@ -1016,9 +999,29 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                                 </td>
                                 <template x-for="sun in weeklyCollectionSundays" :key="row.method + '-' + sun">
                                     <td class="weekly-amount-cell">
-                                        <span class="arrears-amount"
-                                              :class="Number(row.amounts?.[sun] || 0) > 0 ? '' : 'arrears-amount--muted'"
-                                              x-text="formatMoneyPlain(row.amounts?.[sun])"></span>
+                                        <template x-if="isInlineEditing('weeklyCollection', row.method, sun)">
+                                            <input type="number"
+                                                   class="arrears-inline-input"
+                                                   min="0"
+                                                   step="1"
+                                                   inputmode="numeric"
+                                                   x-model.number="inlineEdit.value"
+                                                   @click.stop
+                                                   @keydown.enter.prevent="commitWeeklyInlineEdit('weeklyCollection', row.method)"
+                                                   @keydown.escape.prevent="cancelInlineEdit()"
+                                                   @blur="commitWeeklyInlineEdit('weeklyCollection', row.method)"
+                                                   x-init="$nextTick(() => { $el.focus(); $el.select(); })"
+                                                   :aria-label="'Edit ' + row.label + ' for ' + formatSundayShort(sun)">
+                                        </template>
+                                        <template x-if="!isInlineEditing('weeklyCollection', row.method, sun)">
+                                            <button type="button"
+                                                    class="arrears-amount arrears-amount--editable"
+                                                    :class="Number(row.amounts?.[sun] || 0) > 0 ? '' : 'arrears-amount--muted'"
+                                                    @click.stop="startWeeklyInlineEdit('weeklyCollection', row.method, sun, row.amounts?.[sun])"
+                                                    x-text="formatMoneyPlain(row.amounts?.[sun])"
+                                                    title="Click to edit amount"
+                                                    :aria-label="'Edit ' + row.label + ' for ' + formatSundayShort(sun)"></button>
+                                        </template>
                                     </td>
                                 </template>
                                 <td class="weekly-amount-cell weekly-col-total">
@@ -1061,148 +1064,21 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
         </div>
     </div>
     </div>
-    <?php elseif ($tabReconciliation): ?>
-    <?php
-    $monthLabel = date('F Y', strtotime($month . '-01'));
-    $monthCollections = (float) ($reconciliation['month_collections'] ?? 0);
-    $monthExpenses = (float) ($reconciliation['month_expenses'] ?? 0);
-    $monthBalance = (float) ($reconciliation['month_balance'] ?? 0);
-    ?>
-    <div class="arrears-page reconciliation-page">
-        <h2 class="arrears-title">Reconciliation</h2>
-        <p class="text-sm text-slate-500 -mt-3 mb-5">Compare collections against expenses — <?= htmlspecialchars($monthLabel) ?></p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-            <div class="reconciliation-stat reconciliation-stat--collected">
-                <p class="reconciliation-stat-label">Total collected</p>
-                <p class="reconciliation-stat-value">KES <span x-text="formatMoneyPlain(reconciliation.month_collections)"><?= $fmt($monthCollections) ?></span></p>
-            </div>
-            <div class="reconciliation-stat reconciliation-stat--expenses">
-                <p class="reconciliation-stat-label">Expenses incurred</p>
-                <p class="reconciliation-stat-value">KES <span x-text="formatMoneyPlain(reconciliation.month_expenses)"><?= $fmt($monthExpenses) ?></span></p>
-            </div>
-            <div class="reconciliation-stat" :class="reconciliation.month_balance >= 0 ? 'reconciliation-stat--surplus' : 'reconciliation-stat--deficit'">
-                <p class="reconciliation-stat-label">Balance</p>
-                <p class="reconciliation-stat-value">
-                    <span x-text="(reconciliation.month_balance < 0 ? '-' : '') + 'KES ' + formatMoneyPlain(Math.abs(reconciliation.month_balance || 0))">
-                        <?= $monthBalance < 0 ? '-' : '' ?>KES <?= $fmt(abs($monthBalance)) ?>
-                    </span>
-                </p>
-            </div>
-        </div>
-
-        <div class="arrears-toolbar-row">
-            <div class="arrears-toolbar-left">
-                <form method="get" class="inline-flex items-center gap-2" @submit.prevent>
-                    <input type="hidden" name="tab" value="reconciliation">
-                    <select name="year"
-                            :value="year"
-                            @change="changeFinanceYear(Number($event.target.value))"
-                            class="arrears-year-select"
-                            aria-label="Year">
-                        <?php for ($y = (int) date('Y') + 1; $y >= 2024; $y--): ?>
-                        <option value="<?= $y ?>" <?= $year === $y ? 'selected' : '' ?>><?= $y ?></option>
-                        <?php endfor; ?>
-                    </select>
-                    <input type="hidden" name="month" :value="weeklyMonth" value="<?= htmlspecialchars($month) ?>">
-                    <?php
-                    $monthPickerLabel = 'Month';
-                    require __DIR__ . '/_month-picker.php';
-                    ?>
-                </form>
-            </div>
-        </div>
-
-        <div class="arrears-card finance-table-card reconciliation-card">
-            <div class="finance-table-caption">
-                <span class="finance-table-caption-label">Weekly reconciliation</span>
-                <span class="finance-table-caption-badge">Collections vs expenses</span>
-                <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
-            </div>
-            <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Weekly reconciliation">
-                <table class="arrears-table reconciliation-table">
-                    <thead>
-                        <tr>
-                            <th>Week</th>
-                            <th class="ft-th-accent ft-th--right">Collections</th>
-                            <th class="ft-th-accent ft-th--right">Expenses</th>
-                            <th class="ft-th-accent ft-th--right">Balance</th>
-                            <th class="ft-th-actions">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr x-show="reconciliation.weeks.length === 0">
-                            <td colspan="5" class="arrears-empty">No Sunday weeks in this month.</td>
-                        </tr>
-                        <template x-for="(week, index) in reconciliation.weeks" :key="week.week_date">
-                            <tr class="arrears-row">
-                                <td>
-                                    <div class="arrears-date">
-                                        <span class="arrears-date-main" x-text="dateMain(week.week_date)"></span>
-                                        <span class="arrears-date-sub" x-text="'Sun ' + (index + 1)"></span>
-                                    </div>
-                                </td>
-                                <td class="ft-td-accent">
-                                    <span class="arrears-amount" x-text="formatMoneyPlain(week.collections)"></span>
-                                </td>
-                                <td class="ft-td-accent">
-                                    <span class="arrears-amount" x-text="formatMoneyPlain(week.expenses)"></span>
-                                </td>
-                                <td class="ft-td-accent">
-                                    <span class="reconciliation-balance"
-                                          :class="week.balance >= 0 ? 'reconciliation-balance--surplus' : 'reconciliation-balance--deficit'"
-                                          x-text="formatMoneyPlain(week.balance)"></span>
-                                </td>
-                                <td class="arrears-actions ft-td-actions"
-                                    :class="reconciliationMenu === week.week_date && 'weekly-actions--open'">
-                                    <button type="button"
-                                            class="arrears-view-btn"
-                                            @click.stop="toggleReconciliationMenu(week.week_date, $event)"
-                                            :aria-expanded="reconciliationMenu === week.week_date"
-                                            :aria-label="'Actions for ' + dateMain(week.week_date)">
-                                        View
-                                        <i data-lucide="chevron-down"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </template>
-                    </tbody>
-                    <tfoot>
-                        <tr class="finance-table-footer">
-                            <td class="finance-table-footer-label">Month total</td>
-                            <td class="ft-td-accent">
-                                <span class="finance-table-footer-amount" x-text="formatMoney(reconciliation.month_collections)"></span>
-                            </td>
-                            <td class="ft-td-accent">
-                                <span class="finance-table-footer-amount" x-text="formatMoney(reconciliation.month_expenses)"></span>
-                            </td>
-                            <td class="ft-td-accent">
-                                <span class="finance-table-footer-amount finance-table-footer-amount--grand"
-                                      :class="reconciliation.month_balance >= 0 ? 'reconciliation-balance--surplus' : 'reconciliation-balance--deficit'"
-                                      x-text="formatMoney(reconciliation.month_balance)"></span>
-                            </td>
-                            <td class="ft-td-actions"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-    </div>
-    <?php elseif ($tabBudget): ?>
-    <?php require __DIR__ . '/budget-tab.php'; ?>
     <?php elseif ($tabReports): ?>
     <div class="fin-reports">
         <?php
-        $reportSub = in_array(($reportSub ?? ''), ['statement', 'position'], true)
+        $reportSub = in_array(($reportSub ?? ''), ['statement', 'position', 'budget'], true)
             ? $reportSub
             : 'statement';
+        $budgetEditMode = !empty($budgetEditMode);
         ?>
+        <?php if (!$budgetEditMode): ?>
         <div class="fin-reports-subnav no-print" role="tablist" aria-label="Report type">
             <a href="/admin/finance?tab=reports&amp;sub=statement&amp;year=<?= (int) $year ?>&amp;month=<?= htmlspecialchars(urlencode($month)) ?>&amp;view=<?= htmlspecialchars(urlencode($statementView ?? 'monthly')) ?>"
                class="fin-reports-subnav__btn<?= $reportSub === 'statement' ? ' fin-reports-subnav__btn--active' : '' ?>"
                role="tab"
                aria-selected="<?= $reportSub === 'statement' ? 'true' : 'false' ?>">
-                Financial Statement
+                Operating statement
             </a>
             <a href="/admin/finance?tab=reports&amp;sub=position&amp;year=<?= (int) $year ?>"
                class="fin-reports-subnav__btn<?= $reportSub === 'position' ? ' fin-reports-subnav__btn--active' : '' ?>"
@@ -1210,9 +1086,18 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                aria-selected="<?= $reportSub === 'position' ? 'true' : 'false' ?>">
                 Income &amp; Expenditure
             </a>
+            <a href="/admin/finance?tab=reports&amp;sub=budget&amp;budget_year=<?= (int) ($budgetYear ?? $year) ?>&amp;month=<?= htmlspecialchars(urlencode($month)) ?>"
+               class="fin-reports-subnav__btn<?= $reportSub === 'budget' ? ' fin-reports-subnav__btn--active' : '' ?>"
+               role="tab"
+               aria-selected="<?= $reportSub === 'budget' ? 'true' : 'false' ?>">
+                Budget vs actual
+            </a>
         </div>
+        <?php endif; ?>
 
-        <?php if ($reportSub === 'position'): ?>
+        <?php if ($reportSub === 'budget'): ?>
+            <?php require __DIR__ . '/budget-tab.php'; ?>
+        <?php elseif ($reportSub === 'position'): ?>
             <?php require __DIR__ . '/position-tab.php'; ?>
         <?php else: ?>
             <?php
@@ -1230,7 +1115,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
              @click.outside="if (!arrearMenuIgnoreOutside) openMenu = null"
              @keydown.escape.window="openMenu = null"
              class="arrears-dropdown arrears-dropdown--fixed"
-             :style="'top:' + arrearDropdownPos.top + 'px;left:' + arrearDropdownPos.left + 'px'">
+             :style="'top:' + arrearDropdownPos.top + 'px;right:' + arrearDropdownPos.right + 'px;left:auto'">
             <template x-if="openMenuRow">
                 <div>
                     <button type="button" @click="openView(openMenuRow.id)" class="arrears-dropdown-item">View details</button>
@@ -1253,7 +1138,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
              @click.outside="if (!weeklyMenuIgnoreOutside) weeklyMenu = null"
              @keydown.escape.window="weeklyMenu = null"
              class="arrears-dropdown arrears-dropdown--fixed"
-             :style="'top:' + weeklyDropdownPos.top + 'px;left:' + weeklyDropdownPos.left + 'px'">
+             :style="'top:' + weeklyDropdownPos.top + 'px;right:' + weeklyDropdownPos.right + 'px;left:auto'">
             <template x-if="weeklyMenuRow">
                 <div>
                     <button type="button"
@@ -1288,7 +1173,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
              @click.outside="if (!reconciliationMenuIgnoreOutside) reconciliationMenu = null"
              @keydown.escape.window="reconciliationMenu = null"
              class="arrears-dropdown arrears-dropdown--fixed"
-             :style="'top:' + reconciliationDropdownPos.top + 'px;left:' + reconciliationDropdownPos.left + 'px'">
+             :style="'top:' + reconciliationDropdownPos.top + 'px;right:' + reconciliationDropdownPos.right + 'px;left:auto'">
             <template x-if="reconciliationMenuRow">
                 <div>
                     <button type="button"
@@ -1309,12 +1194,12 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <button type="button"
                             @click="goToLedger('expenses')"
                             class="arrears-dropdown-item">
-                        Open Records expenses
+                        Open Sunday expenses
                     </button>
                     <button type="button"
                             @click="goToLedger('collections')"
                             class="arrears-dropdown-item">
-                        Open Records collections
+                        Open Sunday collections
                     </button>
                 </div>
             </template>
@@ -1327,7 +1212,7 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
              @click.outside="if (!collectionMenuIgnoreOutside) collectionMenu = null"
              @keydown.escape.window="collectionMenu = null"
              class="arrears-dropdown arrears-dropdown--fixed"
-             :style="'top:' + collectionDropdownPos.top + 'px;left:' + collectionDropdownPos.left + 'px'">
+             :style="'top:' + collectionDropdownPos.top + 'px;right:' + collectionDropdownPos.right + 'px;left:auto'">
             <template x-if="collectionMenuRow">
                 <div>
                     <button type="button"
@@ -1603,104 +1488,45 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                     <div class="finance-modal-body">
                         <p class="finance-modal-intro">Add a new expense line to the weekly expenses grid.</p>
                         <div class="finance-field">
-                            <label class="finance-label" for="new-weekly-group">Department</label>
+                            <label class="finance-label" for="new-weekly-group">Category</label>
                             <select id="new-weekly-group"
                                     required
                                     class="finance-input"
                                     x-model="newCategory.expense_group"
                                     @change="onNewWeeklyGroupChange()">
-                                <option value="">Select department…</option>
+                                <option value="">Select category…</option>
                                 <template x-for="grp in expenseGroups" :key="grp.slug">
                                     <option :value="grp.slug" x-text="grp.label"></option>
                                 </template>
                             </select>
                         </div>
-                        <template x-if="isMinistryDepartments(newCategory.expense_group)">
-                            <div class="finance-catalog-fields">
-                            <div class="finance-field">
-                                <label class="finance-label" for="new-weekly-department">Category</label>
-                                <select id="new-weekly-department"
-                                        name="department_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="newCategory.department_id"
-                                        @change="newCategory.expense_category_id = ''; newCategory.new_category_item_label = ''">
-                                    <option value="">Select category…</option>
-                                    <template x-for="dept in departmentsForGroup('ministry_departments')" :key="dept.id">
-                                        <option :value="dept.id" x-text="dept.label"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div class="finance-field" x-show="newCategory.department_id" x-cloak>
-                                <label class="finance-label" for="new-weekly-ministry-item">Expense item</label>
-                                <select id="new-weekly-ministry-item"
-                                        name="expense_category_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="newCategory.expense_category_id">
-                                    <option value="">Select expense item…</option>
-                                    <template x-for="cat in expenseItemsForDepartment(newCategory.department_id)" :key="cat.id">
-                                        <option :value="cat.id" x-text="cat.label"></option>
-                                    </template>
-                                    <option value="__new__">+ Add custom category item…</option>
-                                </select>
-                            </div>
-                            <div class="finance-field" x-show="newCategory.expense_category_id === '__new__'" x-cloak>
-                                <label class="finance-label" for="new-weekly-custom-item">Custom category item</label>
-                                <input type="text"
-                                       id="new-weekly-custom-item"
-                                       name="new_category_item_label"
-                                       class="finance-input"
-                                       x-model="newCategory.new_category_item_label"
-                                       placeholder="e.g. Sound technician">
-                                <p class="finance-field-hint">Saved to the database for future selections.</p>
-                            </div>
+                        <div class="finance-field" x-show="newCategory.expense_group" x-cloak>
+                            <label class="finance-label" for="new-weekly-expense-item">Expense item</label>
+                            <select id="new-weekly-expense-item"
+                                    name="expense_category_id"
+                                    required
+                                    class="finance-input"
+                                    x-model="newCategory.expense_category_id"
+                                    @change="onNewWeeklyExpenseItemChange()">
+                                <option value="">Select expense item…</option>
+                                <template x-for="cat in expenseItemsForGroup(newCategory.expense_group)" :key="cat.id">
+                                    <option :value="cat.id" x-text="cat.label"></option>
+                                </template>
+                                <option value="__new__">+ Add custom expense item…</option>
+                            </select>
+                            <input type="hidden" name="department_id" :value="newCategory.department_id">
                             <input type="hidden" name="label" :value="weeklyLineLabel(newCategory)">
-                            </div>
-                        </template>
-                        <template x-if="isAdminExpenses(newCategory.expense_group)">
-                            <div class="finance-catalog-fields">
-                            <div class="finance-field">
-                                <label class="finance-label" for="new-weekly-admin-department">Category</label>
-                                <select id="new-weekly-admin-department"
-                                        name="department_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="newCategory.department_id"
-                                        @change="newCategory.expense_category_id = ''; newCategory.new_category_item_label = ''">
-                                    <option value="">Select category…</option>
-                                    <template x-for="dept in departmentsForGroup('admin_expenses')" :key="dept.id">
-                                        <option :value="dept.id" x-text="dept.label"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div class="finance-field" x-show="newCategory.department_id" x-cloak>
-                                <label class="finance-label" for="new-weekly-admin-line">Expense item</label>
-                                <select id="new-weekly-admin-line"
-                                        name="expense_category_id"
-                                        required
-                                        class="finance-input"
-                                        x-model="newCategory.expense_category_id">
-                                    <option value="">Select expense item…</option>
-                                    <template x-for="cat in expenseItemsForDepartment(newCategory.department_id)" :key="cat.id">
-                                        <option :value="cat.id" x-text="cat.label"></option>
-                                    </template>
-                                    <option value="__new__">+ Add custom category item…</option>
-                                </select>
-                            </div>
-                            <div class="finance-field" x-show="newCategory.expense_category_id === '__new__'" x-cloak>
-                                <label class="finance-label" for="new-weekly-admin-custom">Custom category item</label>
-                                <input type="text"
-                                       id="new-weekly-admin-custom"
-                                       name="new_category_item_label"
-                                       class="finance-input"
-                                       x-model="newCategory.new_category_item_label"
-                                       placeholder="e.g. Generator fuel">
-                                <p class="finance-field-hint">Saved to the database for future selections.</p>
-                            </div>
-                            <input type="hidden" name="label" :value="weeklyLineLabel(newCategory)">
-                            </div>
-                        </template>
+                        </div>
+                        <div class="finance-field" x-show="newCategory.expense_group && newCategory.expense_category_id === '__new__'" x-cloak>
+                            <label class="finance-label" for="new-weekly-custom-item">Custom expense item</label>
+                            <input type="text"
+                                   id="new-weekly-custom-item"
+                                   name="new_category_item_label"
+                                   class="finance-input"
+                                   x-model="newCategory.new_category_item_label"
+                                   placeholder="e.g. Sound technician">
+                            <p class="finance-field-hint">Saved to the database for future selections.</p>
+                        </div>
                         <div class="finance-field">
                             <label class="finance-label" for="new-category-hint">Description <span class="finance-label-optional">(optional)</span></label>
                             <input type="text"
@@ -1754,102 +1580,44 @@ $ledgerSub = ($_GET['sub'] ?? '') === 'collections' ? 'collections' : 'expenses'
                         <input type="hidden" name="month" :value="weeklyMonth">
                         <div class="finance-modal-body">
                             <div class="finance-field">
-                                <label class="finance-label" for="weekly-edit-group">Department</label>
+                                <label class="finance-label" for="weekly-edit-group">Category</label>
                                 <select id="weekly-edit-group"
                                         required
                                         class="finance-input"
                                         x-model="weeklyEditRow.expense_group"
                                         @change="onWeeklyEditGroupChange()">
-                                    <option value="">Select department…</option>
+                                    <option value="">Select category…</option>
                                     <template x-for="grp in expenseGroups" :key="grp.slug">
                                         <option :value="grp.slug" x-text="grp.label"></option>
                                     </template>
                                 </select>
                             </div>
-                            <template x-if="isMinistryDepartments(weeklyEditRow.expense_group)">
-                                <div class="finance-catalog-fields">
-                                <div class="finance-field">
-                                    <label class="finance-label" for="weekly-edit-department">Category</label>
-                                    <select id="weekly-edit-department"
-                                            name="department_id"
-                                            required
-                                            class="finance-input"
-                                            x-model="weeklyEditRow.department_id"
-                                            @change="weeklyEditRow.expense_category_id = ''; weeklyEditRow.new_category_item_label = ''">
-                                        <option value="">Select category…</option>
-                                        <template x-for="dept in departmentsForGroup('ministry_departments')" :key="dept.id">
-                                            <option :value="dept.id" x-text="dept.label"></option>
-                                        </template>
-                                    </select>
-                                </div>
-                                <div class="finance-field" x-show="weeklyEditRow.department_id" x-cloak>
-                                    <label class="finance-label" for="weekly-edit-ministry-item">Expense item</label>
-                                    <select id="weekly-edit-ministry-item"
-                                            name="expense_category_id"
-                                            required
-                                            class="finance-input"
-                                            x-model="weeklyEditRow.expense_category_id">
-                                        <option value="">Select expense item…</option>
-                                        <template x-for="cat in expenseItemsForDepartment(weeklyEditRow.department_id)" :key="cat.id">
-                                            <option :value="cat.id" x-text="cat.label"></option>
-                                        </template>
-                                        <option value="__new__">+ Add custom category item…</option>
-                                    </select>
-                                </div>
-                                <div class="finance-field" x-show="weeklyEditRow.expense_category_id === '__new__'" x-cloak>
-                                    <label class="finance-label" for="weekly-edit-custom-item">Custom category item</label>
-                                    <input type="text"
-                                           id="weekly-edit-custom-item"
-                                           name="new_category_item_label"
-                                           class="finance-input"
-                                           x-model="weeklyEditRow.new_category_item_label"
-                                           placeholder="e.g. Sound technician">
-                                </div>
+                            <div class="finance-field" x-show="weeklyEditRow.expense_group" x-cloak>
+                                <label class="finance-label" for="weekly-edit-expense-item">Expense item</label>
+                                <select id="weekly-edit-expense-item"
+                                        name="expense_category_id"
+                                        required
+                                        class="finance-input"
+                                        x-model="weeklyEditRow.expense_category_id"
+                                        @change="onWeeklyEditExpenseItemChange()">
+                                    <option value="">Select expense item…</option>
+                                    <template x-for="cat in expenseItemsForGroup(weeklyEditRow.expense_group, weeklyEditRow.expense_category_id)" :key="cat.id">
+                                        <option :value="cat.id" x-text="cat.label"></option>
+                                    </template>
+                                    <option value="__new__">+ Add custom expense item…</option>
+                                </select>
+                                <input type="hidden" name="department_id" :value="weeklyEditRow.department_id">
                                 <input type="hidden" name="label" :value="weeklyLineLabel(weeklyEditRow)">
-                                </div>
-                            </template>
-                            <template x-if="isAdminExpenses(weeklyEditRow.expense_group)">
-                                <div class="finance-catalog-fields">
-                                <div class="finance-field">
-                                    <label class="finance-label" for="weekly-edit-admin-department">Category</label>
-                                    <select id="weekly-edit-admin-department"
-                                            name="department_id"
-                                            required
-                                            class="finance-input"
-                                            x-model="weeklyEditRow.department_id"
-                                            @change="weeklyEditRow.expense_category_id = ''; weeklyEditRow.new_category_item_label = ''">
-                                        <option value="">Select category…</option>
-                                        <template x-for="dept in departmentsForGroup('admin_expenses')" :key="dept.id">
-                                            <option :value="dept.id" x-text="dept.label"></option>
-                                        </template>
-                                    </select>
-                                </div>
-                                <div class="finance-field" x-show="weeklyEditRow.department_id" x-cloak>
-                                    <label class="finance-label" for="weekly-edit-admin-line">Expense item</label>
-                                    <select id="weekly-edit-admin-line"
-                                            name="expense_category_id"
-                                            required
-                                            class="finance-input"
-                                            x-model="weeklyEditRow.expense_category_id">
-                                        <option value="">Select expense item…</option>
-                                        <template x-for="cat in expenseItemsForDepartment(weeklyEditRow.department_id)" :key="cat.id">
-                                            <option :value="cat.id" x-text="cat.label"></option>
-                                        </template>
-                                        <option value="__new__">+ Add custom category item…</option>
-                                    </select>
-                                </div>
-                                <div class="finance-field" x-show="weeklyEditRow.expense_category_id === '__new__'" x-cloak>
-                                    <label class="finance-label" for="weekly-edit-admin-custom">Custom category item</label>
-                                    <input type="text"
-                                           id="weekly-edit-admin-custom"
-                                           name="new_category_item_label"
-                                           class="finance-input"
-                                           x-model="weeklyEditRow.new_category_item_label"
-                                           placeholder="e.g. Generator fuel">
-                                </div>
-                                <input type="hidden" name="label" :value="weeklyLineLabel(weeklyEditRow)">
-                                </div>
-                            </template>
+                            </div>
+                            <div class="finance-field" x-show="weeklyEditRow.expense_group && weeklyEditRow.expense_category_id === '__new__'" x-cloak>
+                                <label class="finance-label" for="weekly-edit-custom-item">Custom expense item</label>
+                                <input type="text"
+                                       id="weekly-edit-custom-item"
+                                       name="new_category_item_label"
+                                       class="finance-input"
+                                       x-model="weeklyEditRow.new_category_item_label"
+                                       placeholder="e.g. Sound technician">
+                            </div>
                             <div class="finance-field">
                                 <label class="finance-label" for="weekly-edit-hint">Description <span class="finance-label-optional">(optional)</span></label>
                                 <input type="text"

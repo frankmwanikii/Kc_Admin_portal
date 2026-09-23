@@ -250,7 +250,7 @@ class PdfService
                     {$headerLogoHtml}
                     <p class='org'>" . $esc($churchName) . "</p>
                     {$addressLine}
-                    <p class='doc-title'>Financial Statement</p>
+                    <p class='doc-title'>Operating Statement</p>
                     <div class='header-meta'>
                         <p><span class='meta-label'>Statement period</span><br>" . $esc((string) ($statement['period_label'] ?? '')) . "</p>
                         <p><span class='meta-label'>Generated</span><br>" . date('j F Y, g:i a') . "</p>
@@ -313,23 +313,38 @@ class PdfService
 
         $year = (int) ($position['year'] ?? date('Y'));
         $priorYear = (int) ($position['prior_year'] ?? ($year - 1));
+        $columnYears = array_values(array_map('intval', $position['column_years'] ?? [$year, $priorYear]));
+        if ($columnYears === []) {
+            $columnYears = [$year, $priorYear];
+        }
+        $colCount = count($columnYears);
         $docTitle = (string) ($position['document_title'] ?? 'Consolidated Statement of Income and Expenditure');
         $addressLine = $churchAddress !== '' ? '<p class="addr">' . $esc($churchAddress) . '</p>' : '';
+        $colColors = ['#e8f6fc', '#fff4eb', '#ecfdf5', '#f8fafc'];
 
         $body = '';
         foreach ($position['rows'] ?? [] as $row) {
             $type = (string) ($row['type'] ?? 'line');
             if ($type === 'section') {
-                $body .= '<tr class="section"><td colspan="3">' . $esc((string) ($row['label'] ?? '')) . '</td></tr>';
+                $body .= '<tr class="section"><td colspan="' . (1 + $colCount) . '">' . $esc((string) ($row['label'] ?? '')) . '</td></tr>';
                 continue;
             }
             $out = !empty($row['outflow']);
+            $byYear = $row['amounts']['by_year'] ?? null;
             $bucket = $row['amounts']['group'] ?? $row['amounts']['entity'] ?? ['current' => 0, 'prior' => 0];
             $body .= '<tr class="' . $esc($type) . '">'
-                . '<td class="label">' . $esc((string) ($row['label'] ?? '')) . '</td>'
-                . '<td class="amt g-cur">' . $fmt((float) ($bucket['current'] ?? 0), $out) . '</td>'
-                . '<td class="amt g-pri">' . $fmt((float) ($bucket['prior'] ?? 0), $out) . '</td>'
-                . '</tr>';
+                . '<td class="label">' . $esc((string) ($row['label'] ?? '')) . '</td>';
+            foreach ($columnYears as $idx => $colYear) {
+                $val = is_array($byYear)
+                    ? (float) ($byYear[$colYear] ?? 0)
+                    : (float) ($idx === 0 ? ($bucket['current'] ?? 0) : ($bucket['prior'] ?? 0));
+                $tone = '';
+                if ($type === 'final' && abs($val) >= 0.005) {
+                    $tone = $val >= 0 ? ' amt-surplus' : ' amt-deficit';
+                }
+                $body .= '<td class="amt y' . (int) $idx . $tone . '">' . $fmt($val, $out) . '</td>';
+            }
+            $body .= '</tr>';
         }
 
         $logoDataUri = FinanceReconciliationService::statementLogoDataUri();
@@ -340,6 +355,13 @@ class PdfService
             ? "<img src='" . $logoDataUri . "' alt='' class='header-logo'>"
             : '';
         $disclaimer = FinanceReconciliationService::STATEMENT_DISCLAIMER;
+
+        $thHtml = "<th class='label'>Items</th>";
+        foreach ($columnYears as $idx => $colYear) {
+            $thHtml .= '<th class="y' . (int) $idx . '">' . (int) $colYear . '<br>KShs</th>';
+        }
+
+        $widthPct = $colCount > 0 ? max(12, (int) floor(70 / $colCount)) : 22;
 
         $html = "<!DOCTYPE html><html><head><style>
             body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #111; }
@@ -356,14 +378,18 @@ class PdfService
             table.ie th { font-size: 8px; text-align: right; padding: 5px 4px; border-bottom: 1px solid #333; vertical-align: bottom; }
             table.ie th.label { text-align: left; }
             table.ie td { padding: 4px; border: none; vertical-align: bottom; }
-            table.ie td.amt { text-align: right; white-space: nowrap; width: 22%; }
-            table.ie .g-cur { background: #d8f3e0; }
-            table.ie .g-pri { background: #f7d6e4; }
+            table.ie td.amt { text-align: right; white-space: nowrap; width: {$widthPct}%; }
+            table.ie .y0 { background: {$colColors[0]}; }
+            table.ie .y1 { background: {$colColors[1]}; }
+            table.ie .y2 { background: {$colColors[2]}; }
+            table.ie .y3 { background: {$colColors[3]}; }
             table.ie tr.section td { font-weight: bold; text-transform: uppercase; padding-top: 8px; background: #fff !important; }
             table.ie tr.subtotal td.label, table.ie tr.result td.label, table.ie tr.final td.label { font-weight: bold; }
             table.ie tr.result td.label, table.ie tr.final td.label { text-transform: uppercase; }
             table.ie tr.subtotal td.amt, table.ie tr.result td.amt { border-top: 1px solid #111; border-bottom: 1px solid #111; font-weight: bold; }
             table.ie tr.final td.amt { border-top: 1px solid #111; border-bottom: 3px double #111; font-weight: bold; }
+            table.ie td.amt-surplus { color: #047857; border-top-color: #047857; border-bottom-color: #047857; }
+            table.ie td.amt-deficit { color: #b91c1c; border-top-color: #b91c1c; border-bottom-color: #b91c1c; }
             .footer { margin-top: 14px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 8px; color: #64748b; text-align: center; }
             .disclaimer { font-style: italic; max-width: 420px; margin: 0 auto 6px; }
             .signoff { font-weight: bold; color: #334155; }
@@ -379,11 +405,7 @@ class PdfService
             </div>
             <table class='ie'>
                 <thead>
-                    <tr>
-                        <th class='label'>Items</th>
-                        <th class='g-cur'>{$year}<br>KShs</th>
-                        <th class='g-pri'>{$priorYear}<br>KShs</th>
-                    </tr>
+                    <tr>{$thHtml}</tr>
                 </thead>
                 <tbody>{$body}</tbody>
             </table>

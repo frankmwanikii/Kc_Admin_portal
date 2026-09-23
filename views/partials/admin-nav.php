@@ -11,9 +11,14 @@ if (in_array($financeTab, ['arrears'], true)) {
 if (in_array($financeTab, ['weekly', 'collections'], true)) {
     $financeTab = 'ledger';
 }
-// Legacy Reports subtabs → top-level Finance items
-if ($financeTab === 'reports' && in_array($financeSub, ['budget', 'reconciliation'], true)) {
-    $financeTab = $financeSub;
+// Legacy tabs → simplified IA (Overview · Sundays · Bills · Reports)
+if ($financeTab === 'reconciliation' || ($financeTab === 'reports' && $financeSub === 'reconciliation')) {
+    $financeTab = 'dashboard';
+    $financeSub = '';
+}
+if ($financeTab === 'budget') {
+    $financeTab = 'reports';
+    $financeSub = 'budget';
 }
 if ($financeTab === 'statement') {
     $financeTab = 'reports';
@@ -73,31 +78,20 @@ $sections = [
             'active' => $currentPath === '/admin/finance' && $financeTab === 'dashboard',
         ],
         [
+            'href' => '/admin/finance?tab=ledger',
+            'label' => 'Sundays',
+            'icon' => 'calendar-days',
+            'active' => ($currentPath === '/admin/finance' && $financeTab === 'ledger')
+                || str_starts_with($currentPath, '/admin/finance/sunday'),
+        ],
+        [
             'href' => '/admin/finance?tab=bills',
             'label' => 'Bills',
             'icon' => 'receipt',
             'active' => $currentPath === '/admin/finance' && $financeTab === 'bills',
         ],
         [
-            'href' => '/admin/finance?tab=ledger',
-            'label' => 'Records',
-            'icon' => 'table-2',
-            'active' => $currentPath === '/admin/finance' && $financeTab === 'ledger',
-        ],
-        [
-            'href' => '/admin/finance?tab=reconciliation',
-            'label' => 'Reconciliation',
-            'icon' => 'scale',
-            'active' => $currentPath === '/admin/finance' && $financeTab === 'reconciliation',
-        ],
-        [
-            'href' => '/admin/finance?tab=budget',
-            'label' => 'Budget',
-            'icon' => 'target',
-            'active' => $currentPath === '/admin/finance' && $financeTab === 'budget',
-        ],
-        [
-            'href' => '/admin/finance?tab=reports',
+            'href' => '/admin/finance?tab=reports&sub=statement',
             'label' => 'Reports',
             'icon' => 'file-bar-chart',
             'active' => $currentPath === '/admin/finance' && $financeTab === 'reports',

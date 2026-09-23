@@ -9,8 +9,19 @@ if ($tabKey === 'arrears') {
 if (in_array($tabKey, ['weekly', 'collections'], true)) {
     $tabKey = 'ledger';
 }
+if ($tabKey === 'reconciliation') {
+    $tabKey = 'dashboard';
+}
+if ($tabKey === 'budget') {
+    $tabKey = 'reports';
+}
 if ($tabKey === 'statement') {
     $tabKey = 'reports';
+}
+
+$reportSubKey = strtolower((string) ($reportSub ?? ($_GET['sub'] ?? '')));
+if ($tabKey === 'reports' && !in_array($reportSubKey, ['statement', 'position', 'budget'], true)) {
+    $reportSubKey = 'statement';
 }
 
 $sectionMeta = match ($tabKey) {
@@ -19,20 +30,16 @@ $sectionMeta = match ($tabKey) {
         'sub' => 'Track what the church owes — paid amounts and balances still due.',
     ],
     'ledger' => [
-        'title' => 'Records',
-        'sub' => 'Expense and collection records for each Sunday.',
-    ],
-    'reconciliation' => [
-        'title' => 'Reconciliation',
-        'sub' => 'Compare collections against expenses for the month.',
-    ],
-    'budget' => [
-        'title' => 'Budget',
-        'sub' => 'Set planned amounts and track budget vs actual.',
+        'title' => 'Sundays',
+        'sub' => 'Collections and expenses for each Sunday service.',
     ],
     'reports' => [
         'title' => 'Reports',
-        'sub' => 'Financial statements and consolidated position by department.',
+        'sub' => match ($reportSubKey) {
+            'position' => 'Year-over-year consolidated income and expenditure.',
+            'budget' => 'Planned amounts versus actual collections and spending.',
+            default => 'Operating statements, annual position, and budget vs actual.',
+        },
     ],
     default => [
         'title' => 'Finance overview',
@@ -46,4 +53,13 @@ $sectionMeta = match ($tabKey) {
         <h2 class="fin-hero__title"><?= htmlspecialchars($sectionMeta['title']) ?></h2>
         <p class="fin-hero__sub"><?= htmlspecialchars($sectionMeta['sub']) ?></p>
     </div>
+    <?php if ($tabKey === 'dashboard' || $tabKey === 'ledger'): ?>
+    <div class="fin-hero__actions">
+        <a href="/admin/finance/sunday?month=<?= htmlspecialchars(urlencode($month ?? date('Y-m'))) ?>&amp;return_tab=<?= $tabKey === 'ledger' ? 'ledger' : 'dashboard' ?>"
+           class="fin-btn fin-btn--primary">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Record
+        </a>
+    </div>
+    <?php endif; ?>
 </header>

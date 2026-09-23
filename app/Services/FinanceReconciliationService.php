@@ -9,7 +9,14 @@ use PDO;
 
 class FinanceReconciliationService
 {
-    private const SCHEMA_VERSION = 1;
+    private const SCHEMA_VERSION = 2;
+
+    /**
+     * Hard ceiling for a single Sunday line item (KES).
+     * Amounts at or above this are treated as data-entry errors — rejected on save
+     * and excluded from year/dashboard aggregates so one typo cannot break Overview.
+     */
+    public const MAX_WEEKLY_LINE_AMOUNT = 9_999_999.99;
 
     private static bool $schemaReady = false;
 
@@ -50,8 +57,9 @@ class FinanceReconciliationService
 
     /** @var array<string, string> */
     public const EXPENSE_GROUPS = [
-        'admin_expenses' => 'Administration costs',
-        'ministry_departments' => 'Operational expenses',
+        'admin_expenses' => 'Administration',
+        'ministry_departments' => 'Ministry & Departments',
+        'finance_costs' => 'Finance Costs',
     ];
 
     /** @var list<array{slug: string, label: string, code_prefix: string, sort: int, group: string}> */
@@ -69,6 +77,13 @@ class FinanceReconciliationService
         ['slug' => 'gpm_remittances', 'label' => 'GPM Remittances', 'code_prefix' => '001/11', 'sort' => 100, 'group' => 'ministry_departments'],
         ['slug' => 'honorarium_gifts', 'label' => 'Honorarium & Gifts', 'code_prefix' => '001/12', 'sort' => 110, 'group' => 'ministry_departments'],
         ['slug' => 'benevolent', 'label' => 'Benovelent', 'code_prefix' => '001/13', 'sort' => 120, 'group' => 'ministry_departments'],
+        ['slug' => 'finance_costs', 'label' => 'Finance Costs', 'code_prefix' => '001/14', 'sort' => 130, 'group' => 'finance_costs'],
+    ];
+
+    /** @var list<array{label: string, code: string}> */
+    private const FINANCE_COSTS_CATEGORY_SEED = [
+        ['label' => 'Bank charges', 'code' => '001/14/001'],
+        ['label' => 'Mpesa charges', 'code' => '001/14/002'],
     ];
 
     /** @var list<array{label: string, code: string}> */
@@ -109,6 +124,7 @@ class FinanceReconciliationService
             self::migrateExpenseDepartmentGroups();
             self::ensureAdministrationCategories();
             self::ensureMinistryExpenseItems();
+            self::ensureFinanceCostsCatalog();
             self::seedWeeklyCategoriesIfEmpty();
             self::migrateWeeklyCategoryDepartments();
             SettingsService::set('finance_schema_version', (string) self::SCHEMA_VERSION);
@@ -254,6 +270,15 @@ class FinanceReconciliationService
             if ($dept['slug'] === 'administration') {
                 continue;
             }
+            if ($dept['slug'] === 'finance_costs') {
+                $order = 10;
+                foreach (self::FINANCE_COSTS_CATEGORY_SEED as $cat) {
+                    $slug = self::uniqueCategorySlug($db, self::slugify($cat['label']));
+                    $insertCat->execute([$deptIds['finance_costs'], $slug, $cat['label'], $cat['code'], $order]);
+                    $order += 10;
+                }
+                continue;
+            }
             $slug = self::uniqueCategorySlug($db, self::slugify($dept['label']));
             $insertCat->execute([
                 $deptIds[$dept['slug']],
@@ -332,6 +357,87 @@ class FinanceReconciliationService
         }
     }
 
+    private static function ensureFinanceCostsCatalog(): void
+    {
+        $db = Database::connection();
+        try {
+            $db->query('SELECT 1 FROM finance_expense_departments LIMIT 1');
+        } catch (\Throwable) {
+            return;
+        }
+
+        $seed = null;
+        foreach (self::EXPENSE_DEPARTMENT_SEED as $dept) {
+            if ($dept['slug'] === 'finance_costs') {
+                $seed = $dept;
+                break;
+            }
+        }
+        if ($seed === null) {
+            return;
+        }
+
+        $stmt = $db->prepare('SELECT id FROM finance_expense_departments WHERE slug = ?');
+        $stmt->execute(['finance_costs']);
+        $financeId = $stmt->fetchColumn();
+        if (!$financeId) {
+            $insertDept = $db->prepare('
+                INSERT INTO finance_expense_departments (slug, label, code_prefix, expense_group, sort_order, is_system)
+                VALUES (?, ?, ?, ?, ?, 1)
+            ');
+            $insertDept->execute([
+                $seed['slug'],
+                $seed['label'],
+                $seed['code_prefix'],
+                $seed['group'],
+                $seed['sort'],
+            ]);
+            $financeId = (int) $db->lastInsertId();
+            self::$departmentIdMapCache = null;
+        } else {
+            $financeId = (int) $financeId;
+            $db->prepare('
+                UPDATE finance_expense_departments
+                SET label = ?, code_prefix = ?, expense_group = ?, sort_order = ?
+                WHERE id = ?
+            ')->execute([
+                $seed['label'],
+                $seed['code_prefix'],
+                $seed['group'],
+                $seed['sort'],
+                $financeId,
+            ]);
+        }
+
+        $insert = $db->prepare('
+            INSERT INTO finance_expense_categories (department_id, slug, label, account_code, sort_order, is_system)
+            VALUES (?, ?, ?, ?, ?, 1)
+        ');
+        $order = 10;
+        foreach (self::FINANCE_COSTS_CATEGORY_SEED as $cat) {
+            $exists = $db->prepare('SELECT id FROM finance_expense_categories WHERE account_code = ?');
+            $exists->execute([$cat['code']]);
+            if ($exists->fetch()) {
+                $order += 10;
+                continue;
+            }
+            $byLabel = $db->prepare('
+                SELECT id FROM finance_expense_categories
+                WHERE department_id = ? AND label = ?
+            ');
+            $byLabel->execute([$financeId, $cat['label']]);
+            if ($byLabel->fetch()) {
+                $order += 10;
+                continue;
+            }
+            $slug = self::uniqueCategorySlug($db, self::slugify($cat['label']));
+            $insert->execute([$financeId, $slug, $cat['label'], $cat['code'], $order]);
+            $order += 10;
+        }
+
+        self::$expenseCatalogCache = null;
+    }
+
     private static function ensureMinistryExpenseItems(): void
     {
         $db = Database::connection();
@@ -390,7 +496,7 @@ class FinanceReconciliationService
             SELECT id, slug, label, code_prefix, expense_group
             FROM finance_expense_departments
             ORDER BY
-                CASE expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 ELSE 9 END,
+                CASE expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 WHEN \'finance_costs\' THEN 3 ELSE 9 END,
                 sort_order ASC,
                 id ASC
         ')->fetchAll(PDO::FETCH_ASSOC);
@@ -614,7 +720,7 @@ class FinanceReconciliationService
             LEFT JOIN finance_expense_departments d ON d.id = c.department_id
             LEFT JOIN finance_expense_categories ec ON ec.id = c.expense_category_id
             ORDER BY
-                CASE d.expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 ELSE 9 END,
+                CASE d.expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 WHEN \'finance_costs\' THEN 3 ELSE 9 END,
                 COALESCE(ec.sort_order, d.sort_order, 9999) ASC,
                 c.sort_order ASC,
                 c.id ASC
@@ -823,7 +929,7 @@ class FinanceReconciliationService
             LEFT JOIN finance_expense_departments d ON c.department_id = d.id
             WHERE a.budget_year = ?
             ORDER BY
-                CASE d.expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 ELSE 9 END,
+                CASE d.expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 WHEN \'finance_costs\' THEN 3 ELSE 9 END,
                 COALESCE(d.sort_order, 9999) ASC,
                 COALESCE(c.sort_order, 9999) ASC,
                 a.id ASC
@@ -853,10 +959,62 @@ class FinanceReconciliationService
         return $row;
     }
 
+    /**
+     * Normalize bill "month incurred" to YYYY-MM for the month picker.
+     */
+    public static function normalizeMonthIncurred(string $value, ?int $fallbackYear = null): string
+    {
+        $value = trim($value);
+        if (preg_match('/^\d{4}-\d{2}$/', $value)) {
+            return $value;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return substr($value, 0, 7);
+        }
+
+        $year = $fallbackYear ?? (int) date('Y');
+        if (preg_match('/\b(20\d{2})\b/', $value, $ym)) {
+            $year = (int) $ym[1];
+        }
+
+        $months = [
+            'jan' => 1, 'january' => 1, 'feb' => 2, 'february' => 2, 'mar' => 3, 'march' => 3,
+            'apr' => 4, 'april' => 4, 'may' => 5, 'jun' => 6, 'june' => 6, 'jul' => 7, 'july' => 7,
+            'aug' => 8, 'august' => 8, 'sep' => 9, 'sept' => 9, 'september' => 9,
+            'oct' => 10, 'october' => 10, 'nov' => 11, 'november' => 11, 'dec' => 12, 'december' => 12,
+        ];
+        $lower = strtolower($value);
+        $month = 0;
+        foreach ($months as $name => $num) {
+            if (preg_match('/\b' . preg_quote($name, '/') . '\b/', $lower)) {
+                $month = $num;
+                break;
+            }
+        }
+        if ($month < 1 || $month > 12) {
+            if (preg_match('/^\d{4}$/', $value)) {
+                return $value . '-01';
+            }
+            $month = (int) date('n');
+            if ($fallbackYear) {
+                $year = $fallbackYear;
+            }
+        }
+
+        return sprintf('%04d-%02d', $year, $month);
+    }
+
     /** @param array<string, mixed> $data */
     public static function saveArrear(array $data, ?int $id = null): void
     {
         self::ensureTables();
+        $data['month_incurred'] = self::normalizeMonthIncurred(
+            (string) ($data['month_incurred'] ?? ''),
+            isset($data['budget_year']) ? (int) $data['budget_year'] : null
+        );
+        if ($data['month_incurred'] === '' || !preg_match('/^\d{4}-\d{2}$/', $data['month_incurred'])) {
+            throw new \InvalidArgumentException('Month incurred is required. Pick a month from the calendar.');
+        }
         [$categoryId, $expenseItemFromCategory] = self::resolveArrearCategory($data);
         $expenseItem = trim((string) ($data['expense_item'] ?? ''));
         if ($expenseItem === '') {
@@ -1003,7 +1161,7 @@ class FinanceReconciliationService
         $categories = self::allWeeklyCategories();
 
         foreach ($categories as $slug => $meta) {
-            $amount = (float) ($categoryAmounts[$slug] ?? 0);
+            $amount = self::normalizeWeeklyLineAmount((float) ($categoryAmounts[$slug] ?? 0));
             if ($amount <= 0) {
                 $db->prepare('DELETE FROM finance_weekly_expenses WHERE week_date = ? AND category_slug = ?')
                     ->execute([$weekDate, $slug]);
@@ -1015,6 +1173,63 @@ class FinanceReconciliationService
                 ON DUPLICATE KEY UPDATE amount = VALUES(amount), category_label = VALUES(category_label), updated_at = NOW()
             ');
             $stmt->execute([$weekDate, $slug, $meta['label'], $amount]);
+        }
+
+        self::clearRuntimeCaches();
+    }
+
+    /** Save one weekly expense cell (category × Sunday). */
+    public static function saveWeeklyExpenseAmount(string $weekDate, string $categorySlug, float $amount): void
+    {
+        self::ensureTables();
+        $categories = self::allWeeklyCategories();
+        if (!isset($categories[$categorySlug])) {
+            throw new \InvalidArgumentException('Unknown expense category.');
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $weekDate)) {
+            throw new \InvalidArgumentException('Invalid week date.');
+        }
+
+        $amount = self::normalizeWeeklyLineAmount($amount);
+        $db = Database::connection();
+        if ($amount <= 0) {
+            $db->prepare('DELETE FROM finance_weekly_expenses WHERE week_date = ? AND category_slug = ?')
+                ->execute([$weekDate, $categorySlug]);
+        } else {
+            $stmt = $db->prepare('
+                INSERT INTO finance_weekly_expenses (week_date, category_slug, category_label, amount)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE amount = VALUES(amount), category_label = VALUES(category_label), updated_at = NOW()
+            ');
+            $stmt->execute([$weekDate, $categorySlug, $categories[$categorySlug]['label'], $amount]);
+        }
+
+        self::clearRuntimeCaches();
+    }
+
+    /** Save one weekly collection cell (payment method × Sunday). */
+    public static function saveWeeklyCollectionAmount(string $weekDate, string $method, float $amount): void
+    {
+        self::ensureTables();
+        if (!isset(self::PAYMENT_METHODS[$method])) {
+            throw new \InvalidArgumentException('Unknown payment method.');
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $weekDate)) {
+            throw new \InvalidArgumentException('Invalid week date.');
+        }
+
+        $amount = self::normalizeWeeklyLineAmount($amount);
+        $db = Database::connection();
+        if ($amount <= 0) {
+            $db->prepare('DELETE FROM finance_weekly_collections WHERE week_date = ? AND payment_method = ?')
+                ->execute([$weekDate, $method]);
+        } else {
+            $stmt = $db->prepare('
+                INSERT INTO finance_weekly_collections (week_date, payment_method, amount)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE amount = VALUES(amount), updated_at = NOW()
+            ');
+            $stmt->execute([$weekDate, $method, $amount]);
         }
 
         self::clearRuntimeCaches();
@@ -1155,7 +1370,7 @@ class FinanceReconciliationService
         $db = Database::connection();
 
         foreach (self::PAYMENT_METHODS as $method => $_meta) {
-            $amount = (float) ($methodAmounts[$method] ?? 0);
+            $amount = self::normalizeWeeklyLineAmount((float) ($methodAmounts[$method] ?? 0));
             if ($amount <= 0) {
                 $db->prepare('DELETE FROM finance_weekly_collections WHERE week_date = ? AND payment_method = ?')
                     ->execute([$weekDate, $method]);
@@ -1170,6 +1385,24 @@ class FinanceReconciliationService
         }
 
         self::clearRuntimeCaches();
+    }
+
+    /**
+     * Clamp / reject absurd Sunday line amounts.
+     * Values at or above MAX_WEEKLY_LINE_AMOUNT throw so typos never land in the ledger.
+     */
+    public static function normalizeWeeklyLineAmount(float $amount): float
+    {
+        $amount = round(max(0, $amount), 2);
+        if ($amount >= self::MAX_WEEKLY_LINE_AMOUNT) {
+            throw new \InvalidArgumentException(
+                'Amount looks too large for a Sunday line (max KES '
+                . number_format(self::MAX_WEEKLY_LINE_AMOUNT, 0)
+                . '). Check for an extra zero and try again.'
+            );
+        }
+
+        return $amount;
     }
 
     /**
@@ -1190,14 +1423,16 @@ class FinanceReconciliationService
         $start = sprintf('%04d-01-01', $year);
         $end = sprintf('%04d-01-01', $year + 1);
         $db = Database::connection();
+        $maxAmt = self::MAX_WEEKLY_LINE_AMOUNT;
 
         $expStmt = $db->prepare('
             SELECT week_date, SUM(amount) AS total
             FROM finance_weekly_expenses
             WHERE week_date >= ? AND week_date < ?
+              AND amount < ?
             GROUP BY week_date
         ');
-        $expStmt->execute([$start, $end]);
+        $expStmt->execute([$start, $end, $maxAmt]);
         $expByWeek = [];
         foreach ($expStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $expByWeek[(string) $row['week_date']] = (float) $row['total'];
@@ -1207,9 +1442,10 @@ class FinanceReconciliationService
             SELECT week_date, SUM(amount) AS total
             FROM finance_weekly_collections
             WHERE week_date >= ? AND week_date < ?
+              AND amount < ?
             GROUP BY week_date
         ');
-        $colStmt->execute([$start, $end]);
+        $colStmt->execute([$start, $end, $maxAmt]);
         $colByWeek = [];
         foreach ($colStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $colByWeek[(string) $row['week_date']] = (float) $row['total'];
@@ -1782,7 +2018,7 @@ class FinanceReconciliationService
         };
 
         $write([$churchName]);
-        $write(['Financial Statement']);
+        $write(['Operating Statement']);
         $write(['Statement period', $statement['period_label'] ?? '']);
         $write(['Subtitle', $statement['period_subtitle'] ?? '']);
         $write(['Generated', date('Y-m-d H:i')]);
@@ -1890,217 +2126,198 @@ class FinanceReconciliationService
      *
      * @return array<string, mixed>
      */
+    /**
+     * Years shown as amount columns on the I&E statement (newest first).
+     * Always includes the reporting year and prior year, plus any other year
+     * that already has Sunday collections/expenses so new years appear automatically.
+     *
+     * @return list<int>
+     */
+    public static function positionColumnYears(int $focusYear): array
+    {
+        $focusYear = max(2000, min(2100, $focusYear));
+        $years = [
+            $focusYear => true,
+            ($focusYear - 1) => true,
+        ];
+
+        try {
+            $db = Database::connection();
+            $stmt = $db->query('
+                SELECT DISTINCT YEAR(week_date) AS y FROM (
+                    SELECT week_date FROM finance_weekly_collections
+                    UNION ALL
+                    SELECT week_date FROM finance_weekly_expenses
+                    WHERE amount < ' . self::MAX_WEEKLY_LINE_AMOUNT . '
+                ) t
+                WHERE YEAR(week_date) BETWEEN 2000 AND 2100
+            ');
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $y) {
+                $years[(int) $y] = true;
+            }
+        } catch (\Throwable) {
+        }
+
+        $list = array_keys($years);
+        rsort($list, SORT_NUMERIC);
+
+        return array_values(array_slice($list, 0, 5));
+    }
+
+    /**
+     * @param list<int> $columnYears
+     * @param array<int, float> $byYear
+     * @return array{by_year: array<int, float>, group: array{current: float, prior: float}, entity: array{current: float, prior: float}}
+     */
+    private static function positionAmountBundle(array $columnYears, array $byYear, int $focusYear): array
+    {
+        $normalized = [];
+        foreach ($columnYears as $y) {
+            $normalized[$y] = round((float) ($byYear[$y] ?? 0), 2);
+        }
+        $current = $normalized[$focusYear] ?? 0.0;
+        $prior = $normalized[$focusYear - 1] ?? 0.0;
+
+        return [
+            'by_year' => $normalized,
+            'group' => ['current' => $current, 'prior' => $prior],
+            'entity' => ['current' => $current, 'prior' => $prior],
+        ];
+    }
+
     public static function buildConsolidatedPosition(int $year): array
     {
         self::ensureTables();
         $year = max(2000, min(2100, $year));
+        $columnYears = self::positionColumnYears($year);
         $priorYear = $year - 1;
 
-        $current = self::yearPositionTotals($year);
-        $prior = self::yearPositionTotals($priorYear);
-        $deptRows = self::departmentPositionRows($current, $prior);
-
-        $pair = static function (float $cur, float $pri): array {
-            $cur = round($cur, 2);
-            $pri = round($pri, 2);
-
-            return [
-                'group' => ['current' => $cur, 'prior' => $pri],
-                // Single ledger today — entity mirrors group until multi-campus books exist.
-                'entity' => ['current' => $cur, 'prior' => $pri],
-            ];
-        };
-
-        $staffSlugs = ['wages', 'pastoral_allowances_salaries'];
-        $staffCur = 0.0;
-        $staffPri = 0.0;
-        $adminCur = 0.0;
-        $adminPri = 0.0;
-        $ministryCur = 0.0;
-        $ministryPri = 0.0;
-
-        foreach ($deptRows as $dept) {
-            $cur = (float) $dept['application_current'];
-            $pri = (float) $dept['application_prior'];
-            if (($dept['group'] ?? '') === 'admin_expenses') {
-                $adminCur = round($adminCur + $cur, 2);
-                $adminPri = round($adminPri + $pri, 2);
-                continue;
-            }
-            if (in_array((string) $dept['slug'], $staffSlugs, true)) {
-                $staffCur = round($staffCur + $cur, 2);
-                $staffPri = round($staffPri + $pri, 2);
-                continue;
-            }
-            $ministryCur = round($ministryCur + $cur, 2);
-            $ministryPri = round($ministryPri + $pri, 2);
+        $totalsByYear = [];
+        foreach ($columnYears as $y) {
+            $totalsByYear[$y] = self::yearPositionTotals($y);
         }
 
-        // Include admin category detail totals (expenses + arrears) — already in admin dept row,
-        // but admin_categories path is the authoritative admin total.
-        $adminDetailCur = 0.0;
-        $adminDetailPri = 0.0;
-        foreach ($current['admin_categories'] ?? [] as $catId => $_meta) {
-            $adminDetailCur = round(
-                $adminDetailCur
-                + (float) ($current['expenses_by_category'][$catId] ?? 0)
-                + (float) ($current['arrears_by_category'][$catId] ?? 0),
-                2
-            );
-            $adminDetailPri = round(
-                $adminDetailPri
-                + (float) ($prior['expenses_by_category'][$catId] ?? 0)
-                + (float) ($prior['arrears_by_category'][$catId] ?? 0),
-                2
+        $focusTotals = $totalsByYear[$year] ?? self::yearPositionTotals($year);
+        $priorTotals = $totalsByYear[$priorYear] ?? self::yearPositionTotals($priorYear);
+        $deptRows = self::departmentPositionRows($focusTotals, $priorTotals);
+
+        $emptyNote = 1;
+        $sectionsByYear = [];
+        foreach ($columnYears as $y) {
+            $note = 1;
+            $sectionsByYear[$y] = self::buildPositionSections(
+                $totalsByYear[$y],
+                self::yearPositionTotals(1900),
+                $note
             );
         }
-        foreach ($current['admin_unlinked_expenses'] ?? [] as $key => $row) {
-            $adminDetailCur = round($adminDetailCur + (float) ($row['amount'] ?? 0), 2);
-            $adminDetailPri = round(
-                $adminDetailPri + (float) ($prior['admin_unlinked_expenses'][$key]['amount'] ?? 0),
-                2
-            );
-        }
-        if ($adminDetailCur > 0 || $adminDetailPri > 0) {
-            $adminCur = $adminDetailCur;
-            $adminPri = $adminDetailPri;
-        }
-
-        $uncatCur = round(
-            (float) ($current['uncategorized_expenses'] ?? 0) + (float) ($current['uncategorized_arrears'] ?? 0),
-            2
-        );
-        $uncatPri = round(
-            (float) ($prior['uncategorized_expenses'] ?? 0) + (float) ($prior['uncategorized_arrears'] ?? 0),
-            2
-        );
-        $ministryCur = round($ministryCur + $uncatCur, 2);
-        $ministryPri = round($ministryPri + $uncatPri, 2);
-
-        $collectionsCur = round((float) $current['collections'], 2);
-        $collectionsPri = round((float) $prior['collections'], 2);
+        $expenseSections = self::buildPositionSections($focusTotals, $priorTotals, $emptyNote);
 
         $note = 1;
         $rows = [];
 
-        $rows[] = ['type' => 'section', 'label' => 'ASSEMBLIES INCOME'];
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Tithes and offerings',
-            'note' => (string) $note++,
-            'outflow' => false,
-            'amounts' => $pair($collectionsCur, $collectionsPri),
-        ];
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Fundraising and donations',
-            'note' => (string) $note++,
-            'outflow' => false,
-            'amounts' => $pair(0, 0),
-        ];
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Ministries and departments',
-            'note' => (string) $note++,
-            'outflow' => false,
-            'amounts' => $pair(0, 0),
-        ];
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Rental income',
-            'note' => (string) $note++,
-            'outflow' => false,
-            'amounts' => $pair(0, 0),
-        ];
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Interest income',
-            'note' => (string) $note++,
-            'outflow' => false,
-            'amounts' => $pair(0, 0),
-        ];
-        $incomeTotal = $pair($collectionsCur, $collectionsPri);
+        $rows[] = ['type' => 'section', 'label' => 'INCOME'];
+        $incomeByYear = array_fill_keys($columnYears, 0.0);
+        foreach (self::PAYMENT_METHODS as $method => $meta) {
+            $lineByYear = [];
+            foreach ($columnYears as $y) {
+                $amt = round((float) ($totalsByYear[$y]['income_lines'][$method] ?? 0), 2);
+                $lineByYear[$y] = $amt;
+                $incomeByYear[$y] = round($incomeByYear[$y] + $amt, 2);
+            }
+            $rows[] = [
+                'type' => 'line',
+                'label' => $meta['label'],
+                'note' => (string) $note++,
+                'outflow' => false,
+                'amounts' => self::positionAmountBundle($columnYears, $lineByYear, $year),
+            ];
+        }
+        $incomeTotal = self::positionAmountBundle($columnYears, $incomeByYear, $year);
         $rows[] = [
             'type' => 'subtotal',
-            'label' => 'Total assemblies income',
+            'label' => 'Total income',
             'note' => '',
             'outflow' => false,
             'amounts' => $incomeTotal,
         ];
 
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Other Income',
-            'note' => (string) $note++,
-            'outflow' => false,
-            'amounts' => $pair(0, 0),
-        ];
-
-        $rows[] = ['type' => 'section', 'label' => 'ASSEMBLIES EXPENSES'];
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Staff costs',
-            'note' => (string) $note++,
-            'outflow' => true,
-            'amounts' => $pair($staffCur, $staffPri),
-        ];
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Administration costs',
-            'note' => (string) $note++,
-            'outflow' => true,
-            'amounts' => $pair($adminCur, $adminPri),
-        ];
-        $rows[] = [
-            'type' => 'line',
-            'label' => 'Operational expenses',
-            'note' => (string) $note++,
-            'outflow' => true,
-            'amounts' => $pair($ministryCur, $ministryPri),
-        ];
-
-        $expenseCur = round($staffCur + $adminCur + $ministryCur, 2);
-        $expensePri = round($staffPri + $adminPri + $ministryPri, 2);
-        $expenseTotal = $pair($expenseCur, $expensePri);
+        $rows[] = ['type' => 'section', 'label' => 'EXPENSES'];
+        $expenseByYear = array_fill_keys($columnYears, 0.0);
+        $sectionOrder = ['Administration', 'Ministry & Departments', 'Finance Costs'];
+        foreach ($sectionOrder as $sectionLabel) {
+            $lineByYear = [];
+            foreach ($columnYears as $y) {
+                $amt = 0.0;
+                foreach ($sectionsByYear[$y] ?? [] as $section) {
+                    if ((string) ($section['label'] ?? '') === $sectionLabel) {
+                        $amt = round((float) ($section['total']['current'] ?? 0), 2);
+                        break;
+                    }
+                }
+                $lineByYear[$y] = $amt;
+                $expenseByYear[$y] = round($expenseByYear[$y] + $amt, 2);
+            }
+            $rows[] = [
+                'type' => 'line',
+                'label' => $sectionLabel,
+                'note' => (string) $note++,
+                'outflow' => true,
+                'amounts' => self::positionAmountBundle($columnYears, $lineByYear, $year),
+            ];
+        }
+        $expenseTotal = self::positionAmountBundle($columnYears, $expenseByYear, $year);
         $rows[] = [
             'type' => 'subtotal',
-            'label' => 'Total assemblies expenditure',
+            'label' => 'Total expenditure',
             'note' => (string) $note++,
             'outflow' => true,
             'amounts' => $expenseTotal,
         ];
 
-        $surplus = $pair(
-            round($collectionsCur - $expenseCur, 2),
-            round($collectionsPri - $expensePri, 2)
-        );
+        $surplusByYear = [];
+        foreach ($columnYears as $y) {
+            $surplusByYear[$y] = round(($incomeByYear[$y] ?? 0) - ($expenseByYear[$y] ?? 0), 2);
+        }
+        $surplus = self::positionAmountBundle($columnYears, $surplusByYear, $year);
+        $surplusCur = (float) ($surplus['group']['current'] ?? 0);
+        // Neutral dual label — each year column is colored surplus/deficit on its own figure.
+        $resultLabel = 'SURPLUS/(DEFICIT) FOR THE YEAR';
         $rows[] = [
             'type' => 'final',
-            'label' => 'SURPLUS FOR THE YEAR',
+            'label' => $resultLabel,
             'note' => '',
             'outflow' => false,
+            'result' => $surplusCur >= 0 ? 'surplus' : 'deficit',
             'amounts' => $surplus,
         ];
 
         $yearEndedLabel = '31st December ' . $year;
+        $compareYears = array_values(array_filter($columnYears, static fn (int $y): bool => $y !== $year));
+        $compareLabel = $compareYears !== []
+            ? 'Comparative figures for ' . implode(', ', $compareYears)
+            : 'Amounts in Kenya Shillings (KShs)';
 
         return [
             'view' => 'consolidated',
             'document_title' => 'Consolidated Statement of Income and Expenditure',
             'year' => $year,
             'prior_year' => $priorYear,
+            'column_years' => $columnYears,
             'as_at' => $year . '-12-31',
             'as_at_label' => $yearEndedLabel,
             'period_label' => 'For the year ended ' . $yearEndedLabel,
-            'period_subtitle' => 'Comparative figures for ' . $priorYear . ' · Amounts in Kenya Shillings (KShs)',
+            'period_subtitle' => 'Sunday collections and expenses · ' . $compareLabel . ' · Amounts in Kenya Shillings (KShs)',
             'currency' => 'KShs',
             'group_label' => 'GROUP',
             'entity_label' => 'KC',
             'rows' => $rows,
             'surplus' => $surplus['group'],
+            'result' => $surplusCur >= 0 ? 'surplus' : 'deficit',
+            'result_label' => $resultLabel,
             'income_total' => $incomeTotal['group'],
             'expense_total' => $expenseTotal['group'],
-            'sections' => [],
+            'sections' => $expenseSections,
             'grand_total' => $expenseTotal['group'],
             'departments' => $deptRows,
         ];
@@ -2120,16 +2337,12 @@ class FinanceReconciliationService
         $adminPrior = 0.0;
 
         foreach ($current['admin_categories'] ?? [] as $catId => $meta) {
-            $cur = round(
-                (float) ($current['expenses_by_category'][$catId] ?? 0)
-                + (float) ($current['arrears_by_category'][$catId] ?? 0),
-                2
-            );
-            $pri = round(
-                (float) ($prior['expenses_by_category'][$catId] ?? 0)
-                + (float) ($prior['arrears_by_category'][$catId] ?? 0),
-                2
-            );
+            // I&E uses keyed Sunday/weekly expenses only — outstanding bills stay on the Bills tab.
+            $cur = round((float) ($current['expenses_by_category'][$catId] ?? 0), 2);
+            $pri = round((float) ($prior['expenses_by_category'][$catId] ?? 0), 2);
+            if ($cur <= 0 && $pri <= 0) {
+                continue;
+            }
             $adminItems[] = [
                 'key' => 'admin_cat_' . $catId,
                 'label' => (string) ($meta['label'] ?? 'Admin item'),
@@ -2183,7 +2396,7 @@ class FinanceReconciliationService
 
         $sections[] = [
             'slug' => 'admin_expenses',
-            'label' => 'Administration costs',
+            'label' => 'Administration',
             'items' => $adminItems,
             'total' => ['current' => $adminCurrent, 'prior' => $adminPrior],
         ];
@@ -2191,11 +2404,14 @@ class FinanceReconciliationService
         $ministryItems = [];
         $ministryCurrent = 0.0;
         $ministryPrior = 0.0;
+        $financeItems = [];
+        $financeCurrent = 0.0;
+        $financePrior = 0.0;
         foreach (self::departmentPositionRows($current, $prior) as $dept) {
             if (($dept['group'] ?? '') === 'admin_expenses') {
                 continue;
             }
-            $ministryItems[] = [
+            $row = [
                 'key' => 'dept_' . $dept['slug'],
                 'label' => $dept['label'],
                 'code' => $dept['code_prefix'],
@@ -2203,19 +2419,20 @@ class FinanceReconciliationService
                 'current' => $dept['application_current'],
                 'prior' => $dept['application_prior'],
             ];
-            $ministryCurrent = round($ministryCurrent + (float) $dept['application_current'], 2);
-            $ministryPrior = round($ministryPrior + (float) $dept['application_prior'], 2);
+            if (($dept['group'] ?? '') === 'finance_costs') {
+                $financeItems[] = $row;
+                $financeCurrent = round($financeCurrent + (float) $dept['application_current'], 2);
+                $financePrior = round($financePrior + (float) $dept['application_prior'], 2);
+            } else {
+                $ministryItems[] = $row;
+                $ministryCurrent = round($ministryCurrent + (float) $dept['application_current'], 2);
+                $ministryPrior = round($ministryPrior + (float) $dept['application_prior'], 2);
+            }
             $note++;
         }
 
-        $uncatCur = round(
-            (float) ($current['uncategorized_expenses'] ?? 0) + (float) ($current['uncategorized_arrears'] ?? 0),
-            2
-        );
-        $uncatPri = round(
-            (float) ($prior['uncategorized_expenses'] ?? 0) + (float) ($prior['uncategorized_arrears'] ?? 0),
-            2
-        );
+        $uncatCur = round((float) ($current['uncategorized_expenses'] ?? 0), 2);
+        $uncatPri = round((float) ($prior['uncategorized_expenses'] ?? 0), 2);
         if ($uncatCur > 0 || $uncatPri > 0) {
             $ministryItems[] = [
                 'key' => 'other_unassigned',
@@ -2232,9 +2449,16 @@ class FinanceReconciliationService
 
         $sections[] = [
             'slug' => 'ministry_departments',
-            'label' => 'Operational expenses',
+            'label' => 'Ministry & Departments',
             'items' => $ministryItems,
             'total' => ['current' => $ministryCurrent, 'prior' => $ministryPrior],
+        ];
+
+        $sections[] = [
+            'slug' => 'finance_costs',
+            'label' => 'Finance Costs',
+            'items' => $financeItems,
+            'total' => ['current' => $financeCurrent, 'prior' => $financePrior],
         ];
 
         return $sections;
@@ -2286,10 +2510,11 @@ class FinanceReconciliationService
             FROM finance_weekly_expenses e
             INNER JOIN finance_weekly_categories c ON c.slug = e.category_slug
             WHERE e.week_date >= ? AND e.week_date < ?
+              AND e.amount < ?
               AND c.department_id IS NOT NULL
             GROUP BY c.department_id
         ');
-        $expStmt->execute([$start, $end]);
+        $expStmt->execute([$start, $end, self::MAX_WEEKLY_LINE_AMOUNT]);
         $expensesAssigned = 0.0;
         foreach ($expStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $deptId = (int) $row['department_id'];
@@ -2303,9 +2528,10 @@ class FinanceReconciliationService
             FROM finance_weekly_expenses e
             LEFT JOIN finance_weekly_categories c ON c.slug = e.category_slug
             WHERE e.week_date >= ? AND e.week_date < ?
+              AND e.amount < ?
               AND (c.id IS NULL OR c.department_id IS NULL)
         ');
-        $uncatExpStmt->execute([$start, $end]);
+        $uncatExpStmt->execute([$start, $end, self::MAX_WEEKLY_LINE_AMOUNT]);
         $uncategorizedExpenses = round((float) ($uncatExpStmt->fetchColumn() ?: 0), 2);
         $expenses = round($expensesAssigned + $uncategorizedExpenses, 2);
 
@@ -2446,7 +2672,7 @@ class FinanceReconciliationService
             SELECT id, slug, label, code_prefix, expense_group
             FROM finance_expense_departments
             ORDER BY
-                CASE expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 ELSE 9 END,
+                CASE expense_group WHEN \'admin_expenses\' THEN 1 WHEN \'ministry_departments\' THEN 2 WHEN \'finance_costs\' THEN 3 ELSE 9 END,
                 sort_order ASC,
                 id ASC
         ')->fetchAll(PDO::FETCH_ASSOC);
@@ -2471,8 +2697,9 @@ class FinanceReconciliationService
                 'expenses_prior' => $expPrior,
                 'arrears_current' => $arrCurrent,
                 'arrears_prior' => $arrPrior,
-                'application_current' => round($expCurrent + $arrCurrent, 2),
-                'application_prior' => round($expPrior + $arrPrior, 2),
+                // Application on I&E = keyed weekly expenses only (bills tracked separately).
+                'application_current' => $expCurrent,
+                'application_prior' => $expPrior,
             ];
         }
 
@@ -2518,7 +2745,7 @@ class FinanceReconciliationService
         $notes = [
             [
                 'number' => '',
-                'text' => 'Figures are drawn from weekly collections, weekly expenses by department, and outstanding bills (arrears) recorded in the Kingdomcity Church finance ledger for the calendar years ' . $priorYear . ' and ' . $year . '.',
+                'text' => 'Figures are drawn from Sunday collections and weekly expenses by department recorded in the Kingdomcity Church finance ledger for the calendar years ' . $priorYear . ' and ' . $year . '. Outstanding bills are tracked separately under Bills and are not included in Total expenditure.',
             ],
         ];
         foreach (array_merge($incomeLines, $expenseLines, $liabilityLines) as $line) {
@@ -2544,15 +2771,12 @@ class FinanceReconciliationService
         $netWord = $net >= 0 ? 'positive net financial position' : 'net shortfall after outstanding bills';
 
         return sprintf(
-            'For the year ended 31 December %d, total funds received were %s against departmental application of %s, resulting in an operating %s of %s. After outstanding bills of %s, the church reports a %s of %s.',
+            'For the year ended 31 December %d, total funds received were %s against Sunday and departmental expenses of %s, resulting in an operating %s of %s.',
             $year,
             $fmt($income),
             $fmt($expenses),
             $opWord,
-            $fmt($operating),
-            $fmt($liabilities),
-            $netWord,
-            $fmt($net)
+            $fmt($operating)
         );
     }
 
@@ -2573,30 +2797,41 @@ class FinanceReconciliationService
 
         $year = (int) ($position['year'] ?? date('Y'));
         $prior = (int) ($position['prior_year'] ?? ($year - 1));
+        $columnYears = array_values(array_map('intval', $position['column_years'] ?? [$year, $prior]));
+        if ($columnYears === []) {
+            $columnYears = [$year, $prior];
+        }
 
         $write([$churchName]);
         $write([$position['document_title'] ?? 'Consolidated Statement of Income and Expenditure']);
         $write(['For the year ended', $position['as_at_label'] ?? '']);
         $write(['Generated', date('Y-m-d H:i')]);
         $write([]);
-        $write([
-            'Items',
-            $year . ' (KShs)',
-            $prior . ' (KShs)',
-        ]);
+        $header = ['Items'];
+        foreach ($columnYears as $colYear) {
+            $header[] = $colYear . ' (KShs)';
+        }
+        $write($header);
 
         foreach ($position['rows'] ?? [] as $row) {
             $type = (string) ($row['type'] ?? 'line');
             if ($type === 'section') {
-                $write([(string) ($row['label'] ?? ''), '', '']);
+                $write(array_merge([(string) ($row['label'] ?? '')], array_fill(0, count($columnYears), '')));
                 continue;
             }
-            $g = $row['amounts']['group'] ?? $row['amounts']['entity'] ?? ['current' => 0, 'prior' => 0];
-            $write([
-                $row['label'] ?? '',
-                $fmt((float) ($g['current'] ?? 0)),
-                $fmt((float) ($g['prior'] ?? 0)),
-            ]);
+            $byYear = $row['amounts']['by_year'] ?? null;
+            $line = [$row['label'] ?? ''];
+            if (is_array($byYear)) {
+                foreach ($columnYears as $colYear) {
+                    $line[] = $fmt((float) ($byYear[$colYear] ?? 0));
+                }
+            } else {
+                $g = $row['amounts']['group'] ?? $row['amounts']['entity'] ?? ['current' => 0, 'prior' => 0];
+                foreach ($columnYears as $idx => $colYear) {
+                    $line[] = $fmt((float) ($idx === 0 ? ($g['current'] ?? 0) : ($g['prior'] ?? 0)));
+                }
+            }
+            $write($line);
         }
 
         rewind($stream);
@@ -2781,6 +3016,72 @@ class FinanceReconciliationService
     ];
 
     /**
+     * Calendar years that should appear in finance year pickers.
+     * Always includes 2024 → next calendar year, plus any year that already has
+     * Sunday collections or expenses so future/past activity shows up automatically.
+     *
+     * @return list<int> Descending
+     */
+    public static function availableLedgerYears(): array
+    {
+        self::ensureTables();
+        $years = [];
+        $floor = 2024;
+        $ceiling = (int) date('Y') + 1;
+
+        try {
+            $db = Database::connection();
+            $stmt = $db->query('
+                SELECT DISTINCT y FROM (
+                    SELECT YEAR(week_date) AS y FROM finance_weekly_collections
+                    UNION
+                    SELECT YEAR(week_date) AS y FROM finance_weekly_expenses
+                    WHERE amount < ' . self::MAX_WEEKLY_LINE_AMOUNT . '
+                ) t
+                WHERE y IS NOT NULL AND y BETWEEN 2000 AND 2100
+                ORDER BY y DESC
+            ');
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $y) {
+                $years[(int) $y] = true;
+            }
+        } catch (\Throwable) {
+            // tables may not exist yet
+        }
+
+        for ($y = $ceiling; $y >= $floor; $y--) {
+            $years[$y] = true;
+        }
+
+        $list = array_keys($years);
+        rsort($list, SORT_NUMERIC);
+
+        return $list;
+    }
+
+    /** Latest calendar year with Sunday activity, else current calendar year. */
+    public static function latestLedgerYear(): int
+    {
+        $now = (int) date('Y');
+        try {
+            $db = Database::connection();
+            $y = (int) $db->query('
+                SELECT MAX(y) FROM (
+                    SELECT YEAR(week_date) AS y FROM finance_weekly_collections
+                    UNION ALL
+                    SELECT YEAR(week_date) AS y FROM finance_weekly_expenses
+                    WHERE amount < ' . self::MAX_WEEKLY_LINE_AMOUNT . '
+                ) t
+            ')->fetchColumn();
+            if ($y >= 2000 && $y <= 2100) {
+                return $y;
+            }
+        } catch (\Throwable) {
+        }
+
+        return $now;
+    }
+
+    /**
      * Executive dashboard — YTD totals, monthly performance, arrears snapshot.
      *
      * @return array<string, mixed>
@@ -2823,6 +3124,8 @@ class FinanceReconciliationService
         }
 
         $running = self::runningBalanceYtd($year);
+        $charts = self::buildDashboardCharts($year, $months);
+        $dataWarnings = self::absurdLineWarnings($year);
 
         return [
             'year' => $year,
@@ -2837,7 +3140,143 @@ class FinanceReconciliationService
             'recent_weeks' => $running['weeks'],
             'running_balance' => $running['current'],
             'weeks_recorded' => $running['weeks_count'],
+            'charts' => $charts,
+            'data_warnings' => $dataWarnings,
         ];
+    }
+
+    /**
+     * Chart payloads for Overview: collections vs expenses vs budget + pies.
+     *
+     * @param list<array<string, mixed>> $months
+     * @return array<string, mixed>
+     */
+    private static function buildDashboardCharts(int $year, array $months): array
+    {
+        $labels = [];
+        $collections = [];
+        $expenses = [];
+        $budgetExpenses = [];
+
+        foreach ($months as $m) {
+            $ym = (string) ($m['month'] ?? '');
+            $labels[] = (string) ($m['label'] ?? '');
+            $collections[] = round((float) ($m['collections'] ?? 0), 2);
+            $expenses[] = round((float) ($m['expenses'] ?? 0), 2);
+            $budgetExpenses[] = 0.0;
+            if ($ym !== '' && class_exists(FinanceBudgetService::class)) {
+                try {
+                    $snap = FinanceBudgetService::currentMonthSnapshot(
+                        FinanceBudgetService::budgetYearForDate($ym . '-01'),
+                        $ym
+                    );
+                    $budgetExpenses[count($budgetExpenses) - 1] = round((float) ($snap['budget_expenses'] ?? 0), 2);
+                } catch (\Throwable) {
+                    // budget tables may be empty
+                }
+            }
+        }
+
+        $start = sprintf('%04d-01-01', $year);
+        $end = sprintf('%04d-01-01', $year + 1);
+        $maxAmt = self::MAX_WEEKLY_LINE_AMOUNT;
+        $db = Database::connection();
+
+        $expenseByGroup = [];
+        foreach (self::EXPENSE_GROUPS as $slug => $label) {
+            $expenseByGroup[$slug] = ['label' => $label, 'amount' => 0.0];
+        }
+        $groupStmt = $db->prepare('
+            SELECT COALESCE(d.expense_group, \'ministry_departments\') AS grp, COALESCE(SUM(e.amount), 0) AS total
+            FROM finance_weekly_expenses e
+            LEFT JOIN finance_weekly_categories c ON c.slug = e.category_slug
+            LEFT JOIN finance_expense_departments d ON d.id = c.department_id
+            WHERE e.week_date >= ? AND e.week_date < ?
+              AND e.amount < ?
+            GROUP BY grp
+        ');
+        $groupStmt->execute([$start, $end, $maxAmt]);
+        foreach ($groupStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $grp = (string) $row['grp'];
+            if (!isset($expenseByGroup[$grp])) {
+                $expenseByGroup[$grp] = [
+                    'label' => self::expenseGroupLabel($grp) ?: 'Other',
+                    'amount' => 0.0,
+                ];
+            }
+            $expenseByGroup[$grp]['amount'] = round((float) $row['total'], 2);
+        }
+
+        $collectionByMethod = [];
+        foreach (self::PAYMENT_METHODS as $method => $meta) {
+            $collectionByMethod[$method] = ['label' => $meta['label'], 'amount' => 0.0];
+        }
+        $methodStmt = $db->prepare('
+            SELECT payment_method, COALESCE(SUM(amount), 0) AS total
+            FROM finance_weekly_collections
+            WHERE week_date >= ? AND week_date < ?
+              AND amount < ?
+            GROUP BY payment_method
+        ');
+        $methodStmt->execute([$start, $end, $maxAmt]);
+        foreach ($methodStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $method = (string) $row['payment_method'];
+            if (!isset($collectionByMethod[$method])) {
+                $collectionByMethod[$method] = ['label' => $method, 'amount' => 0.0];
+            }
+            $collectionByMethod[$method]['amount'] = round((float) $row['total'], 2);
+        }
+
+        return [
+            'trend' => [
+                'labels' => $labels,
+                'collections' => $collections,
+                'expenses' => $expenses,
+                'budget_expenses' => $budgetExpenses,
+            ],
+            'expense_groups' => [
+                'labels' => array_values(array_map(static fn (array $r): string => $r['label'], $expenseByGroup)),
+                'amounts' => array_values(array_map(static fn (array $r): float => $r['amount'], $expenseByGroup)),
+            ],
+            'collection_methods' => [
+                'labels' => array_values(array_map(static fn (array $r): string => $r['label'], $collectionByMethod)),
+                'amounts' => array_values(array_map(static fn (array $r): float => $r['amount'], $collectionByMethod)),
+            ],
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function absurdLineWarnings(int $year): array
+    {
+        $start = sprintf('%04d-01-01', $year);
+        $end = sprintf('%04d-01-01', $year + 1);
+        $stmt = Database::connection()->prepare('
+            SELECT week_date, category_slug, amount
+            FROM finance_weekly_expenses
+            WHERE week_date >= ? AND week_date < ?
+              AND amount >= ?
+            ORDER BY amount DESC
+            LIMIT 5
+        ');
+        $stmt->execute([$start, $end, self::MAX_WEEKLY_LINE_AMOUNT]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($rows === []) {
+            return [];
+        }
+
+        $warnings = [];
+        foreach ($rows as $row) {
+            $warnings[] = sprintf(
+                'Excluded KES %s on %s (%s) — amount exceeds the Sunday line limit. Open Record Sunday and correct it.',
+                number_format((float) $row['amount'], 0),
+                (string) $row['week_date'],
+                (string) $row['category_slug']
+            );
+        }
+
+        return $warnings;
     }
 
     /**

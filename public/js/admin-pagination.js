@@ -73,6 +73,7 @@
                     el.classList.remove('arrears-dropdown--fixed');
                     el.style.top = '';
                     el.style.left = '';
+                    el.style.right = '';
                 });
             },
 
@@ -84,13 +85,15 @@
                 this.clearFixedDropdowns();
                 dropdown.classList.add('arrears-dropdown--fixed');
                 const rect = button.getBoundingClientRect();
-                const width = dropdown.offsetWidth || 168;
-                const left = Math.min(
-                    Math.max(8, rect.right - width),
-                    window.innerWidth - width - 8
-                );
+                const width = 188;
+                const margin = 8;
+                let right = Math.max(margin, window.innerWidth - rect.right);
+                if (rect.right - width < margin) {
+                    right = Math.max(margin, window.innerWidth - width - margin);
+                }
                 dropdown.style.top = `${rect.bottom + 6}px`;
-                dropdown.style.left = `${left}px`;
+                dropdown.style.right = `${right}px`;
+                dropdown.style.left = 'auto';
             },
         };
     }

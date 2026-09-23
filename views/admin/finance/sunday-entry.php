@@ -8,10 +8,25 @@ $sessionsByDate = $sessionsByDate ?? [];
 $presets = $presets ?? [];
 $paymentMethods = $paymentMethods ?? [];
 $panel = in_array(($panel ?? ''), ['collections', 'expenses'], true) ? $panel : '';
-$returnTab = in_array(($returnTab ?? ''), ['dashboard', 'bills', 'ledger', 'reconciliation', 'budget', 'reports'], true)
-    ? $returnTab
-    : 'ledger';
-$returnSub = in_array(($returnSub ?? ''), ['expenses', 'collections'], true) ? $returnSub : '';
+$returnTab = (string) ($returnTab ?? 'ledger');
+if ($returnTab === 'reconciliation') {
+    $returnTab = 'dashboard';
+}
+if ($returnTab === 'budget') {
+    $returnTab = 'reports';
+    $returnSub = 'budget';
+}
+if (!in_array($returnTab, ['dashboard', 'bills', 'ledger', 'reports'], true)) {
+    $returnTab = 'ledger';
+}
+$returnSub = (string) ($returnSub ?? '');
+if ($returnTab === 'reports') {
+    if (!in_array($returnSub, ['statement', 'position', 'budget'], true)) {
+        $returnSub = 'statement';
+    }
+} elseif (!in_array($returnSub, ['expenses', 'collections'], true)) {
+    $returnSub = '';
+}
 $saved = isset($_GET['saved']);
 
 $monthLabel = date('F Y', strtotime($month . '-01'));
@@ -53,16 +68,16 @@ $backQs = array_filter([
     'tab' => $returnTab,
     'month' => $month,
     'year' => $yearNum,
-    'sub' => $returnTab === 'ledger' ? ($returnSub !== '' ? $returnSub : null) : null,
+    'sub' => $returnTab === 'ledger' || $returnTab === 'reports'
+        ? ($returnSub !== '' ? $returnSub : null)
+        : null,
 ]);
 $backUrl = '/admin/finance?' . http_build_query($backQs);
 $backLabel = match ($returnTab) {
     'dashboard' => 'Overview',
     'bills' => 'Bills',
-    'reconciliation' => 'Reconciliation',
-    'budget' => 'Budget',
     'reports' => 'Reports',
-    default => 'Records',
+    default => 'Sundays',
 };
 
 $monthNavBase = array_filter([
@@ -92,12 +107,17 @@ $jsConfig = [
 <div class="fin-sunday-page" x-cloak x-data="sundayEntryForm(<?= htmlspecialchars(json_encode($jsConfig), ENT_QUOTES) ?>)">
     <header class="fin-sunday-top">
         <a href="<?= htmlspecialchars($backUrl) ?>" class="fin-sunday-back">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i>
-            <?= htmlspecialchars($backLabel) ?>
+            <span class="fin-sunday-back__icon" aria-hidden="true">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            </span>
+            <span class="fin-sunday-back__text">
+                <span class="fin-sunday-back__prefix">Back to</span>
+                <?= htmlspecialchars($backLabel) ?>
+            </span>
         </a>
         <div class="fin-sunday-top__hero">
             <div class="fin-sunday-top__copy">
-                <p class="fin-sunday-top__eyebrow">Records</p>
+                <p class="fin-sunday-top__eyebrow">Sundays</p>
                 <h1 class="fin-sunday-top__title">Record Sunday</h1>
                 <p class="fin-sunday-top__sub">
                     <?php if ($panel === 'collections'): ?>
@@ -254,6 +274,10 @@ $jsConfig = [
                         </div>
                     </div>
                     <?php endforeach; ?>
+                    <div class="fin-amt-total" role="status" aria-live="polite">
+                        <span class="fin-amt-total__label">Total collections</span>
+                        <strong class="fin-amt-total__value" x-text="formatMoney(collectionsTotal)">KES 0</strong>
+                    </div>
                 </div>
             </section>
 

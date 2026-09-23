@@ -22,6 +22,18 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
     : (int) substr($month, 0, 4) - 1;
 ?>
 <section class="fin-dashboard">
+    <?php if (!empty($d['data_warnings'])): ?>
+    <div class="fin-data-warn" role="status">
+        <i data-lucide="triangle-alert" class="fin-data-warn__icon"></i>
+        <div class="fin-data-warn__body">
+            <p class="fin-data-warn__title">Some Sunday amounts were excluded from totals</p>
+            <?php foreach ($d['data_warnings'] as $warn): ?>
+            <p class="fin-data-warn__line"><?= htmlspecialchars((string) $warn) ?></p>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="fin-kpi-grid">
         <article class="fin-kpi fin-kpi--collections">
             <div class="fin-kpi__icon-wrap">
@@ -73,6 +85,58 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
         </article>
     </div>
 
+    <?php
+    $charts = $d['charts'] ?? [];
+    $hasChartActivity = $colYtd > 0 || $expYtd > 0
+        || array_sum($charts['trend']['budget_expenses'] ?? []) > 0;
+    ?>
+    <?php if ($hasChartActivity): ?>
+    <div class="fin-charts">
+        <article class="fin-panel fin-chart-panel fin-chart-panel--trend">
+            <div class="fin-panel__head">
+                <div>
+                    <h3 class="fin-panel__title">Collections vs expenses vs budget</h3>
+                    <p class="fin-chart-panel__sub"><span x-text="year"><?= (int) $year ?></span> — monthly Sunday cash vs expense budget</p>
+                </div>
+                <div class="fin-chart-legend" aria-hidden="true">
+                    <span class="fin-chart-legend__item fin-chart-legend__item--collections">Collections</span>
+                    <span class="fin-chart-legend__item fin-chart-legend__item--expenses">Expenses</span>
+                    <span class="fin-chart-legend__item fin-chart-legend__item--budget">Budget</span>
+                </div>
+            </div>
+            <div class="fin-chart-canvas-wrap fin-chart-canvas-wrap--trend">
+                <canvas id="finChartTrend" aria-label="Collections versus expenses versus budget by month"></canvas>
+            </div>
+        </article>
+
+        <div class="fin-charts__pies">
+            <article class="fin-panel fin-chart-panel">
+                <div class="fin-panel__head">
+                    <div>
+                        <h3 class="fin-panel__title">Expenses by category</h3>
+                        <p class="fin-chart-panel__sub">Administration · Ministry · Finance</p>
+                    </div>
+                </div>
+                <div class="fin-chart-canvas-wrap fin-chart-canvas-wrap--pie">
+                    <canvas id="finChartExpensePie" aria-label="Expenses by category group"></canvas>
+                </div>
+            </article>
+            <article class="fin-panel fin-chart-panel">
+                <div class="fin-panel__head">
+                    <div>
+                        <h3 class="fin-panel__title">Collections by method</h3>
+                        <p class="fin-chart-panel__sub">Paybill · Cheque · Cash</p>
+                    </div>
+                </div>
+                <div class="fin-chart-canvas-wrap fin-chart-canvas-wrap--pie">
+                    <canvas id="finChartCollectionPie" aria-label="Collections by payment method"></canvas>
+                </div>
+            </article>
+        </div>
+    </div>
+    <script type="application/json" id="fin-dashboard-charts-data"><?= json_encode($charts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?></script>
+    <?php endif; ?>
+
     <div class="fin-dashboard__secondary">
         <article class="fin-highlight <?= $netPos >= 0 ? 'fin-highlight--positive' : 'fin-highlight--negative' ?>">
             <p class="fin-highlight__label">True net position</p>
@@ -97,7 +161,7 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
             <p class="fin-highlight__value">KES <?= $fmt((float) ($budgetSnap['fy_budget_expenses'] ?? 0)) ?></p>
             <p class="fin-highlight__formula">Annual expense budget — no line items set for <?= htmlspecialchars($budgetSnap['label'] ?? 'this month') ?> yet</p>
             <?php endif; ?>
-            <a href="/admin/finance?tab=budget&budget_year=<?= $budgetYearDash ?>&month=<?= htmlspecialchars($month) ?>" class="fin-link fin-budget-link">Budget report →</a>
+            <a href="/admin/finance?tab=reports&sub=budget&budget_year=<?= $budgetYearDash ?>&month=<?= htmlspecialchars($month) ?>" class="fin-link fin-budget-link">Budget vs actual →</a>
         </article>
         <?php else: ?>
         <article class="fin-highlight fin-highlight--neutral">
@@ -118,11 +182,97 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
     </div>
     <?php endif; ?>
 
+    <?php
+    $monthLabel = date('F Y', strtotime(($month ?? date('Y-m')) . '-01'));
+    $monthCollections = (float) ($reconciliation['month_collections'] ?? 0);
+    $monthExpenses = (float) ($reconciliation['month_expenses'] ?? 0);
+    $monthBalance = (float) ($reconciliation['month_balance'] ?? 0);
+    ?>
+    <div class="fin-panel fin-month-pulse">
+        <div class="fin-panel__head">
+            <div>
+                <h3 class="fin-panel__title">This month</h3>
+                <p class="fin-month-pulse__sub"><?= htmlspecialchars($monthLabel) ?> — collections vs expenses</p>
+            </div>
+            <div class="fin-month-pulse__actions">
+                <form method="get" class="fin-month-pulse__picker inline-flex items-center gap-2" @submit.prevent>
+                    <input type="hidden" name="tab" value="dashboard">
+                    <input type="hidden" name="month" :value="weeklyMonth" value="<?= htmlspecialchars($month ?? date('Y-m')) ?>">
+                    <?php
+                    $monthPickerLabel = 'Month';
+                    require __DIR__ . '/_month-picker.php';
+                    ?>
+                </form>
+                <a href="/admin/finance?tab=reports&amp;sub=statement&amp;view=monthly&amp;month=<?= htmlspecialchars(urlencode($month ?? date('Y-m'))) ?>&amp;year=<?= (int) $year ?>"
+                   class="fin-link">Operating statement →</a>
+            </div>
+        </div>
+
+        <div class="fin-month-pulse__stats">
+            <div class="reconciliation-stat reconciliation-stat--collected">
+                <p class="reconciliation-stat-label">Collected</p>
+                <p class="reconciliation-stat-value">KES <span x-text="formatMoneyPlain(reconciliation.month_collections)"><?= $fmt($monthCollections) ?></span></p>
+            </div>
+            <div class="reconciliation-stat reconciliation-stat--expenses">
+                <p class="reconciliation-stat-label">Spent</p>
+                <p class="reconciliation-stat-value">KES <span x-text="formatMoneyPlain(reconciliation.month_expenses)"><?= $fmt($monthExpenses) ?></span></p>
+            </div>
+            <div class="reconciliation-stat" :class="Number(reconciliation.month_balance) >= 0 ? 'reconciliation-stat--surplus' : 'reconciliation-stat--deficit'">
+                <p class="reconciliation-stat-label">Balance</p>
+                <p class="reconciliation-stat-value">
+                    <span x-text="(Number(reconciliation.month_balance) < 0 ? '-' : '') + 'KES ' + formatMoneyPlain(Math.abs(Number(reconciliation.month_balance) || 0))">
+                        <?= $monthBalance < 0 ? '-' : '' ?>KES <?= $fmt(abs($monthBalance)) ?>
+                    </span>
+                </p>
+            </div>
+        </div>
+
+        <div class="fin-table-wrap fin-month-pulse__weeks" tabindex="0" role="region" aria-label="This month by Sunday">
+            <table class="fin-table">
+                <thead>
+                    <tr>
+                        <th>Sunday</th>
+                        <th class="fin-table__num">In</th>
+                        <th class="fin-table__num">Out</th>
+                        <th class="fin-table__num">Balance</th>
+                        <th class="fin-table__action"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr x-show="!reconciliation.weeks || reconciliation.weeks.length === 0">
+                        <td colspan="5" class="fin-table__empty">
+                            No Sundays in this month yet.
+                            <a href="/admin/finance/sunday?return_tab=dashboard&amp;month=<?= htmlspecialchars(urlencode($month ?? date('Y-m'))) ?>" class="fin-link">Record Sunday →</a>
+                        </td>
+                    </tr>
+                    <template x-for="(week, index) in (reconciliation.weeks || [])" :key="week.week_date">
+                        <tr>
+                            <td>
+                                <span class="fin-table__primary" x-text="dateMain(week.week_date)"></span>
+                                <span class="fin-sundays-table__date-sub" x-text="'Sun ' + (index + 1)"></span>
+                            </td>
+                            <td class="fin-table__num fin-table__money" x-text="'KES ' + formatMoneyPlain(week.collections)"></td>
+                            <td class="fin-table__num fin-table__money" x-text="'KES ' + formatMoneyPlain(week.expenses)"></td>
+                            <td class="fin-table__num">
+                                <span class="fin-badge fin-badge--sm"
+                                      :class="week.balance >= 0 ? 'fin-badge--surplus' : 'fin-badge--deficit'"
+                                      x-text="(week.balance < 0 ? '-' : '') + 'KES ' + formatMoneyPlain(Math.abs(week.balance || 0))"></span>
+                            </td>
+                            <td class="fin-table__action">
+                                <button type="button" class="fin-link" @click="goToSundayRecord(week.week_date)">Edit</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="fin-panel-grid">
         <div class="fin-panel fin-panel--wide">
             <div class="fin-panel__head">
-                <h3 class="fin-panel__title">Monthly overview</h3>
-                <a href="/admin/finance?tab=budget&month=<?= htmlspecialchars($month) ?>" class="fin-link">Budget report →</a>
+                <h3 class="fin-panel__title">Monthly breakdown</h3>
+                <a href="/admin/finance?tab=reports&sub=budget&month=<?= htmlspecialchars($month) ?>" class="fin-link">Budget vs actual →</a>
             </div>
             <div class="fin-table-wrap" tabindex="0" role="region" aria-label="Monthly performance">
                 <table class="fin-table">
@@ -187,7 +337,13 @@ $budgetYearDash = (int) date('n', strtotime($month . '-01')) >= 4
                 <li class="fin-arrear-list__item">
                     <div class="fin-arrear-list__info">
                         <span class="fin-arrear-list__name"><?= htmlspecialchars($bill['expense_item'] ?? '') ?></span>
-                        <span class="fin-arrear-list__period"><?= htmlspecialchars($bill['month_incurred'] ?? '') ?></span>
+                        <span class="fin-arrear-list__period"><?php
+                            $period = (string) ($bill['month_incurred'] ?? '');
+                            if (preg_match('/^\d{4}-\d{2}$/', $period)) {
+                                $period = date('M Y', strtotime($period . '-01'));
+                            }
+                            echo htmlspecialchars($period);
+                        ?></span>
                     </div>
                     <span class="fin-arrear-list__amount">KES <?= $fmt((float) ($bill['balance_owing'] ?? 0)) ?></span>
                 </li>
