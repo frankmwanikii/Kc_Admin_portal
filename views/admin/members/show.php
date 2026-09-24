@@ -19,7 +19,7 @@ $statusClass = match ($status) {
 <link rel="stylesheet" href="/css/admin-finance.css">
 <link rel="stylesheet" href="/css/admin-hub.css">
 
-<div class="member-profile-page">
+<div class="member-profile-page" x-data="{ tab: 'registration' }">
     <a href="/admin/members" class="member-profile-back">
         <i data-lucide="arrow-left" class="w-4 h-4"></i>
         Back to members
@@ -63,32 +63,55 @@ $statusClass = match ($status) {
         </div>
     </div>
 
-    <div class="member-profile-grid">
-        <div class="member-profile-card">
-            <div class="member-profile-card-header">
-                <h2>Registration details</h2>
-                <p>All fields submitted via <?= htmlspecialchars($formTypeLabel) ?></p>
-            </div>
-            <?php if (empty($profileSections)): ?>
-            <p class="member-profile-empty">No registration fields recorded.</p>
-            <?php else: ?>
-            <?php foreach ($profileSections as $section): ?>
-            <div class="member-profile-section">
-                <h3 class="member-profile-section-title"><?= htmlspecialchars($section['title']) ?></h3>
-                <div class="member-profile-details">
-                    <?php foreach ($section['rows'] as $row): ?>
-                    <div class="member-profile-detail-row">
-                        <span class="member-profile-detail-label"><?= htmlspecialchars($row['label']) ?></span>
-                        <span class="member-profile-detail-value"><?= htmlspecialchars($row['value']) ?></span>
-                    </div>
-                    <?php endforeach; ?>
+    <div class="member-profile-body">
+        <nav class="admin-profile-tabs" role="tablist" aria-label="Member profile sections">
+            <button type="button"
+                    role="tab"
+                    class="admin-profile-tabs__item"
+                    :class="tab === 'registration' && 'admin-profile-tabs__item--active'"
+                    :aria-selected="tab === 'registration'"
+                    @click="tab = 'registration'; $nextTick(() => window.lucide?.createIcons())">
+                <i data-lucide="file-text"></i>
+                Registration
+            </button>
+            <button type="button"
+                    role="tab"
+                    class="admin-profile-tabs__item"
+                    :class="tab === 'review' && 'admin-profile-tabs__item--active'"
+                    :aria-selected="tab === 'review'"
+                    @click="tab = 'review'; $nextTick(() => window.lucide?.createIcons())">
+                <i data-lucide="clipboard-check"></i>
+                Review
+            </button>
+        </nav>
+
+        <div class="admin-profile-tabs__panel" x-show="tab === 'registration'" role="tabpanel">
+            <div class="member-profile-card">
+                <div class="member-profile-card-header">
+                    <h2>Registration details</h2>
+                    <p>All fields submitted via <?= htmlspecialchars($formTypeLabel) ?></p>
                 </div>
+                <?php if (empty($profileSections)): ?>
+                <p class="member-profile-empty">No registration fields recorded.</p>
+                <?php else: ?>
+                <?php foreach ($profileSections as $section): ?>
+                <div class="member-profile-section">
+                    <h3 class="member-profile-section-title"><?= htmlspecialchars($section['title']) ?></h3>
+                    <div class="member-profile-details">
+                        <?php foreach ($section['rows'] as $row): ?>
+                        <div class="member-profile-detail-row">
+                            <span class="member-profile-detail-label"><?= htmlspecialchars($row['label']) ?></span>
+                            <span class="member-profile-detail-value"><?= htmlspecialchars($row['value']) ?></span>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+                <?php endif; ?>
             </div>
-            <?php endforeach; ?>
-            <?php endif; ?>
         </div>
 
-        <div class="member-profile-sidebar">
+        <div class="admin-profile-tabs__panel member-profile-panel-stack" x-show="tab === 'review'" x-cloak role="tabpanel">
             <form method="post" action="/admin/members/<?= (int) $member['id'] ?>/status" class="member-profile-card">
                 <div class="member-profile-card-header">
                     <h2>Admin review</h2>

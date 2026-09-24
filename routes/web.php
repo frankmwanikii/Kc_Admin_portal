@@ -115,7 +115,15 @@ $router->get('/admin/staff', [StaffController::class, 'index']);
 
 $router->post('/admin/staff', [StaffController::class, 'store']);
 
+$router->get('/admin/staff/{id}', [StaffController::class, 'show']);
+
 $router->post('/admin/staff/{id}', [StaffController::class, 'update']);
+
+$router->post('/admin/staff/{id}/images', [StaffController::class, 'uploadImages']);
+
+$router->post('/admin/staff/{id}/images/{imageId}/primary', [StaffController::class, 'setPrimaryImage']);
+
+$router->post('/admin/staff/{id}/images/{imageId}/delete', [StaffController::class, 'deleteImage']);
 
 $router->post('/admin/staff/{id}/delete', [StaffController::class, 'delete']);
 
@@ -125,7 +133,15 @@ $router->get('/admin/inventory', [InventoryController::class, 'index']);
 
 $router->post('/admin/inventory', [InventoryController::class, 'store']);
 
+$router->get('/admin/inventory/{id}', [InventoryController::class, 'show']);
+
 $router->post('/admin/inventory/{id}', [InventoryController::class, 'update']);
+
+$router->post('/admin/inventory/{id}/images', [InventoryController::class, 'uploadImages']);
+
+$router->post('/admin/inventory/{id}/images/{imageId}/primary', [InventoryController::class, 'setPrimaryImage']);
+
+$router->post('/admin/inventory/{id}/images/{imageId}/delete', [InventoryController::class, 'deleteImage']);
 
 $router->post('/admin/inventory/{id}/delete', [InventoryController::class, 'delete']);
 

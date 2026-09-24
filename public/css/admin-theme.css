@@ -1060,3 +1060,107 @@ html.dark .weekly-pagination-page--active:hover {
     border-color: var(--adm-accent-strong) !important;
     box-shadow: 0 2px 8px rgba(53, 175, 230, 0.35) !important;
 }
+
+/* Inventory profile */
+html.dark .inv-gallery--empty {
+    background: var(--adm-surface-2);
+    border-color: var(--adm-border);
+    color: var(--adm-muted);
+}
+
+html.dark .inv-gallery__item {
+    background: var(--adm-surface-2);
+    border-color: var(--adm-border);
+}
+
+html.dark .inv-gallery__item--primary {
+    border-color: var(--adm-accent-strong);
+}
+
+html.dark .inv-gallery__btn {
+    color: var(--adm-accent);
+}
+
+html.dark .inv-gallery__btn:hover {
+    background: rgba(53, 175, 230, 0.12);
+}
+
+html.dark .inv-form-section {
+    background: linear-gradient(180deg, var(--adm-surface-2, #123044) 0%, var(--adm-surface, #0d2433) 100%);
+    border-color: var(--adm-border);
+    box-shadow: none;
+}
+
+html.dark .inv-form-section__title {
+    color: var(--adm-accent);
+    border-bottom-color: var(--adm-border);
+}
+
+html.dark .inv-form-footer {
+    border-color: var(--adm-border);
+    background: rgba(13, 36, 51, 0.92);
+}
+
+html.dark .inv-danger-card {
+    background: var(--adm-surface);
+    border-color: rgba(248, 113, 113, 0.35);
+}
+
+html.dark .inv-list-pill {
+    background: rgba(53, 175, 230, 0.14);
+    color: var(--adm-accent);
+}
+
+html.dark .inv-list-thumb--empty {
+    background: var(--adm-elevated);
+    color: var(--adm-muted);
+}
+
+html.dark .staff-bio {
+    color: var(--adm-text-secondary);
+}
+
+html.dark .staff-gallery--empty {
+    background: var(--adm-surface-2);
+    border-color: var(--adm-border);
+    color: var(--adm-muted);
+}
+
+html.dark .staff-gallery__item {
+    background: var(--adm-surface-2);
+    border-color: var(--adm-border);
+}
+
+html.dark .staff-gallery__item--primary {
+    border-color: var(--adm-accent-strong);
+}
+
+html.dark .staff-gallery__btn {
+    color: var(--adm-accent);
+}
+
+html.dark .staff-form-section {
+    background: linear-gradient(180deg, var(--adm-surface-2, #123044) 0%, var(--adm-surface, #0d2433) 100%);
+    border-color: var(--adm-border);
+    box-shadow: none;
+}
+
+html.dark .staff-form-section__title {
+    color: var(--adm-accent);
+    border-bottom-color: var(--adm-border);
+}
+
+html.dark .staff-form-footer {
+    border-color: var(--adm-border);
+    background: rgba(13, 36, 51, 0.92);
+}
+
+html.dark .staff-danger-card {
+    background: var(--adm-surface);
+    border-color: rgba(248, 113, 113, 0.35);
+}
+
+html.dark .staff-list-avatar--empty {
+    background: rgba(53, 175, 230, 0.14);
+    color: var(--adm-accent);
+}

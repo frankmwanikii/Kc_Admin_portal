@@ -5,22 +5,24 @@ declare(strict_types=1);
 namespace App\Controllers\Admin;
 
 use App\Core\Auth;
-use App\Core\Database;
 use App\Core\View;
+use App\Services\StaffService;
 
 class StaffController
 {
     public function index(): void
     {
         Auth::requireAdmin();
-        \App\Services\FormSubmissionService::ensureFinanceTables();
+        StaffService::ensureSchema();
 
         $error = $_GET['error'] ?? null;
         $staff = [];
         try {
-            $staff = Database::connection()->query('
-                SELECT * FROM staff_members ORDER BY name ASC
-            ')->fetchAll();
+            $staff = array_map(static function (array $person): array {
+                $person['photo_url'] = StaffService::imageUrl($person['photo_path'] ?? null);
+
+                return $person;
+            }, StaffService::all());
         } catch (\Throwable $e) {
             $error = $error ?: ('Could not load staff: ' . $e->getMessage());
         }
@@ -32,88 +34,135 @@ class StaffController
         ], 'layouts/admin');
     }
 
+    public function show(string $id): void
+    {
+        Auth::requireAdmin();
+        $person = StaffService::find((int) $id);
+        if (!$person) {
+            http_response_code(404);
+            View::render('errors/404', ['title' => 'Staff not found']);
+
+            return;
+        }
+
+        View::render('admin/staff/show', [
+            'title' => (string) ($person['name'] ?? 'Staff'),
+            'person' => $person,
+            'images' => StaffService::images((int) $id),
+            'statuses' => StaffService::STATUSES,
+            'employmentTypes' => StaffService::EMPLOYMENT_TYPES,
+            'genders' => StaffService::GENDERS,
+            'success' => $_GET['saved'] ?? $_GET['photo'] ?? $_GET['added'] ?? null,
+            'error' => $_GET['error'] ?? null,
+        ], 'layouts/admin');
+    }
+
     public function store(): void
     {
         Auth::requireAdmin();
-        \App\Services\FormSubmissionService::ensureFinanceTables();
-
-        $name = trim($_POST['name'] ?? '');
-        if ($name === '') {
-            View::redirect('/admin/staff');
-        }
-
         try {
-            $stmt = Database::connection()->prepare('
-                INSERT INTO staff_members (name, role_title, department, phone, email, status, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ');
-            $stmt->execute([
-                $name,
-                trim($_POST['role_title'] ?? '') ?: null,
-                trim($_POST['department'] ?? '') ?: null,
-                trim($_POST['phone'] ?? '') ?: null,
-                $this->normalizeEmail($_POST['email'] ?? ''),
-                $this->normalizeStatus($_POST['status'] ?? 'active'),
-                trim($_POST['notes'] ?? '') ?: null,
-            ]);
+            $id = StaffService::create($_POST);
+            View::redirect('/admin/staff/' . $id . '?added=1');
         } catch (\Throwable $e) {
-            View::redirect('/admin/staff?error=' . urlencode('Could not save staff: ' . $e->getMessage()));
+            View::redirect('/admin/staff?error=' . urlencode($e->getMessage()));
         }
-
-        View::redirect('/admin/staff');
     }
 
     public function update(string $id): void
     {
         Auth::requireAdmin();
-        \App\Services\FormSubmissionService::ensureFinanceTables();
+        $staffId = (int) $id;
+        if (!StaffService::find($staffId)) {
+            View::redirect('/admin/staff?error=' . urlencode('Staff member not found.'));
 
-        $name = trim($_POST['name'] ?? '');
-        if ($name === '') {
-            View::redirect('/admin/staff');
+            return;
         }
 
-        $stmt = Database::connection()->prepare('
-            UPDATE staff_members
-            SET name = ?, role_title = ?, department = ?, phone = ?, email = ?, status = ?, notes = ?
-            WHERE id = ?
-        ');
-        $stmt->execute([
-            $name,
-            trim($_POST['role_title'] ?? '') ?: null,
-            trim($_POST['department'] ?? '') ?: null,
-            trim($_POST['phone'] ?? '') ?: null,
-            $this->normalizeEmail($_POST['email'] ?? ''),
-            $this->normalizeStatus($_POST['status'] ?? 'active'),
-            trim($_POST['notes'] ?? '') ?: null,
-            (int) $id,
-        ]);
-
-        View::redirect('/admin/staff');
+        try {
+            StaffService::update($staffId, $_POST);
+            View::redirect('/admin/staff/' . $staffId . '?saved=1');
+        } catch (\Throwable $e) {
+            View::redirect('/admin/staff/' . $staffId . '?error=' . urlencode($e->getMessage()));
+        }
     }
 
     public function delete(string $id): void
     {
         Auth::requireAdmin();
-        \App\Services\FormSubmissionService::ensureFinanceTables();
-        Database::connection()->prepare('DELETE FROM staff_members WHERE id = ?')->execute([(int) $id]);
+        try {
+            StaffService::delete((int) $id);
+        } catch (\Throwable) {
+            // still redirect
+        }
         View::redirect('/admin/staff');
     }
 
-    private function normalizeEmail(mixed $email): ?string
+    public function uploadImages(string $id): void
     {
-        $email = trim((string) $email);
-        if ($email === '') {
-            return null;
+        Auth::requireAdmin();
+        $staffId = (int) $id;
+        if (!StaffService::find($staffId)) {
+            View::redirect('/admin/staff?error=' . urlencode('Staff member not found.'));
+
+            return;
         }
 
-        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+        try {
+            $caption = trim((string) ($_POST['caption'] ?? ''));
+            $uploaded = 0;
+            $files = $_FILES['images'] ?? null;
+
+            if (is_array($files) && isset($files['name']) && is_array($files['name'])) {
+                $count = count($files['name']);
+                for ($i = 0; $i < $count; $i++) {
+                    if (($files['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                        continue;
+                    }
+                    StaffService::addImage($staffId, [
+                        'name' => $files['name'][$i] ?? '',
+                        'type' => $files['type'][$i] ?? '',
+                        'tmp_name' => $files['tmp_name'][$i] ?? '',
+                        'error' => $files['error'][$i] ?? UPLOAD_ERR_NO_FILE,
+                        'size' => $files['size'][$i] ?? 0,
+                    ], $caption !== '' ? $caption : null);
+                    $uploaded++;
+                }
+            } elseif (is_array($files) && !empty($files['name'])) {
+                StaffService::addImage($staffId, $files, $caption !== '' ? $caption : null);
+                $uploaded = 1;
+            }
+
+            if ($uploaded === 0) {
+                throw new \RuntimeException('Choose at least one photo to upload.');
+            }
+
+            View::redirect('/admin/staff/' . $staffId . '?photo=1');
+        } catch (\Throwable $e) {
+            View::redirect('/admin/staff/' . $staffId . '?error=' . urlencode($e->getMessage()));
+        }
     }
 
-    private function normalizeStatus(mixed $status): string
+    public function setPrimaryImage(string $id, string $imageId): void
     {
-        $status = strtolower(trim((string) $status));
+        Auth::requireAdmin();
+        $staffId = (int) $id;
+        try {
+            StaffService::setPrimaryImage($staffId, (int) $imageId);
+            View::redirect('/admin/staff/' . $staffId . '?photo=1');
+        } catch (\Throwable $e) {
+            View::redirect('/admin/staff/' . $staffId . '?error=' . urlencode($e->getMessage()));
+        }
+    }
 
-        return in_array($status, ['active', 'inactive', 'on_leave'], true) ? $status : 'active';
+    public function deleteImage(string $id, string $imageId): void
+    {
+        Auth::requireAdmin();
+        $staffId = (int) $id;
+        try {
+            StaffService::deleteImage($staffId, (int) $imageId);
+            View::redirect('/admin/staff/' . $staffId . '?photo=1');
+        } catch (\Throwable $e) {
+            View::redirect('/admin/staff/' . $staffId . '?error=' . urlencode($e->getMessage()));
+        }
     }
 }

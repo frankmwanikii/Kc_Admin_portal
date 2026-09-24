@@ -237,9 +237,22 @@
                     this.$nextTick(() => window.lucide?.createIcons());
                 },
 
-                confirmDelete(member) {
+                openMember(member) {
                     if (!member?.id) return;
-                    if (!confirm('Delete this member registration? This cannot be undone.')) return;
+                    this.openMenu = null;
+                    this.activeMember = null;
+                    window.location.href = '/admin/members/' + member.id;
+                },
+
+                async confirmDelete(member) {
+                    if (!member?.id) return;
+                    const ok = await window.AdminDialog?.confirm({
+                        title: 'Delete member?',
+                        message: 'Delete this member registration? This cannot be undone.',
+                        confirmLabel: 'Delete member',
+                        tone: 'danger',
+                    });
+                    if (!ok) return;
                     const form = document.createElement('form');
                     form.method = 'POST';
                     form.action = '/admin/members/' + member.id + '/delete';
@@ -321,6 +334,7 @@
                 tablePerPage: 10,
                 search: '',
                 categoryFilter: '',
+                statusFilter: '',
                 openMenu: null,
                 menuPos: { top: 0, left: 0 },
                 activeItem: null,
@@ -344,10 +358,16 @@
                             || (item.category || '').toLowerCase().includes(q)
                             || (item.location || '').toLowerCase().includes(q)
                             || (item.notes || '').toLowerCase().includes(q)
+                            || (item.sku || '').toLowerCase().includes(q)
+                            || (item.brand || '').toLowerCase().includes(q)
+                            || (item.serial_number || '').toLowerCase().includes(q)
                         );
                     }
                     if (this.categoryFilter) {
                         list = list.filter((item) => (item.category || '') === this.categoryFilter);
+                    }
+                    if (this.statusFilter) {
+                        list = list.filter((item) => (item.status || 'available') === this.statusFilter);
                     }
                     return list;
                 },
@@ -360,6 +380,25 @@
                     return Array.from(set).sort();
                 },
 
+                statusLabel(status) {
+                    const map = {
+                        available: 'Available',
+                        in_use: 'In use',
+                        reserved: 'Reserved',
+                        maintenance: 'Maintenance',
+                        retired: 'Retired',
+                        missing: 'Missing',
+                    };
+                    const key = String(status || 'available');
+                    return map[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                },
+
+                openItem(item) {
+                    if (!item?.id) return;
+                    this.openMenu = null;
+                    this.activeItem = null;
+                    window.location.href = '/admin/inventory/' + item.id;
+                },
                 get paginatedRows() {
                     return this.paginate(this.filteredRows, this.page);
                 },
@@ -398,9 +437,15 @@
                     this.$nextTick(() => window.lucide?.createIcons());
                 },
 
-                confirmDelete(item) {
+                async confirmDelete(item) {
                     if (!item?.id) return;
-                    if (!confirm('Remove this item from inventory?')) return;
+                    const ok = await window.AdminDialog?.confirm({
+                        title: 'Remove inventory item?',
+                        message: 'Remove this item from inventory? Photos will also be deleted.',
+                        confirmLabel: 'Remove item',
+                        tone: 'danger',
+                    });
+                    if (!ok) return;
                     const form = document.createElement('form');
                     form.method = 'POST';
                     form.action = '/admin/inventory/' + item.id + '/delete';
@@ -424,6 +469,8 @@
                         this.page = 1;
                         this.$nextTick(() => window.lucide?.createIcons());
                     });
+                    this.$watch('categoryFilter', () => { this.page = 1; });
+                    this.$watch('statusFilter', () => { this.page = 1; });
                     this.$watch('page', () => this.$nextTick(() => window.lucide?.createIcons()));
                     this.$nextTick(() => window.lucide?.createIcons());
 
@@ -515,6 +562,18 @@
                     return Array.from(set).sort();
                 },
 
+                initials(name) {
+                    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+                    return parts.slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join('') || '?';
+                },
+
+                openPerson(person) {
+                    if (!person?.id) return;
+                    this.openMenu = null;
+                    this.activePerson = null;
+                    window.location.href = '/admin/staff/' + person.id;
+                },
+
                 get paginatedRows() {
                     return this.paginate(this.filteredRows, this.page);
                 },
@@ -555,9 +614,15 @@
                     this.$nextTick(() => window.lucide?.createIcons());
                 },
 
-                confirmDelete(person) {
+                async confirmDelete(person) {
                     if (!person?.id) return;
-                    if (!confirm('Remove this staff member?')) return;
+                    const ok = await window.AdminDialog?.confirm({
+                        title: 'Remove staff member?',
+                        message: 'Remove this staff member? Their profile photos will also be deleted.',
+                        confirmLabel: 'Remove staff',
+                        tone: 'danger',
+                    });
+                    if (!ok) return;
                     const form = document.createElement('form');
                     form.method = 'POST';
                     form.action = '/admin/staff/' + person.id + '/delete';

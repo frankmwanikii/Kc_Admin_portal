@@ -91,7 +91,12 @@ $formsDbStatus = $formsDbStatus ?? [];
                         </td>
                     </tr>
                     <template x-for="m in paginatedRows" :key="m.id">
-                        <tr class="arrears-row">
+                        <tr class="arrears-row arrears-row--clickable"
+                            role="link"
+                            tabindex="0"
+                            :aria-label="'Open profile for ' + (m.submitter_name || 'member')"
+                            @click="openMember(m)"
+                            @keydown.enter.prevent="openMember(m)">
                             <td>
                                 <span class="arrears-accent font-medium" x-text="m.submitter_name || '—'"></span>
                             </td>
@@ -100,6 +105,7 @@ $formsDbStatus = $formsDbStatus ?? [];
                             <td class="arrears-muted hidden lg:table-cell capitalize" x-text="m.campus_id || '—'"></td>
                             <td class="arrears-muted hidden sm:table-cell" x-text="formatMemberDate(m.created_at)"></td>
                             <td class="arrears-actions ft-td-actions"
+                                @click.stop
                                 :class="openMenu === m.id && 'weekly-actions--open'">
                                 <button type="button"
                                         class="arrears-view-btn arrears-view-btn--icon"

@@ -102,7 +102,12 @@ if ($tabReports) {
                             </td>
                         </tr>
                         <template x-for="row in paginatedArrears" :key="row.id">
-                            <tr class="arrears-row">
+                            <tr class="arrears-row arrears-row--clickable"
+                                role="button"
+                                tabindex="0"
+                                :aria-label="'View ' + (row.expense_item || 'bill')"
+                                @click="openView(row.id)"
+                                @keydown.enter.prevent="openView(row.id)">
                                 <td>
                                     <span class="arrears-accent" x-text="row.category_label || row.expense_item"></span>
                                 </td>
@@ -177,6 +182,7 @@ if ($tabReports) {
                                     <span class="arrears-status" :class="statusClass(row.payment_status)" x-text="statusLabel(row.payment_status)"></span>
                                 </td>
                                 <td class="arrears-actions ft-td-actions"
+                                    @click.stop
                                     :class="openMenu === row.id && 'weekly-actions--open'">
                                     <button type="button"
                                             class="arrears-view-btn arrears-view-btn--icon"
@@ -869,7 +875,12 @@ if ($tabReports) {
                             </td>
                         </tr>
                         <template x-for="row in paginatedWeekly" :key="row.slug">
-                            <tr class="arrears-row">
+                            <tr class="arrears-row arrears-row--clickable"
+                                role="button"
+                                tabindex="0"
+                                :aria-label="'View ' + (row.label || 'category')"
+                                @click="openWeeklyView(row.slug)"
+                                @keydown.enter.prevent="openWeeklyView(row.slug)">
                                 <td class="weekly-col-category">
                                     <span class="arrears-accent" x-text="row.label"></span>
                                     <span class="block text-xs arrears-muted mt-0.5" x-show="row.hint" x-text="row.hint"></span>
@@ -907,6 +918,7 @@ if ($tabReports) {
                                           x-text="formatMoneyPlain(row.total)"></span>
                                 </td>
                                 <td class="arrears-actions weekly-col-actions"
+                                    @click.stop
                                     :class="weeklyMenu === row.slug && 'weekly-actions--open'">
                                     <button type="button"
                                             class="arrears-view-btn arrears-view-btn--icon"
@@ -999,7 +1011,12 @@ if ($tabReports) {
                             </td>
                         </tr>
                         <template x-for="row in weeklyCollectionRows" :key="row.method">
-                            <tr class="arrears-row">
+                            <tr class="arrears-row arrears-row--clickable"
+                                role="button"
+                                tabindex="0"
+                                :aria-label="'View ' + (row.label || 'collection method')"
+                                @click="openCollectionView(row.method)"
+                                @keydown.enter.prevent="openCollectionView(row.method)">
                                 <td class="weekly-col-category">
                                     <span class="collections-method" :class="'collections-method--' + row.method" x-text="row.label"></span>
                                     <span class="block text-xs arrears-muted mt-0.5" x-show="row.desc" x-text="row.desc"></span>
@@ -1037,6 +1054,7 @@ if ($tabReports) {
                                           x-text="formatMoneyPlain(row.total)"></span>
                                 </td>
                                 <td class="arrears-actions weekly-col-actions"
+                                    @click.stop
                                     :class="collectionMenu === row.method && 'weekly-actions--open'">
                                     <button type="button"
                                             class="arrears-view-btn arrears-view-btn--icon"

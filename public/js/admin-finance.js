@@ -613,7 +613,11 @@
 
             async saveBudgetNewLine() {
                 if (!this.budgetNewLine || !String(this.budgetNewLine.label || '').trim()) {
-                    window.alert('Enter a line name.');
+                    await window.AdminDialog?.alert({
+                        title: 'Line name required',
+                        message: 'Enter a line name.',
+                        tone: 'warning',
+                    });
                     return;
                 }
                 const form = document.createElement('form');
@@ -648,9 +652,13 @@
                 if (!line || !line.id) return;
                 const kind = line.line_type === 'income' ? 'income' : 'expense';
                 const name = String(line.label || 'this line').trim() || 'this line';
-                if (!window.confirm('Delete ' + kind + ' line “' + name + '”? This removes it from the budget year.')) {
-                    return;
-                }
+                const ok = await window.AdminDialog?.confirm({
+                    title: 'Delete budget line?',
+                    message: 'Delete ' + kind + ' line “' + name + '”? This removes it from the budget year.',
+                    confirmLabel: 'Delete line',
+                    tone: 'danger',
+                });
+                if (!ok) return;
                 const form = document.createElement('form');
                 form.method = 'post';
                 form.action = '/admin/finance/budget/lines/' + encodeURIComponent(line.id) + '/delete';
@@ -742,7 +750,13 @@
 
             async clearCollectionMethodAjax(method) {
                 if (!method) return;
-                if (!window.confirm('Clear all amounts for this method in the selected month?')) return;
+                const ok = await window.AdminDialog?.confirm({
+                    title: 'Clear collection amounts?',
+                    message: 'Clear all amounts for this method in the selected month?',
+                    confirmLabel: 'Clear amounts',
+                    tone: 'warning',
+                });
+                if (!ok) return;
                 this.collectionMenu = null;
                 const form = document.createElement('form');
                 form.method = 'post';
@@ -758,7 +772,7 @@
             },
 
             async submitNewWeeklyCategory(event) {
-                if (!this.newCategory || !this.validateWeeklyCategory(this.newCategory)) {
+                if (!this.newCategory || !(await this.validateWeeklyCategory(this.newCategory))) {
                     event.preventDefault();
                     return;
                 }
@@ -771,7 +785,7 @@
             },
 
             async submitWeeklyCategoryEdit(event) {
-                if (!this.weeklyEditRow || !this.validateWeeklyCategory(this.weeklyEditRow)) {
+                if (!this.weeklyEditRow || !(await this.validateWeeklyCategory(this.weeklyEditRow))) {
                     event.preventDefault();
                     return;
                 }
@@ -785,7 +799,13 @@
 
             async deleteWeeklyCategoryAjax(slug) {
                 if (!slug) return;
-                if (!window.confirm('Delete this category and all its expense entries?')) return;
+                const ok = await window.AdminDialog?.confirm({
+                    title: 'Delete expense category?',
+                    message: 'Delete this category and all its expense entries?',
+                    confirmLabel: 'Delete category',
+                    tone: 'danger',
+                });
+                if (!ok) return;
                 this.weeklyMenu = null;
                 const form = document.createElement('form');
                 form.method = 'post';
@@ -805,7 +825,13 @@
 
             async deleteArrearAjax(id) {
                 if (!id) return;
-                if (!window.confirm('Delete this bill?')) return;
+                const ok = await window.AdminDialog?.confirm({
+                    title: 'Delete bill?',
+                    message: 'Delete this bill? This cannot be undone.',
+                    confirmLabel: 'Delete bill',
+                    tone: 'danger',
+                });
+                if (!ok) return;
                 this.openMenu = null;
                 this.viewRow = null;
                 const form = document.createElement('form');
@@ -1173,9 +1199,13 @@
                 }
             },
 
-            validateArrearCatalog(row) {
+            async validateArrearCatalog(row) {
                 if (!row.expense_group) {
-                    window.alert('Select a category (Administration, Ministry & Departments, or Finance Costs).');
+                    await window.AdminDialog?.alert({
+                        title: 'Category required',
+                        message: 'Select a category (Administration, Ministry & Departments, or Finance Costs).',
+                        tone: 'warning',
+                    });
                     return false;
                 }
                 if (!row.department_id) {
@@ -1183,29 +1213,45 @@
                 }
                 this.syncDepartmentFromExpenseItem(row, 'category_id');
                 if (!Number(row.department_id)) {
-                    window.alert('Select a category for this expense.');
+                    await window.AdminDialog?.alert({
+                        title: 'Category required',
+                        message: 'Select a category for this expense.',
+                        tone: 'warning',
+                    });
                     return false;
                 }
                 if (row.category_id === '__new__') {
                     if (!String(row.new_category_label || '').trim()) {
-                        window.alert('Enter a custom expense item name.');
+                        await window.AdminDialog?.alert({
+                            title: 'Item name required',
+                            message: 'Enter a custom expense item name.',
+                            tone: 'warning',
+                        });
                         return false;
                     }
                 } else if (!Number(row.category_id)) {
-                    window.alert('Select an expense item.');
+                    await window.AdminDialog?.alert({
+                        title: 'Expense item required',
+                        message: 'Select an expense item.',
+                        tone: 'warning',
+                    });
                     return false;
                 }
                 const due = Number(row.amount_due) || 0;
                 const paid = Number(row.amount_paid) || 0;
                 if (paid > due) {
-                    window.alert('Amount paid cannot exceed amount due.');
+                    await window.AdminDialog?.alert({
+                        title: 'Invalid amounts',
+                        message: 'Amount paid cannot exceed amount due.',
+                        tone: 'warning',
+                    });
                     return false;
                 }
                 return true;
             },
 
             async submitNewArrear(event) {
-                if (!this.newArrear || !this.validateArrearCatalog(this.newArrear)) {
+                if (!this.newArrear || !(await this.validateArrearCatalog(this.newArrear))) {
                     event.preventDefault();
                     return;
                 }
@@ -1530,9 +1576,13 @@
                 this.$nextTick(() => window.lucide?.createIcons());
             },
 
-            validateWeeklyCategory(row) {
+            async validateWeeklyCategory(row) {
                 if (!row.expense_group) {
-                    window.alert('Select a category (Administration, Ministry & Departments, or Finance Costs).');
+                    await window.AdminDialog?.alert({
+                        title: 'Category required',
+                        message: 'Select a category (Administration, Ministry & Departments, or Finance Costs).',
+                        tone: 'warning',
+                    });
                     return false;
                 }
                 if (!row.department_id) {
@@ -1540,21 +1590,37 @@
                 }
                 this.syncDepartmentFromExpenseItem(row, 'expense_category_id');
                 if (!Number(row.department_id)) {
-                    window.alert('Select a category for this expense.');
+                    await window.AdminDialog?.alert({
+                        title: 'Category required',
+                        message: 'Select a category for this expense.',
+                        tone: 'warning',
+                    });
                     return false;
                 }
                 if (row.expense_category_id === '__new__') {
                     if (!String(row.new_category_item_label || '').trim()) {
-                        window.alert('Enter a custom expense item name.');
+                        await window.AdminDialog?.alert({
+                            title: 'Item name required',
+                            message: 'Enter a custom expense item name.',
+                            tone: 'warning',
+                        });
                         return false;
                     }
                 } else if (!Number(row.expense_category_id)) {
-                    window.alert('Select an expense item.');
+                    await window.AdminDialog?.alert({
+                        title: 'Expense item required',
+                        message: 'Select an expense item.',
+                        tone: 'warning',
+                    });
                     return false;
                 }
                 row.label = this.weeklyLineLabel(row);
                 if (!String(row.label || '').trim()) {
-                    window.alert('Expense line name is required.');
+                    await window.AdminDialog?.alert({
+                        title: 'Line name required',
+                        message: 'Expense line name is required.',
+                        tone: 'warning',
+                    });
                     return false;
                 }
                 return true;
@@ -1988,11 +2054,15 @@
                     ...this.editRow,
                     amount_paid: Number(this.editRow.amount_paid) || 0,
                 };
-                if (!this.validateArrearCatalog(payload)) {
+                if (!(await this.validateArrearCatalog(payload))) {
                     return;
                 }
                 if (!String(payload.expense_item || '').trim()) {
-                    window.alert('Enter an expense title.');
+                    await window.AdminDialog?.alert({
+                        title: 'Title required',
+                        message: 'Enter an expense title.',
+                        tone: 'warning',
+                    });
                     return;
                 }
                 await this.postAjax(form, {
@@ -2007,14 +2077,22 @@
                 const form = event.target;
                 const payment = Number(this.paymentRow.record_payment) || 0;
                 if (payment <= 0) {
-                    window.alert('Enter a payment amount greater than zero.');
+                    await window.AdminDialog?.alert({
+                        title: 'Payment required',
+                        message: 'Enter a payment amount greater than zero.',
+                        tone: 'warning',
+                    });
                     return;
                 }
                 if (!this.paymentRow.date_paid) {
                     this.paymentRow.date_paid = new Date().toISOString().slice(0, 10);
                 }
                 if (this.paymentComputedPaid > Number(this.paymentRow.amount_due)) {
-                    window.alert('Total amount paid cannot exceed amount due.');
+                    await window.AdminDialog?.alert({
+                        title: 'Invalid payment',
+                        message: 'Total amount paid cannot exceed amount due.',
+                        tone: 'warning',
+                    });
                     return;
                 }
                 await this.postAjax(form, {
@@ -2665,18 +2743,18 @@
 
     window.initFinanceOverviewCharts = function initFinanceOverviewCharts() {
         if (typeof Chart === 'undefined') {
-            return;
+            return false;
         }
         const dataEl = document.getElementById('fin-dashboard-charts-data');
         if (!dataEl) {
-            return;
+            return false;
         }
 
         let charts;
         try {
             charts = JSON.parse(dataEl.textContent || '{}');
         } catch (_) {
-            return;
+            return false;
         }
 
         const fmtKes = (v) => 'KES ' + Number(v || 0).toLocaleString('en-KE', { maximumFractionDigits: 0 });
@@ -2845,6 +2923,17 @@
                 },
             });
         }
+
+        // Nudge Chart.js to measure containers after AJAX layout.
+        requestAnimationFrame(() => {
+            ['finChartTrend', 'finChartExpensePie', 'finChartCollectionPie'].forEach((id) => {
+                const el = document.getElementById(id);
+                const chart = el && Chart.getChart(el);
+                chart?.resize();
+            });
+        });
+
+        return true;
     };
 
     if (document.readyState === 'loading') {

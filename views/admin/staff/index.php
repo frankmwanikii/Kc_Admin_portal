@@ -4,10 +4,11 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
 <link rel="stylesheet" href="/css/admin-finance.css">
 <link rel="stylesheet" href="/css/admin-hub.css">
 <link rel="stylesheet" href="/css/admin-pagination.css">
+<link rel="stylesheet" href="/css/admin-staff.css">
 
 <div class="admin-hub-page" x-data="staffTable(<?= htmlspecialchars($staffJson, ENT_QUOTES) ?>)">
     <h2 class="arrears-title">Staff</h2>
-    <p class="finance-tab-hint">Manage church staff, roles, and contact details.</p>
+    <p class="finance-tab-hint">Manage church staff — open anyone for photos, roles, and full profile details.</p>
 
     <?php if (!empty($error)): ?>
     <div class="admin-alert admin-alert--error mb-4"><?= htmlspecialchars((string) $error) ?></div>
@@ -64,9 +65,25 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
                         </td>
                     </tr>
                     <template x-for="person in paginatedRows" :key="person.id">
-                        <tr class="arrears-row">
+                        <tr class="arrears-row arrears-row--clickable"
+                            role="link"
+                            tabindex="0"
+                            :aria-label="'Open profile for ' + (person.name || 'staff')"
+                            @click="openPerson(person)"
+                            @keydown.enter.prevent="openPerson(person)">
                             <td>
-                                <span class="arrears-accent font-medium" x-text="person.name"></span>
+                                <div class="staff-list-person">
+                                    <template x-if="person.photo_url">
+                                        <img :src="person.photo_url" alt="" class="staff-list-avatar">
+                                    </template>
+                                    <template x-if="!person.photo_url">
+                                        <span class="staff-list-avatar staff-list-avatar--empty" x-text="initials(person.name)"></span>
+                                    </template>
+                                    <div class="staff-list-person__text">
+                                        <span class="arrears-accent font-medium" x-text="person.name"></span>
+                                        <span class="block text-xs arrears-muted sm:hidden" x-text="person.role_title || ''"></span>
+                                    </div>
+                                </div>
                             </td>
                             <td class="arrears-muted hidden sm:table-cell" x-text="person.role_title || '—'"></td>
                             <td class="arrears-muted hidden md:table-cell" x-text="person.department || '—'"></td>
@@ -76,6 +93,7 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
                                 <span :class="statusClass(person.status)" x-text="statusLabel(person.status)"></span>
                             </td>
                             <td class="arrears-actions ft-td-actions"
+                                @click.stop
                                 :class="openMenu == person.id && 'weekly-actions--open'">
                                 <button type="button"
                                         class="arrears-view-btn arrears-view-btn--icon"
@@ -109,10 +127,11 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
              :style="'top:' + menuPos.top + 'px;left:' + menuPos.left + 'px'">
             <template x-if="activePerson">
                 <div>
+                    <a :href="'/admin/staff/' + activePerson.id" class="arrears-dropdown-item">Open profile</a>
                     <button type="button"
                             @click="openEditForm(activePerson)"
                             class="arrears-dropdown-item">
-                        Edit staff
+                        Quick edit
                     </button>
                     <button type="button"
                             @click="confirmDelete(activePerson)"
@@ -130,7 +149,8 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
             <div class="finance-modal-header">
                 <div>
                     <p class="finance-modal-eyebrow">Staff</p>
-                    <h2 id="staff-form-title" class="finance-modal-title" x-text="editingPerson ? 'Edit staff' : 'Add staff'"></h2>
+                    <h2 id="staff-form-title" class="finance-modal-title" x-text="editingPerson ? 'Quick edit' : 'Add staff'"></h2>
+                    <p class="finance-modal-subtitle" x-show="!editingPerson">Create their record, then open the profile for photos and full details.</p>
                 </div>
                 <button type="button" class="finance-modal-close" @click="closeAddForm()" aria-label="Close">
                     <i data-lucide="x"></i>
@@ -174,7 +194,7 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
                 <div class="finance-modal-footer">
                     <div class="finance-modal-actions">
                         <button type="button" class="finance-btn-secondary" @click="closeAddForm()">Cancel</button>
-                        <button type="submit" class="finance-btn-primary" x-text="editingPerson ? 'Save changes' : 'Save staff'"></button>
+                        <button type="submit" class="finance-btn-primary" x-text="editingPerson ? 'Save changes' : 'Create & open profile'"></button>
                     </div>
                 </div>
             </form>

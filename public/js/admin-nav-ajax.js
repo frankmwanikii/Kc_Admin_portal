@@ -166,6 +166,11 @@
         const externalScripts = [];
         const inlineScripts = [];
         root.querySelectorAll('script').forEach((node) => {
+            const type = (node.getAttribute('type') || '').toLowerCase().trim();
+            // Keep JSON / template data islands in the HTML (e.g. chart payloads).
+            if (type && type !== 'text/javascript' && type !== 'application/javascript' && type !== 'module') {
+                return;
+            }
             const src = node.getAttribute('src');
             if (src) externalScripts.push(src);
             else inlineScripts.push(node.textContent || '');
@@ -204,12 +209,20 @@
         }
         window.lucide?.createIcons();
 
-        // Re-run page widgets that only boot on first script load (e.g. Chart.js).
-        try {
-            window.initFinanceOverviewCharts?.();
-        } catch (e) {
-            console.error(e);
-        }
+        // Charts need layout after Alpine clears x-cloak; retry briefly if Chart.js is still loading.
+        const bootCharts = () => {
+            try {
+                window.initFinanceOverviewCharts?.();
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        requestAnimationFrame(() => {
+            bootCharts();
+            requestAnimationFrame(bootCharts);
+        });
+        setTimeout(bootCharts, 50);
+        setTimeout(bootCharts, 250);
         document.dispatchEvent(new CustomEvent('admin:content-loaded', { detail: { main } }));
     }
 

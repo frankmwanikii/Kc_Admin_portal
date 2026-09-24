@@ -2919,6 +2919,15 @@
     background: #f8fafc;
 }
 
+.arrears-row--clickable {
+    cursor: pointer;
+}
+
+.arrears-row--clickable:focus-visible {
+    outline: 2px solid rgba(53, 175, 230, 0.55);
+    outline-offset: -2px;
+}
+
 .arrears-accent {
     font-weight: 600;
     color: var(--arrears-accent);

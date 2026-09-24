@@ -3,7 +3,7 @@
 use App\Services\FormSubmissionService;
 
 $pageScripts = array_values(array_unique(array_merge(
-    ['/js/admin-shell.js', '/js/admin-pagination.js'],
+    ['/js/admin-dialog.js', '/js/admin-photo-upload.js', '/js/admin-shell.js', '/js/admin-pagination.js'],
     $pageScripts ?? []
 )));
 
@@ -59,6 +59,7 @@ $jumpLinksJson = json_encode($jumpLinks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNES
     <link rel="stylesheet" href="<?= $adminCss('/css/admin-sidebar.css') ?>">
     <link rel="stylesheet" href="<?= $adminCss('/css/admin-profile.css') ?>">
     <link rel="stylesheet" href="<?= $adminCss('/css/admin-theme.css') ?>">
+    <link rel="stylesheet" href="<?= $adminCss('/css/admin-dialog.css') ?>">
     <link rel="stylesheet" href="<?= $adminCss('/css/app-copyright.css') ?>">
     <script type="application/json" id="admin-jump-links"><?= $jumpLinksJson ?></script>
 </head>
@@ -178,15 +179,6 @@ $jumpLinksJson = json_encode($jumpLinks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNES
                 </div>
 
                 <div class="admin-topbar__right flex items-center justify-end gap-1.5 sm:gap-2 justify-self-end col-start-2 sm:col-start-auto">
-                    <a href="/"
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       class="admin-topbar__icon-btn relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-church-800 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
-                       title="View portal / website"
-                       aria-label="Open public portal">
-                        <i data-lucide="external-link" class="w-[18px] h-[18px]"></i>
-                    </a>
-
                     <div class="admin-theme-toggle relative inline-grid h-9 shrink-0 grid-cols-2 items-center rounded-full bg-slate-100 p-0.5 ring-1 ring-inset ring-slate-200/80 dark:bg-slate-950 dark:ring-slate-600"
                          role="group"
                          aria-label="Color theme">

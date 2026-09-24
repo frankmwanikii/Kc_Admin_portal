@@ -729,16 +729,14 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.member-profile-grid {
-    display: grid;
-    gap: 1.5rem;
+.member-profile-body {
+    min-width: 0;
 }
 
-@media (min-width: 1024px) {
-    .member-profile-grid {
-        grid-template-columns: 1fr 340px;
-        align-items: start;
-    }
+.member-profile-panel-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
 }
 
 .member-profile-card {
@@ -851,6 +849,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.45rem;
     width: 100%;
     padding: 0.7rem 1.25rem;
     font-size: 0.875rem;
