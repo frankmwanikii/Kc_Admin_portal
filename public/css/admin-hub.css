@@ -1008,3 +1008,44 @@
     margin-top: 0.15rem;
     accent-color: #2da0d9;
 }
+
+/* Members — form type tabs */
+.admin-hub-page .members-form-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.2rem;
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.admin-hub-page .members-form-tabs .fin-subtabs__item {
+    flex: 0 0 auto;
+    gap: 0.4rem;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.78rem;
+}
+
+.members-form-tabs__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.35rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    border-radius: 999px;
+    background: rgba(11, 72, 109, 0.1);
+    color: #0b486d;
+}
+
+.fin-subtabs__item--active .members-form-tabs__count {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}

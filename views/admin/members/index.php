@@ -9,7 +9,7 @@ $formsDbStatus = $formsDbStatus ?? [];
 
 <div class="admin-hub-page" x-data="memberTable(<?= htmlspecialchars($membersJson, ENT_QUOTES) ?>, <?= htmlspecialchars($formTypeLabelsJson, ENT_QUOTES) ?>)">
     <h2 class="arrears-title">Members</h2>
-    <p class="finance-tab-hint">Website Connect With Us submissions — Join, New Here, New Beginning, and Kingdom Groups. You can also add members manually.</p>
+    <p class="finance-tab-hint">Connect submissions by type — Members (Join us), Visitors (Visiting us?), New beginnings, and Kingdom groups. You can also add people manually.</p>
 
     <?php if (!empty($success)): ?>
     <div class="admin-alert admin-alert--success mb-4">Member added successfully.</div>
@@ -24,6 +24,29 @@ $formsDbStatus = $formsDbStatus ?? [];
     <div class="admin-alert admin-alert--error mb-4">Forms database connection failed: <?= htmlspecialchars($formsDbStatus['error']) ?></div>
     <?php endif; ?>
 
+    <div class="members-form-tabs fin-subtabs" role="tablist" aria-label="Filter by form">
+        <button type="button"
+                class="fin-subtabs__item"
+                :class="!formTypeFilter && 'fin-subtabs__item--active'"
+                role="tab"
+                :aria-selected="!formTypeFilter"
+                @click="formTypeFilter = ''">
+            All
+            <span class="members-form-tabs__count" x-text="formTabCount('')"></span>
+        </button>
+        <template x-for="(label, key) in formTypeLabels" :key="key">
+            <button type="button"
+                    class="fin-subtabs__item"
+                    :class="formTypeFilter === key && 'fin-subtabs__item--active'"
+                    role="tab"
+                    :aria-selected="formTypeFilter === key"
+                    @click="formTypeFilter = key">
+                <span x-text="label"></span>
+                <span class="members-form-tabs__count" x-text="formTabCount(key)"></span>
+            </button>
+        </template>
+    </div>
+
     <div class="arrears-toolbar-row">
         <div class="arrears-toolbar-left">
             <input type="search"
@@ -37,12 +60,6 @@ $formsDbStatus = $formsDbStatus ?? [];
                 <option value="new">New</option>
                 <option value="reviewed">Reviewed</option>
                 <option value="archived">Archived</option>
-            </select>
-            <select x-model="formTypeFilter" class="arrears-year-select" aria-label="Filter by form">
-                <option value="">All forms</option>
-                <template x-for="(label, key) in formTypeLabels" :key="key">
-                    <option :value="key" x-text="label"></option>
-                </template>
             </select>
         </div>
         <button type="button" @click="openAddForm()" class="arrears-btn-new">+ Add member</button>
@@ -59,17 +76,16 @@ $formsDbStatus = $formsDbStatus ?? [];
                 <thead>
                     <tr>
                         <th>Full name</th>
-                        <th class="hidden sm:table-cell">Form</th>
                         <th>Phone</th>
                         <th class="hidden md:table-cell">Email</th>
                         <th class="hidden lg:table-cell">Campus</th>
                         <th class="hidden sm:table-cell">Registered</th>
-                        <th class="ft-th-actions">Actions</th>
+                        <th class="ft-th-actions"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr x-show="filteredRows.length === 0">
-                        <td colspan="7" class="arrears-empty">
+                        <td colspan="6" class="arrears-empty">
                             <span x-show="search.trim() || statusFilter || formTypeFilter">No members match your filters.</span>
                             <span x-show="!search.trim() && !statusFilter && !formTypeFilter">No members yet. Click <strong>+ Add member</strong> or wait for Connect With Us form submissions.</span>
                         </td>
@@ -78,9 +94,6 @@ $formsDbStatus = $formsDbStatus ?? [];
                         <tr class="arrears-row">
                             <td>
                                 <span class="arrears-accent font-medium" x-text="m.submitter_name || '—'"></span>
-                            </td>
-                            <td class="hidden sm:table-cell">
-                                <span class="admin-status-pill admin-status-pill--default" x-text="formTypeLabel(m.form_type)"></span>
                             </td>
                             <td class="arrears-muted" x-text="m.submitter_phone || '—'"></td>
                             <td class="arrears-muted hidden md:table-cell" x-text="m.submitter_email || '—'"></td>
@@ -139,7 +152,7 @@ $formsDbStatus = $formsDbStatus ?? [];
                 <div>
                     <p class="finance-modal-eyebrow">Members</p>
                     <h2 id="member-form-title" class="finance-modal-title">Add member</h2>
-                    <p class="finance-modal-subtitle">Capture a full Connect With Us registration (Join, New Here, New Beginning, or Kingdom Groups).</p>
+                    <p class="finance-modal-subtitle">Capture a Connect registration — Members (Join us), Visitors, New beginnings, or Kingdom groups.</p>
                 </div>
                 <button type="button" class="finance-modal-close" @click="closeAddForm()" aria-label="Close">
                     <i data-lucide="x"></i>

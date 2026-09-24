@@ -91,7 +91,7 @@ if ($tabReports) {
                             <th class="ft-th-accent ft-th--right">Amount due</th>
                             <th class="ft-th-accent ft-th--right">Balance owing</th>
                             <th class="ft-th-accent">Status</th>
-                            <th class="ft-th-actions">Actions</th>
+                            <th class="ft-th-actions"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -176,7 +176,7 @@ if ($tabReports) {
                                 <td class="ft-td-accent">
                                     <span class="arrears-status" :class="statusClass(row.payment_status)" x-text="statusLabel(row.payment_status)"></span>
                                 </td>
-                                <td class="arrears-actions ft-td-actions ft-td-actions--sticky"
+                                <td class="arrears-actions ft-td-actions"
                                     :class="openMenu === row.id && 'weekly-actions--open'">
                                     <button type="button"
                                             class="arrears-view-btn arrears-view-btn--icon"
@@ -858,7 +858,7 @@ if ($tabReports) {
                                 </th>
                             </template>
                             <th class="weekly-col-total">Total</th>
-                            <th class="weekly-col-actions">Actions</th>
+                            <th class="weekly-col-actions"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -989,7 +989,7 @@ if ($tabReports) {
                             </template>
                             <th class="weekly-col-sunday" x-show="weeklyCollectionSundays.length === 0">No Sundays</th>
                             <th class="weekly-col-total">Total</th>
-                            <th class="weekly-col-actions">Actions</th>
+                            <th class="weekly-col-actions"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody>

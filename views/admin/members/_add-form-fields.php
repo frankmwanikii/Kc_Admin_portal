@@ -19,10 +19,10 @@ $ageOptions = [
 <div class="finance-field finance-field--full">
     <label class="finance-label" for="member-form-type">Connect form <span class="finance-req">*</span></label>
     <select id="member-form-type" name="form_type" class="finance-input" required x-model="formType">
-        <option value="join">Join Our Church Family</option>
-        <option value="new-here">New Here (Visiting Us)</option>
-        <option value="new-beginning">New Beginning</option>
-        <option value="kingdom-groups">Kingdom Groups</option>
+        <option value="join">Members (Join us)</option>
+        <option value="new-here">Visitors (Visiting us?)</option>
+        <option value="new-beginning">New beginnings</option>
+        <option value="kingdom-groups">Kingdom groups</option>
     </select>
     <p class="finance-field-hint">Matches the Connect With Us forms on the church website. Fields below switch with the form type.</p>
 </div>

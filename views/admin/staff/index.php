@@ -53,7 +53,7 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
                         <th>Phone</th>
                         <th class="hidden lg:table-cell">Email</th>
                         <th class="ft-th-accent">Status</th>
-                        <th class="ft-th-actions">Actions</th>
+                        <th class="ft-th-actions"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>
                 <tbody>

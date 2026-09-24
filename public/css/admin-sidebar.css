@@ -5,6 +5,10 @@
     height: 100dvh;
     max-height: 100dvh;
     overflow: hidden;
+    background: #ffffff;
+    color: #0f172a;
+    border-right: 1px solid #e2e8f0;
+    box-shadow: 1px 0 0 rgba(15, 23, 42, 0.02);
 }
 
 .admin-sidebar__brand,
@@ -14,7 +18,7 @@
 
 .admin-sidebar__brand {
     padding: 1rem 0.85rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .admin-sidebar__brand-row {
@@ -29,6 +33,14 @@
     min-width: 0;
 }
 
+.admin-sidebar__brand-name {
+    color: #0b486d;
+}
+
+.admin-sidebar__brand-sub {
+    color: #64748b;
+}
+
 .admin-sidebar__collapse-btn {
     align-items: center;
     justify-content: center;
@@ -38,15 +50,15 @@
     border: 0;
     border-radius: 0.5rem;
     background: transparent;
-    color: rgba(255, 255, 255, 0.55);
+    color: #64748b;
     cursor: pointer;
     flex-shrink: 0;
     transition: color 0.15s ease, background 0.15s ease;
 }
 
 .admin-sidebar__collapse-btn:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
+    color: #0b486d;
+    background: #f1f5f9;
 }
 
 .admin-sidebar__nav {
@@ -58,7 +70,7 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
-    scrollbar-color: rgba(173, 226, 245, 0.25) transparent;
+    scrollbar-color: rgba(11, 72, 109, 0.2) transparent;
 }
 
 .admin-sidebar__nav::-webkit-scrollbar {
@@ -66,13 +78,13 @@
 }
 
 .admin-sidebar__nav::-webkit-scrollbar-thumb {
-    background: rgba(173, 226, 245, 0.25);
+    background: rgba(11, 72, 109, 0.18);
     border-radius: 999px;
 }
 
 .admin-sidebar__footer {
     padding: 0.65rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid #e2e8f0;
 }
 
 /* Shell: body does not scroll; main pane + sidebar nav scroll independently */
@@ -176,7 +188,7 @@
 .admin-side-nav__section--divided {
     margin-top: 0.35rem;
     padding-top: 0.9rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid #e2e8f0;
 }
 
 .admin-side-nav__heading {
@@ -186,7 +198,7 @@
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(173, 226, 245, 0.55);
+    color: #94a3b8;
 }
 
 .admin-side-nav__list {
@@ -204,7 +216,7 @@
     border-radius: 0.65rem;
     font-size: 0.9375rem;
     font-weight: 550;
-    color: rgba(255, 255, 255, 0.62);
+    color: #475569;
     text-decoration: none;
     transition:
         color 0.15s ease,
@@ -212,31 +224,31 @@
 }
 
 .admin-side-nav__link:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
+    color: #0b486d;
+    background: #f1f5f9;
 }
 
 .admin-side-nav__link--active {
-    color: #fff;
-    background: rgba(53, 175, 230, 0.16);
+    color: #0b486d;
+    background: rgba(53, 175, 230, 0.12);
     box-shadow: inset 3px 0 0 #35afe6;
 }
 
 .admin-side-nav__link--active .admin-side-nav__icon {
-    color: #7dd0ef;
+    color: #1a7aab;
 }
 
 .admin-side-nav__link--active .admin-side-nav__label {
-    color: #fff;
+    color: #0b486d;
     font-weight: 650;
 }
 
 .admin-side-nav__link--muted {
-    color: rgba(255, 255, 255, 0.45);
+    color: #64748b;
 }
 
 .admin-side-nav__link--muted:hover {
-    color: #fff;
+    color: #0b486d;
 }
 
 /* Professional outline icons — no tile background */
@@ -247,7 +259,7 @@
     width: 1.35rem;
     height: 1.35rem;
     background: transparent;
-    color: rgba(255, 255, 255, 0.72);
+    color: #64748b;
     flex-shrink: 0;
     transition: color 0.15s ease;
 }
@@ -259,7 +271,7 @@
 }
 
 .admin-side-nav__link:hover .admin-side-nav__icon {
-    color: #fff;
+    color: #0b486d;
 }
 
 .admin-side-nav__label {

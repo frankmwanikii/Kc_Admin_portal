@@ -39,16 +39,16 @@
 
 /* ── Horizontal table scroll ── */
 .arrears-table-scroll {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: clip;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
-    touch-action: manipulation;
+    overscroll-behavior-y: auto;
+    touch-action: pan-x pan-y;
 }
 
 .arrears-table-scroll > table {

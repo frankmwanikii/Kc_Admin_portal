@@ -15,15 +15,27 @@ class FormSubmissionService
     /** Connect With Us forms from Kc_website — all appear in admin Members. */
     public const MEMBER_FORM_TYPES = ['join', 'new-beginning', 'new-here', 'kingdom-groups', 'manual'];
 
+    /**
+     * Admin Members page tabs — keyed by stored form_type.
+     * join = Join us, new-here = Visiting us?, new-beginning = New beginnings, kingdom-groups = Kingdom groups.
+     *
+     * @return array<string, string>
+     */
+    public static function memberTabLabels(): array
+    {
+        return [
+            'join' => 'Members',
+            'new-here' => 'Visitors',
+            'new-beginning' => 'New beginnings',
+            'kingdom-groups' => 'Kingdom groups',
+        ];
+    }
+
     /** @return array<string, string> */
     public static function formTypeLabels(): array
     {
-        return [
-            'join' => 'Join Our Church Family',
-            'new-beginning' => 'New Beginning',
-            'new-here' => 'New Here',
-            'kingdom-groups' => 'Kingdom Groups',
-            'manual' => 'Added manually',
+        return self::memberTabLabels() + [
+            'manual' => 'Members',
         ];
     }
 
@@ -281,14 +293,28 @@ class FormSubmissionService
         $placeholders = implode(',', array_fill(0, count(self::MEMBER_FORM_TYPES), '?'));
         $stmt = self::db()->prepare("
             SELECT id, form_type, campus_id, submitter_name, submitter_email, submitter_phone,
-                   status, created_at
+                   status, created_at, user_agent, payload
             FROM form_submissions
             WHERE form_type IN ($placeholders)
             ORDER BY created_at DESC
         ");
         $stmt->execute(self::MEMBER_FORM_TYPES);
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row) {
+            $payload = [];
+            if (!empty($row['payload']) && is_string($row['payload'])) {
+                $decoded = json_decode($row['payload'], true);
+                $payload = is_array($decoded) ? $decoded : [];
+            }
+            $row['is_manual'] = (($row['user_agent'] ?? '') === 'admin-manual')
+                || (($payload['source'] ?? '') === 'admin_manual')
+                || (($row['form_type'] ?? '') === 'manual');
+            unset($row['payload'], $row['user_agent']);
+        }
+        unset($row);
+
+        return $rows;
     }
 
   /** @return array<string, mixed>|null */

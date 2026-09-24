@@ -634,9 +634,14 @@
 
 .fin-table th.fin-table__action,
 .fin-table td.fin-table__action {
-    text-align: right;
-    width: 4.5rem;
+    text-align: center;
+    width: 2.25rem;
+    min-width: 2.25rem;
+    max-width: 2.25rem;
+    padding-left: 0.15rem;
+    padding-right: 0.15rem;
     white-space: nowrap;
+}
 }
 
 .fin-table__primary { font-weight: 600; color: var(--fin-accent); }
@@ -2746,15 +2751,24 @@
 }
 
 .finance-table-card .arrears-table thead th.ft-th-actions,
-.finance-table-card .weekly-table thead th.weekly-col-actions {
-    text-align: right;
-    background: linear-gradient(180deg, #052838 0%, #073549 100%);
-    box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.1), -6px 0 14px rgba(5, 40, 56, 0.15);
-    position: sticky;
-    right: 0;
-    z-index: 6;
-    min-width: 8.75rem;
-    width: 8.75rem;
+.finance-table-card .weekly-table thead th.weekly-col-actions,
+.finance-table-card .arrears-table tbody .ft-td-actions,
+.finance-table-card .arrears-table tbody .ft-td-actions--sticky,
+.finance-table-card .arrears-table tfoot .ft-td-actions,
+.finance-table-card .arrears-table tfoot .weekly-col-actions,
+.weekly-col-actions,
+.weekly-table thead th.weekly-col-actions {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: auto !important;
+    min-width: 2.25rem !important;
+    width: 2.25rem !important;
+    max-width: 2.25rem !important;
+    padding-left: 0.15rem !important;
+    padding-right: 0.15rem !important;
+    text-align: center !important;
+    box-shadow: none !important;
 }
 
 .finance-table-card .arrears-table thead th.ft-th--right {
@@ -2765,12 +2779,17 @@
     border-bottom: 1px solid #e8f4fa;
 }
 
+.finance-table-card .arrears-table thead th.ft-th-actions,
+.finance-table-card .weekly-table thead th.weekly-col-actions {
+    background: linear-gradient(180deg, #052838 0%, #073549 100%);
+}
+
 .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) {
     background: #fafcfd;
 }
 
 .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-accent,
-.finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-actions.ft-td-actions--sticky {
+.finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-actions {
     background: #fafcfd;
 }
 
@@ -2782,22 +2801,16 @@
 
 .finance-table-card .arrears-table tbody .ft-td-accent:has(.arrears-status) {
     text-align: left;
+    white-space: nowrap;
+    min-width: 7.5rem;
 }
 
 .finance-table-card .arrears-table tbody .ft-td-actions {
     background: #fff;
-    box-shadow: inset 1px 0 0 #e8f4fa, -6px 0 14px rgba(11, 72, 109, 0.06);
-    position: sticky;
-    right: 0;
-    z-index: 4;
-    min-width: 8.75rem;
-    width: 8.75rem;
-    text-align: right;
-    white-space: nowrap;
 }
 
 .finance-table-card .arrears-table tbody .ft-td-actions.weekly-actions--open {
-    z-index: 8;
+    z-index: auto !important;
 }
 
 .finance-table-card .arrears-table tbody .arrears-row:hover {
@@ -2839,13 +2852,7 @@
 
 .finance-table-card .arrears-table tfoot .ft-td-actions,
 .finance-table-card .arrears-table tfoot .weekly-col-actions {
-    position: sticky;
-    right: 0;
-    z-index: 5;
-    min-width: 8.75rem;
-    width: 8.75rem;
     background: linear-gradient(180deg, #052838 0%, #073549 100%) !important;
-    box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.1), -6px 0 14px rgba(5, 40, 56, 0.12);
 }
 
 .finance-table-footer-amount {
@@ -2865,9 +2872,10 @@
     max-width: 100%;
     min-width: 0;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: clip;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #ade2f5 transparent; /* church-200 */
 }
@@ -3029,7 +3037,7 @@
 
 .arrears-actions {
     position: relative;
-    text-align: right;
+    text-align: center;
 }
 
 .arrears-view-btn {
@@ -3050,10 +3058,10 @@
 }
 
 .arrears-view-btn--icon {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 1.85rem;
+    height: 1.85rem;
     padding: 0;
-    border-radius: 0.55rem;
+    border-radius: 0.45rem;
     color: #475569;
     background: transparent;
     border-color: transparent;
@@ -3469,13 +3477,8 @@
 }
 
 .weekly-col-actions {
-    position: sticky;
-    right: 0;
-    z-index: 2;
     background: #fff;
-    min-width: 6.5rem;
     border-left: 1px solid #e8f4fa;
-    box-shadow: -4px 0 8px rgba(11, 72, 109, 0.04);
 }
 
 /* Mobile/tablet: disable sticky columns — they stack into a white overlay and block scroll */

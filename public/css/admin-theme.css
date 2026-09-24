@@ -25,6 +25,88 @@ html.dark body.admin-app {
     color: var(--adm-text);
 }
 
+/* Sidebar — keep navy rail in dark mode */
+html.dark .admin-sidebar {
+    background: #052838;
+    color: #f8fafc;
+    border-right-color: rgba(125, 208, 239, 0.12);
+    box-shadow: none;
+}
+
+html.dark .admin-sidebar__brand,
+html.dark .admin-sidebar__footer,
+html.dark .admin-side-nav__section--divided {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .admin-sidebar__brand-name {
+    color: #f8fafc;
+}
+
+html.dark .admin-sidebar__brand-sub {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+html.dark .admin-sidebar__collapse-btn {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+html.dark .admin-sidebar__collapse-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .admin-sidebar__nav {
+    scrollbar-color: rgba(173, 226, 245, 0.25) transparent;
+}
+
+html.dark .admin-sidebar__nav::-webkit-scrollbar-thumb {
+    background: rgba(173, 226, 245, 0.25);
+}
+
+html.dark .admin-side-nav__heading {
+    color: rgba(173, 226, 245, 0.55);
+}
+
+html.dark .admin-side-nav__link {
+    color: rgba(255, 255, 255, 0.62);
+}
+
+html.dark .admin-side-nav__link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .admin-side-nav__link--active {
+    color: #fff;
+    background: rgba(53, 175, 230, 0.16);
+    box-shadow: inset 3px 0 0 #35afe6;
+}
+
+html.dark .admin-side-nav__link--active .admin-side-nav__icon {
+    color: #7dd0ef;
+}
+
+html.dark .admin-side-nav__link--active .admin-side-nav__label {
+    color: #fff;
+}
+
+html.dark .admin-side-nav__link--muted {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+html.dark .admin-side-nav__link--muted:hover {
+    color: #fff;
+}
+
+html.dark .admin-side-nav__icon {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+html.dark .admin-side-nav__link:hover .admin-side-nav__icon {
+    color: #fff;
+}
+
 html.dark .admin-main {
     background: var(--adm-bg);
 }
@@ -456,13 +538,27 @@ html.dark .finance-table-card .arrears-table tbody .ft-td-accent {
 }
 
 html.dark .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-accent,
-html.dark .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-actions.ft-td-actions--sticky {
+html.dark .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-actions {
     background: rgba(10, 42, 62, 0.9) !important;
+}
+
+html.dark .finance-table-card .arrears-table thead th.ft-th-actions,
+html.dark .finance-table-card .weekly-table thead th.weekly-col-actions,
+html.dark .finance-table-card .arrears-table tbody .ft-td-actions,
+html.dark .finance-table-card .arrears-table tfoot .ft-td-actions,
+html.dark .weekly-col-actions {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: auto !important;
+    min-width: 2.25rem !important;
+    width: 2.25rem !important;
+    max-width: 2.25rem !important;
+    box-shadow: none !important;
 }
 
 html.dark .finance-table-card .arrears-table tbody .ft-td-actions {
     background: var(--adm-surface) !important;
-    box-shadow: inset 1px 0 0 var(--adm-border), -6px 0 14px rgba(0, 0, 0, 0.25);
 }
 
 html.dark .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-actions {
@@ -586,6 +682,155 @@ html.dark .fin-badge--deficit {
     color: var(--adm-unpaid);
 }
 
+/* Overview — panel heads, table headings, month pulse */
+html.dark .fin-panel__head {
+    background: var(--adm-surface-2) !important;
+    border-bottom-color: var(--adm-border) !important;
+}
+
+html.dark .fin-panel__title,
+html.dark .fin-month-pulse .fin-panel__title {
+    color: var(--adm-text) !important;
+}
+
+html.dark .fin-month-pulse__sub,
+html.dark .fin-panel__empty,
+html.dark .fin-chart-panel__sub {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .fin-table th,
+html.dark .fin-month-pulse .fin-table th,
+html.dark .fin-panel .fin-table th {
+    background: #0a3a56 !important;
+    color: #e0f2fe !important;
+    border-bottom-color: transparent !important;
+}
+
+html.dark .fin-table td,
+html.dark .fin-month-pulse .fin-table td {
+    background: transparent;
+    color: var(--adm-text-secondary) !important;
+    border-bottom-color: var(--adm-border) !important;
+}
+
+html.dark .fin-table tbody tr:hover {
+    background: rgba(53, 175, 230, 0.08) !important;
+}
+
+html.dark .fin-table__primary {
+    color: var(--adm-text) !important;
+}
+
+html.dark .fin-sundays-table__date-sub,
+html.dark .fin-table__empty {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .fin-month-pulse__weeks {
+    border-color: var(--adm-border) !important;
+    background: var(--adm-surface);
+}
+
+html.dark .reconciliation-stat {
+    background: var(--adm-surface-2) !important;
+    border-color: var(--adm-border) !important;
+    box-shadow: none;
+}
+
+html.dark .reconciliation-stat-label {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .reconciliation-stat-value {
+    color: var(--adm-text) !important;
+}
+
+html.dark .reconciliation-stat--collected {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, var(--adm-surface-2) 100%) !important;
+    border-color: rgba(52, 211, 153, 0.35) !important;
+}
+
+html.dark .reconciliation-stat--collected .reconciliation-stat-label {
+    color: #6ee7b7 !important;
+}
+
+html.dark .reconciliation-stat--collected .reconciliation-stat-value {
+    color: #34d399 !important;
+}
+
+html.dark .reconciliation-stat--expenses {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, var(--adm-surface-2) 100%) !important;
+    border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+html.dark .reconciliation-stat--expenses .reconciliation-stat-label {
+    color: #fcd34d !important;
+}
+
+html.dark .reconciliation-stat--expenses .reconciliation-stat-value {
+    color: #fbbf24 !important;
+}
+
+html.dark .reconciliation-stat--surplus {
+    background: linear-gradient(135deg, rgba(53, 175, 230, 0.16) 0%, var(--adm-surface-2) 100%) !important;
+    border-color: rgba(125, 208, 239, 0.35) !important;
+}
+
+html.dark .reconciliation-stat--surplus .reconciliation-stat-label {
+    color: #7dd0ef !important;
+}
+
+html.dark .reconciliation-stat--surplus .reconciliation-stat-value {
+    color: #38bdf8 !important;
+}
+
+html.dark .reconciliation-stat--deficit {
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.14) 0%, var(--adm-surface-2) 100%) !important;
+    border-color: rgba(251, 113, 133, 0.35) !important;
+}
+
+html.dark .reconciliation-stat--deficit .reconciliation-stat-label {
+    color: #fda4af !important;
+}
+
+html.dark .reconciliation-stat--deficit .reconciliation-stat-value {
+    color: #fb7185 !important;
+}
+
+html.dark .fin-sundays-table__row--head,
+html.dark .fin-sundays-table__row--head .fin-sundays-table__cell {
+    background: #0a3a56 !important;
+    color: #e0f2fe !important;
+    border-color: var(--adm-border) !important;
+}
+
+html.dark .fin-sundays-table__row:not(.fin-sundays-table__row--head):hover {
+    background: rgba(53, 175, 230, 0.08) !important;
+}
+
+html.dark .fin-month-picker__trigger {
+    background: var(--adm-bg) !important;
+    border-color: var(--adm-border-strong) !important;
+    color: var(--adm-text) !important;
+}
+
+html.dark .fin-month-picker__value,
+html.dark .fin-month-picker__icon {
+    color: var(--adm-text) !important;
+}
+
+html.dark .fin-month-picker__panel {
+    background: var(--adm-surface-2) !important;
+    border-color: var(--adm-border-strong) !important;
+    color: var(--adm-text);
+}
+
+html.dark .fin-month-picker__year-label,
+html.dark .fin-month-picker__year-btn {
+    color: var(--adm-text) !important;
+}
+
 /* Modals */
 html.dark .finance-modal,
 html.dark .finance-modal-header,
@@ -607,13 +852,148 @@ html.dark .finance-label {
     color: var(--adm-muted) !important;
 }
 
-/* Weekly / sundays tables */
-html.dark .weekly-table tbody tr:nth-child(even),
-html.dark .fin-table tbody tr:nth-child(even) {
+/* Weekly / Sunday expenses + collections tables */
+html.dark .weekly-page,
+html.dark .collections-page {
+    color: var(--adm-text);
+}
+
+html.dark .arrears-btn-outline {
+    background: transparent !important;
+    border-color: var(--adm-border-strong) !important;
+    color: var(--adm-accent) !important;
+}
+
+html.dark .arrears-btn-outline:hover {
+    background: rgba(53, 175, 230, 0.14) !important;
+    border-color: var(--adm-accent-strong) !important;
+    color: #fff !important;
+}
+
+html.dark .weekly-table,
+html.dark .weekly-table tbody,
+html.dark .weekly-table tbody .arrears-row {
+    background: var(--adm-surface) !important;
+    color: var(--adm-text-secondary) !important;
+}
+
+html.dark .weekly-table tbody .arrears-row:nth-child(even),
+html.dark .weekly-table tbody .arrears-row:nth-child(even) td,
+html.dark .weekly-table tbody .arrears-row:nth-child(even) .weekly-col-category,
+html.dark .weekly-table tbody .arrears-row:nth-child(even) .weekly-col-actions,
+html.dark .weekly-table tbody .arrears-row:nth-child(even) .weekly-col-total,
+html.dark .weekly-table tbody .arrears-row:nth-child(even) .weekly-amount-cell {
+    background: var(--adm-surface-2) !important;
+    color: var(--adm-text-secondary) !important;
+}
+
+html.dark .weekly-col-category,
+html.dark .weekly-col-actions {
+    background: var(--adm-surface) !important;
+    border-color: var(--adm-border) !important;
+    color: var(--adm-text) !important;
+    box-shadow: none !important;
+}
+
+html.dark .weekly-table tbody .arrears-row:nth-child(even) .weekly-col-category,
+html.dark .weekly-table tbody .arrears-row:nth-child(even) .weekly-col-actions {
+    background: var(--adm-surface-2) !important;
+}
+
+html.dark .weekly-col-total {
+    background: rgba(7, 34, 50, 0.65) !important;
+    box-shadow: inset 1px 0 0 var(--adm-border) !important;
+}
+
+html.dark .weekly-table tbody .arrears-row:nth-child(even) .weekly-col-total {
+    background: rgba(10, 42, 62, 0.95) !important;
+}
+
+html.dark .weekly-table .arrears-row:hover,
+html.dark .weekly-table .arrears-row:hover td,
+html.dark .weekly-table .arrears-row:hover .weekly-col-category,
+html.dark .weekly-table .arrears-row:hover .weekly-col-actions,
+html.dark .weekly-table .arrears-row:hover .weekly-col-total {
+    background: rgba(53, 175, 230, 0.1) !important;
+}
+
+html.dark .weekly-table .arrears-accent,
+html.dark .weekly-total-cell {
+    color: #f8fafc !important;
+}
+
+html.dark .weekly-table .arrears-muted,
+html.dark .weekly-table .arrears-amount--muted {
+    color: #94a3b8 !important;
+}
+
+html.dark .weekly-table .arrears-amount,
+html.dark .weekly-amount-cell .arrears-amount {
+    color: #e2e8f0 !important;
+}
+
+html.dark .weekly-table .arrears-amount--editable:hover,
+html.dark .weekly-table .arrears-amount--editable:focus {
+    background: rgba(53, 175, 230, 0.14) !important;
+    border-color: rgba(53, 175, 230, 0.45) !important;
+    color: #fff !important;
+}
+
+html.dark .arrears-inline-input {
+    background: var(--adm-bg) !important;
+    border-color: var(--adm-accent-strong) !important;
+    color: var(--adm-text) !important;
+    box-shadow: 0 0 0 3px rgba(53, 175, 230, 0.2) !important;
+}
+
+html.dark .weekly-badge-custom {
+    background: rgba(53, 175, 230, 0.16) !important;
+    color: var(--adm-accent) !important;
+}
+
+html.dark .weekly-table thead th,
+html.dark .finance-table-card .weekly-table thead th {
+    background: linear-gradient(180deg, #0a3a56 0%, #0c4868 100%) !important;
+    color: #f8fafc !important;
+}
+
+html.dark .weekly-sun-head-date {
+    color: rgba(224, 242, 254, 0.55) !important;
+}
+
+html.dark .weekly-sun-head-label {
+    color: #f8fafc !important;
+}
+
+html.dark .fin-subtabs {
+    background: var(--adm-surface);
+    border-color: var(--adm-border);
+}
+
+html.dark .fin-subtabs__item {
+    color: var(--adm-muted);
+}
+
+html.dark .fin-subtabs__item--active {
+    background: rgba(53, 175, 230, 0.16);
+    color: var(--adm-accent);
+}
+
+html.dark .members-form-tabs__count {
+    background: rgba(53, 175, 230, 0.14);
+    color: var(--adm-accent);
+}
+
+html.dark .fin-subtabs__item--active .members-form-tabs__count {
+    background: rgba(53, 175, 230, 0.28);
+    color: var(--adm-accent);
+}
+
+html.dark .fin-table tbody tr:nth-child(even),
+html.dark .weekly-table tbody tr:nth-child(even) {
     background: var(--adm-surface-2);
 }
 
-html.dark .weekly-table tbody td,
 html.dark .fin-table tbody td {
     color: var(--adm-text-secondary);
     border-color: var(--adm-border);
@@ -627,4 +1007,56 @@ html.dark .fin-amount-grid .fin-amt-row:nth-child(even) {
 html.dark .fin-amount-grid .fin-amt-row {
     border-color: var(--adm-border);
     color: var(--adm-text-secondary);
+}
+
+/* Table pagination footer */
+html.dark .finance-pagination,
+html.dark .weekly-pagination {
+    background: var(--adm-surface) !important;
+    border-top-color: var(--adm-border) !important;
+}
+
+html.dark .finance-pagination-info,
+html.dark .weekly-pagination-info {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .finance-pagination-info span,
+html.dark .weekly-pagination-info span {
+    color: var(--adm-accent) !important;
+}
+
+html.dark .finance-pagination-btn,
+html.dark .weekly-pagination-btn {
+    color: var(--adm-text-secondary) !important;
+    background: var(--adm-surface-2) !important;
+    border-color: var(--adm-border-strong) !important;
+}
+
+html.dark .finance-pagination-btn:hover:not(:disabled),
+html.dark .weekly-pagination-btn:hover:not(:disabled) {
+    color: var(--adm-accent) !important;
+    background: var(--adm-elevated) !important;
+    border-color: var(--adm-accent-strong) !important;
+}
+
+html.dark .finance-pagination-page,
+html.dark .weekly-pagination-page {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .finance-pagination-page:hover,
+html.dark .weekly-pagination-page:hover {
+    background: var(--adm-elevated) !important;
+    color: var(--adm-text) !important;
+}
+
+html.dark .finance-pagination-page--active,
+html.dark .weekly-pagination-page--active,
+html.dark .finance-pagination-page--active:hover,
+html.dark .weekly-pagination-page--active:hover {
+    color: #fff !important;
+    background: var(--adm-accent-strong) !important;
+    border-color: var(--adm-accent-strong) !important;
+    box-shadow: 0 2px 8px rgba(53, 175, 230, 0.35) !important;
 }

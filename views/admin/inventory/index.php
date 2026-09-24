@@ -42,7 +42,7 @@ $itemsJson = json_encode(array_values($items ?? []), JSON_HEX_TAG | JSON_HEX_APO
                         <th class="ft-th-accent ft-th--right">Quantity</th>
                         <th class="hidden md:table-cell">Location</th>
                         <th class="hidden lg:table-cell">Notes</th>
-                        <th class="ft-th-actions">Actions</th>
+                        <th class="ft-th-actions"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>
                 <tbody>

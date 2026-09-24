@@ -138,6 +138,28 @@
                 hasDependents: '',
                 otherChurch: '',
 
+                isManualMember(m) {
+                    return !!(m && (m.is_manual === true || m.is_manual === 1 || m.is_manual === '1' || (m.form_type || '') === 'manual'));
+                },
+
+                matchesFormTab(m, key) {
+                    if (!key) return true;
+                    const type = m.form_type || '';
+                    // Legacy rows stored as form_type=manual count toward Members (join).
+                    if (key === 'join') {
+                        return type === 'join' || type === 'manual';
+                    }
+                    return type === key;
+                },
+
+                formTabCount(key) {
+                    return this.rows.filter((m) => this.matchesFormTab(m, key)).length;
+                },
+
+                memberFormLabel(m) {
+                    return this.formTypeLabel(m?.form_type);
+                },
+
                 get filteredRows() {
                     let list = this.rows;
                     const q = this.search.trim().toLowerCase();
@@ -147,14 +169,14 @@
                             || (m.submitter_phone || '').toLowerCase().includes(q)
                             || (m.submitter_email || '').toLowerCase().includes(q)
                             || (m.campus_id || '').toLowerCase().includes(q)
-                            || this.formTypeLabel(m.form_type).toLowerCase().includes(q)
+                            || this.memberFormLabel(m).toLowerCase().includes(q)
                         );
                     }
                     if (this.statusFilter) {
                         list = list.filter((m) => (m.status || 'new') === this.statusFilter);
                     }
                     if (this.formTypeFilter) {
-                        list = list.filter((m) => (m.form_type || '') === this.formTypeFilter);
+                        list = list.filter((m) => this.matchesFormTab(m, this.formTypeFilter));
                     }
                     return list;
                 },

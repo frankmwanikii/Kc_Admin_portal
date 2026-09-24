@@ -126,3 +126,46 @@
         padding-bottom: 0.15rem;
     }
 }
+
+/* Dark mode */
+html.dark .finance-pagination {
+    background: #0d2433;
+    border-top-color: rgba(125, 208, 239, 0.16);
+}
+
+html.dark .finance-pagination-info {
+    color: #94a3b8;
+}
+
+html.dark .finance-pagination-info span {
+    color: #7dd0ef;
+}
+
+html.dark .finance-pagination-btn {
+    color: #cbd5e1;
+    background: #123044;
+    border-color: rgba(125, 208, 239, 0.28);
+}
+
+html.dark .finance-pagination-btn:hover:not(:disabled) {
+    color: #7dd0ef;
+    background: #163a52;
+    border-color: #35afe6;
+}
+
+html.dark .finance-pagination-page {
+    color: #94a3b8;
+}
+
+html.dark .finance-pagination-page:hover {
+    background: #163a52;
+    color: #f1f5f9;
+}
+
+html.dark .finance-pagination-page--active,
+html.dark .finance-pagination-page--active:hover {
+    color: #fff;
+    background: #35afe6;
+    border-color: #35afe6;
+    box-shadow: 0 2px 8px rgba(53, 175, 230, 0.35);
+}

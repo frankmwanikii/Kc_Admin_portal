@@ -30,7 +30,7 @@ class MemberController
             'title' => 'Members',
             'members' => $members,
             'formsDbStatus' => $formsDbStatus,
-            'formTypeLabels' => FormSubmissionService::formTypeLabels(),
+            'formTypeLabels' => FormSubmissionService::memberTabLabels(),
             'ministries' => $site['ministries_list'] ?? [],
             'campuses' => $site['campuses'] ?? [],
             'success' => $_GET['added'] ?? null,
