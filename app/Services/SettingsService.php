@@ -110,8 +110,101 @@ class SettingsService
         return null;
     }
 
+    /**
+     * White monochrome logo for dark UI surfaces (sidebar dark mode, login brand pane).
+     * Prefers uploads/branding/logo-white.png, then regenerates from the color logo,
+     * then falls back to /images/kc-logo-white.png.
+     */
+    public static function logoUrlWhite(): ?string
+    {
+        $publicRoot = dirname(__DIR__, 2) . '/public';
+
+        $uploadedWhite = $publicRoot . '/uploads/branding/logo-white.png';
+        if (is_file($uploadedWhite)) {
+            return '/uploads/branding/logo-white.png?v=' . filemtime($uploadedWhite);
+        }
+
+        $colorPath = self::get('church_logo_path');
+        if ($colorPath) {
+            $fullColor = $publicRoot . '/' . ltrim((string) $colorPath, '/');
+            if (is_file($fullColor) && self::writeWhiteLogoVariant($fullColor, $uploadedWhite)) {
+                return '/uploads/branding/logo-white.png?v=' . filemtime($uploadedWhite);
+            }
+        }
+
+        $fallback = $publicRoot . '/images/kc-logo-white.png';
+        if (is_file($fallback)) {
+            return '/images/kc-logo-white.png?v=' . filemtime($fallback);
+        }
+
+        // Last resort: CSS-inverted color logo still works if nothing else exists.
+        return self::logoUrl();
+    }
+
     public static function hasLogo(): bool
     {
         return self::logoUrl() !== null;
+    }
+
+    /** Create a white-on-transparent PNG from a color logo file. */
+    public static function writeWhiteLogoVariant(string $sourcePath, string $destPath): bool
+    {
+        if (!is_file($sourcePath) || !function_exists('imagecreatefromstring')) {
+            return false;
+        }
+
+        $raw = @file_get_contents($sourcePath);
+        if ($raw === false || $raw === '') {
+            return false;
+        }
+
+        $src = @imagecreatefromstring($raw);
+        if ($src === false) {
+            return false;
+        }
+
+        imagesavealpha($src, true);
+        $w = imagesx($src);
+        $h = imagesy($src);
+        $dst = imagecreatetruecolor($w, $h);
+        if ($dst === false) {
+            imagedestroy($src);
+
+            return false;
+        }
+
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+        imagefilledrectangle($dst, 0, 0, $w, $h, $transparent);
+
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $rgba = imagecolorat($src, $x, $y);
+                $a = ($rgba & 0x7F000000) >> 24;
+                if ($a >= 127) {
+                    continue;
+                }
+                $color = imagecolorallocatealpha($dst, 255, 255, 255, $a);
+                imagesetpixel($dst, $x, $y, $color);
+            }
+        }
+
+        $dir = dirname($destPath);
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            imagedestroy($src);
+            imagedestroy($dst);
+
+            return false;
+        }
+
+        $ok = @imagepng($dst, $destPath, 6);
+        imagedestroy($src);
+        imagedestroy($dst);
+        if ($ok) {
+            @chmod($destPath, 0644);
+        }
+
+        return $ok;
     }
 }

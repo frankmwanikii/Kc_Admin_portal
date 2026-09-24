@@ -4998,9 +4998,11 @@ input[type="date"].finance-input {
     isolation: isolate;
 }
 
-/* Income & Expenditure uses full report width */
+/* Income & Expenditure / Operating Statement use full report width */
 .finance-statement.finance-position--ie,
-#finance-position-document.finance-position--ie {
+#finance-position-document.finance-position--ie,
+.finance-statement.finance-statement--full,
+#finance-statement-document.finance-statement--full {
     max-width: none;
     width: 100%;
     margin: 0;
@@ -5009,7 +5011,9 @@ input[type="date"].finance-input {
 
 @media (min-width: 768px) {
     .finance-statement.finance-position--ie,
-    #finance-position-document.finance-position--ie {
+    #finance-position-document.finance-position--ie,
+    .finance-statement.finance-statement--full,
+    #finance-statement-document.finance-statement--full {
         padding: 2rem 2rem 2.25rem;
     }
 }
@@ -5047,10 +5051,13 @@ input[type="date"].finance-input {
 }
 
 .finance-statement__logo {
-    width: 3.5rem;
-    height: 3.5rem;
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 18rem;
+    max-height: 9rem;
+    margin: 0 auto 1rem;
     object-fit: contain;
-    margin-bottom: 0.65rem;
 }
 
 .finance-statement__letterhead {
@@ -6270,14 +6277,27 @@ input[type="date"].finance-input {
 }
 
 .finance-position__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
     margin-bottom: 1.25rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid #0b486d;
 }
 
+.finance-position__header > .finance-statement__logo {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 18rem;
+    max-height: 9rem;
+    margin: 0 auto 1rem;
+    object-fit: contain;
+}
+
 .finance-position__org {
-    margin: 0.35rem 0 0.5rem;
+    margin: 0 0 0.5rem;
     font-size: 1.05rem;
     font-weight: 800;
     letter-spacing: 0.04em;

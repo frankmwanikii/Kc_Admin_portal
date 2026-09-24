@@ -236,6 +236,14 @@ class SettingsController
 
         SettingsService::set('church_logo_path', 'uploads/branding/' . $filename);
         SettingsService::set('church_logo_url', '');
+
+        $whiteDest = $dir . '/logo-white.png';
+        SettingsService::writeWhiteLogoVariant($dest, $whiteDest);
+        // Keep a public fallback copy for environments where branding/ is locked.
+        $fallbackDir = dirname(__DIR__, 3) . '/public/images';
+        if (is_dir($fallbackDir)) {
+            SettingsService::writeWhiteLogoVariant($dest, $fallbackDir . '/kc-logo-white.png');
+        }
     }
 
     private function removeUploadedLogo(): void
@@ -246,6 +254,10 @@ class SettingsController
             if (is_file($full)) {
                 unlink($full);
             }
+        }
+        $white = dirname(__DIR__, 3) . '/public/uploads/branding/logo-white.png';
+        if (is_file($white)) {
+            @unlink($white);
         }
     }
 }

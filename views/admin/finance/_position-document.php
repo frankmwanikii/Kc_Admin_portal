@@ -47,7 +47,7 @@ $yearAmt = static function (array $amounts, int $colYear, bool $outflow) use ($f
     <header class="finance-position__header">
         <img src="<?= htmlspecialchars($statementLogoUrl ?? '/images/kc-logo.png') ?>"
              alt="<?= htmlspecialchars($churchName) ?>"
-             class="finance-statement__logo">
+             class="finance-statement__logo finance-position__logo">
         <p class="finance-position__org"><?= htmlspecialchars(strtoupper($churchName)) ?></p>
         <p class="finance-position__title">
             <span class="finance-position__title-line"><?= htmlspecialchars($docTitle) ?></span>

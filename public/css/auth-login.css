@@ -147,13 +147,21 @@
 .login-brand-block__mark img {
     width: auto !important;
     height: auto !important;
-    max-width: 12rem;
-    max-height: 12rem;
+    max-width: 14rem;
+    max-height: 14rem;
     border-radius: 0 !important;
     object-fit: contain;
     background: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+}
+
+.login-brand-block__mark .admin-logo--white {
+    display: block !important;
+}
+
+.login-brand-block__mark .admin-logo--color {
+    display: none !important;
 }
 
 .login-brand-block__name {

@@ -1,19 +1,16 @@
 <?php
 
 use App\Services\SettingsService;
-
-$churchName = SettingsService::churchName();
 ?>
 <div class="login-split">
     <div class="login-split__bg" aria-hidden="true"></div>
     <div class="login-split__divider" aria-hidden="true"></div>
 
     <section class="login-split__pane login-split__pane--brand">
-        <div class="login-brand-block">
+            <div class="login-brand-block">
             <div class="login-brand-block__mark">
-                <?php $size = 'xl'; $variant = 'dark'; $logoBg = 'none'; $rounded = 'rounded-none'; $imgClass = ''; require __DIR__ . '/../partials/church-logo.php'; ?>
+                <?php $size = 'xl'; $tone = 'white'; $variant = 'dark'; $logoBg = 'none'; $rounded = 'rounded-none'; $imgClass = ''; require __DIR__ . '/../partials/church-logo.php'; ?>
             </div>
-            <h1 class="login-brand-block__name"><?= htmlspecialchars($churchName) ?></h1>
         </div>
     </section>
 

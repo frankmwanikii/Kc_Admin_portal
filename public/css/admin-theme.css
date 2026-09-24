@@ -1486,3 +1486,317 @@ html.dark .staff-list-avatar--empty {
     background: rgba(53, 175, 230, 0.14);
     color: var(--adm-accent);
 }
+
+/* ── Finance reports (on-screen dark; print stays light via @media print) ── */
+@media screen {
+    html.dark .fin-reports .arrears-page.statement-page,
+    html.dark .fin-reports .position-page {
+        background: transparent !important;
+        border-color: transparent !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    html.dark .fin-reports-subnav {
+        background: var(--adm-surface-2) !important;
+        border-color: var(--adm-border) !important;
+    }
+
+    html.dark .fin-reports-subnav__btn {
+        color: var(--adm-muted) !important;
+    }
+
+    html.dark .fin-reports-subnav__btn:hover {
+        color: var(--adm-text) !important;
+        background: rgba(53, 175, 230, 0.1) !important;
+    }
+
+    html.dark .fin-reports-subnav__btn--active {
+        color: var(--adm-accent) !important;
+        background: rgba(53, 175, 230, 0.16) !important;
+        box-shadow: inset 0 0 0 1px rgba(53, 175, 230, 0.3) !important;
+    }
+
+    html.dark .fin-report-bar,
+    html.dark .statement-toolbar,
+    html.dark .statement-page .arrears-card {
+        background: var(--adm-surface) !important;
+        border-color: var(--adm-border) !important;
+        color: var(--adm-text) !important;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    html.dark .fin-report-bar__title,
+    html.dark .statement-toolbar-title,
+    html.dark .fin-report-bar__title a {
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .fin-report-bar__hint,
+    html.dark .fin-report-bar__year-label,
+    html.dark .fin-report-bar__status {
+        color: var(--adm-muted) !important;
+    }
+
+    html.dark .fin-report-bar__filters {
+        border-top-color: var(--adm-border) !important;
+    }
+
+    html.dark .fin-report-bar__select {
+        border-color: var(--adm-border-strong) !important;
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .fin-export-group {
+        background: var(--adm-surface-2) !important;
+        border-color: var(--adm-border-strong) !important;
+        box-shadow: none !important;
+    }
+
+    html.dark .fin-export-group__btn {
+        background: transparent !important;
+        color: var(--adm-accent) !important;
+        border-right-color: var(--adm-border) !important;
+    }
+
+    html.dark .fin-export-group__btn:hover:not(:disabled) {
+        background: rgba(53, 175, 230, 0.12) !important;
+        color: #bae6fd !important;
+    }
+
+    html.dark .fin-export-group__btn--primary {
+        background: var(--adm-accent-strong) !important;
+        color: #041018 !important;
+    }
+
+    html.dark .fin-export-group__btn--primary:hover {
+        background: #4dbfe9 !important;
+        color: #041018 !important;
+    }
+
+    html.dark .statement-view-toggle {
+        background: var(--adm-surface-2) !important;
+        border-color: var(--adm-border) !important;
+    }
+
+    html.dark .statement-view-toggle__btn {
+        color: var(--adm-muted) !important;
+    }
+
+    html.dark .statement-view-toggle__btn--active,
+    html.dark .statement-view-toggle__btn:hover {
+        background: rgba(53, 175, 230, 0.14) !important;
+        color: var(--adm-accent) !important;
+    }
+
+    /* Report document sheet */
+    html.dark .finance-statement,
+    html.dark #finance-position-document,
+    html.dark #finance-statement-document {
+        background: var(--adm-surface) !important;
+        border-color: var(--adm-border-strong) !important;
+        color: var(--adm-text) !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+    }
+
+    html.dark .finance-statement__watermark {
+        opacity: 0.08 !important;
+        filter: brightness(1.4) contrast(0.9);
+    }
+
+    html.dark .finance-statement__letterhead,
+    html.dark .finance-position__header {
+        border-bottom-color: var(--adm-accent-strong) !important;
+    }
+
+    html.dark .finance-statement__org,
+    html.dark .finance-position__org {
+        color: var(--adm-accent) !important;
+    }
+
+    html.dark .finance-statement__doc-title,
+    html.dark .finance-position__title-line,
+    html.dark .finance-statement-section__title {
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .finance-statement__meta,
+    html.dark .finance-statement__meta p,
+    html.dark .finance-statement__meta-label,
+    html.dark .finance-position__title-asat,
+    html.dark .finance-statement__subtitle,
+    html.dark .finance-statement__narrative,
+    html.dark .finance-statement-true-picture__hint,
+    html.dark .finance-statement-arrears__hint,
+    html.dark .finance-statement__footer,
+    html.dark .finance-statement__footer-disclaimer,
+    html.dark .finance-statement__footer-signoff,
+    html.dark .finance-statement__disclaimer,
+    html.dark .finance-statement__signoff {
+        color: var(--adm-muted) !important;
+    }
+
+    html.dark .finance-statement-summary__item {
+        background: var(--adm-surface-2) !important;
+        border-color: var(--adm-border) !important;
+    }
+
+    html.dark .finance-statement-summary__label {
+        color: var(--adm-muted) !important;
+    }
+
+    html.dark .finance-statement-summary__value {
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .finance-statement-true-picture {
+        background: var(--adm-surface-2) !important;
+        border-color: var(--adm-border) !important;
+    }
+
+    html.dark .finance-statement-table thead th,
+    html.dark .finance-position-table thead th {
+        color: var(--adm-accent) !important;
+        border-bottom-color: var(--adm-border-strong) !important;
+        background: transparent !important;
+    }
+
+    html.dark .finance-statement-table tbody td,
+    html.dark .finance-position-table tbody td {
+        color: var(--adm-text-secondary) !important;
+        border-color: var(--adm-border) !important;
+    }
+
+    html.dark .finance-statement-table tfoot td,
+    html.dark .finance-position-table__subtotal td,
+    html.dark .finance-position-table__total td,
+    html.dark .finance-position-table__section td,
+    html.dark .finance-position-table__group td {
+        color: var(--adm-text) !important;
+        border-color: var(--adm-border-strong) !important;
+        background: rgba(53, 175, 230, 0.06) !important;
+    }
+
+    html.dark .finance-statement-period-main {
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .finance-statement-period-sub {
+        color: var(--adm-muted) !important;
+    }
+
+    html.dark .finance-statement-table__pos {
+        color: var(--adm-paid) !important;
+    }
+
+    html.dark .finance-statement-table__neg {
+        color: var(--adm-unpaid) !important;
+    }
+
+    html.dark .finance-position-table__col--current,
+    html.dark .finance-position-table thead th.finance-position-table__col--current {
+        background: rgba(53, 175, 230, 0.1) !important;
+    }
+
+    html.dark .finance-position-table__col--prior,
+    html.dark .finance-position-table thead th.finance-position-table__col--prior {
+        background: rgba(251, 146, 60, 0.1) !important;
+    }
+
+    /* CITAM / I&E comparative table */
+    html.dark .citam-ie-table {
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .citam-ie-table thead th {
+        border-bottom-color: var(--adm-border-strong) !important;
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .citam-ie-table thead th.citam-ie-table__label {
+        color: var(--adm-muted) !important;
+    }
+
+    html.dark .citam-ie-table__year {
+        color: #7dd0ef !important;
+    }
+
+    html.dark .citam-ie-table__col--y1 .citam-ie-table__year,
+    html.dark .citam-ie-table__col--g-pri .citam-ie-table__year {
+        color: #fdba74 !important;
+    }
+
+    html.dark .citam-ie-table__col--y2 .citam-ie-table__year {
+        color: #5eead4 !important;
+    }
+
+    html.dark .citam-ie-table__col--y3 .citam-ie-table__year {
+        color: #94a3b8 !important;
+    }
+
+    html.dark .citam-ie-table__currency {
+        color: var(--adm-accent) !important;
+        background: rgba(13, 36, 51, 0.85) !important;
+        border-color: var(--adm-border) !important;
+    }
+
+    html.dark .citam-ie-table__col--y0,
+    html.dark .citam-ie-table__col--g-cur,
+    html.dark .citam-ie-table thead th.citam-ie-table__col--y0,
+    html.dark .citam-ie-table thead th.citam-ie-table__col--g-cur {
+        background: rgba(53, 175, 230, 0.12) !important;
+    }
+
+    html.dark .citam-ie-table__col--y1,
+    html.dark .citam-ie-table__col--g-pri,
+    html.dark .citam-ie-table thead th.citam-ie-table__col--y1,
+    html.dark .citam-ie-table thead th.citam-ie-table__col--g-pri {
+        background: rgba(251, 146, 60, 0.12) !important;
+    }
+
+    html.dark .citam-ie-table__col--y2,
+    html.dark .citam-ie-table thead th.citam-ie-table__col--y2 {
+        background: rgba(45, 212, 191, 0.1) !important;
+    }
+
+    html.dark .citam-ie-table__col--y3,
+    html.dark .citam-ie-table thead th.citam-ie-table__col--y3 {
+        background: rgba(148, 163, 184, 0.1) !important;
+    }
+
+    html.dark .citam-ie-table tbody td,
+    html.dark .citam-ie-table tbody th {
+        color: var(--adm-text-secondary) !important;
+        border-color: var(--adm-border) !important;
+    }
+
+    html.dark .citam-ie-table tbody tr:hover td,
+    html.dark .citam-ie-table tbody tr:hover th {
+        background: rgba(53, 175, 230, 0.06) !important;
+    }
+
+    html.dark .citam-ie-table__line td {
+        border-bottom-color: var(--adm-border) !important;
+    }
+
+    html.dark .citam-ie-table__subtotal td.citam-ie-table__amt,
+    html.dark .citam-ie-table__result td.citam-ie-table__amt {
+        border-top-color: var(--adm-text-secondary) !important;
+        border-bottom-color: var(--adm-text-secondary) !important;
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .citam-ie-table__final td.citam-ie-table__amt {
+        border-top-color: var(--adm-accent) !important;
+        border-bottom-color: var(--adm-accent) !important;
+        color: var(--adm-text) !important;
+    }
+
+    html.dark .citam-ie-table__section td,
+    html.dark .citam-ie-table__section th,
+    html.dark .citam-ie-table tfoot td {
+        color: var(--adm-text) !important;
+        background: transparent !important;
+        border-color: var(--adm-border-strong) !important;
+    }
+}

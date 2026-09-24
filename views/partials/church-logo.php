@@ -3,13 +3,16 @@
 use App\Services\SettingsService;
 
 $size = $size ?? 'md';
+$tone = $tone ?? 'color'; // color | white | auto
 $logoUrl = SettingsService::logoUrl();
+$logoUrlWhite = SettingsService::logoUrlWhite();
 
 $sizes = [
     'sm' => ['box' => 'w-8 h-8', 'img' => 'w-8 h-8', 'icon' => 'w-4 h-4'],
     'md' => ['box' => 'w-10 h-10', 'img' => 'w-10 h-10', 'icon' => 'w-5 h-5'],
     'lg' => ['box' => 'w-14 h-14', 'img' => 'w-14 h-14', 'icon' => 'w-7 h-7'],
     'xl' => ['box' => 'w-16 h-16', 'img' => 'w-16 h-16', 'icon' => 'w-8 h-8'],
+    'brand' => ['box' => 'w-28 h-12', 'img' => 'admin-brand-logo', 'icon' => 'w-7 h-7'],
 ];
 $s = $sizes[$size] ?? $sizes['md'];
 $rounded = $rounded ?? 'rounded-xl';
@@ -23,10 +26,26 @@ $imgWrapClass = match ($logoBg) {
     'none' => '',
     default => $imgClass ?? 'bg-white/10',
 };
+$alt = htmlspecialchars(SettingsService::churchName());
+$extra = is_string($imgWrapClass) ? $imgWrapClass : '';
 ?>
 <?php if ($logoUrl): ?>
-<img src="<?= htmlspecialchars($logoUrl) ?>" alt="<?= htmlspecialchars(SettingsService::churchName()) ?>"
-     class="<?= $s['img'] ?> <?= $rounded ?> object-contain shrink-0 <?= is_string($imgWrapClass) ? $imgWrapClass : '' ?>">
+    <?php if ($tone === 'auto' && $logoUrlWhite): ?>
+<img src="<?= htmlspecialchars($logoUrl) ?>"
+     alt="<?= $alt ?>"
+     class="<?= $s['img'] ?> <?= $rounded ?> object-contain shrink-0 admin-logo admin-logo--color <?= $extra ?>">
+<img src="<?= htmlspecialchars($logoUrlWhite) ?>"
+     alt="<?= $alt ?>"
+     class="<?= $s['img'] ?> <?= $rounded ?> object-contain shrink-0 admin-logo admin-logo--white <?= $extra ?>">
+    <?php else: ?>
+        <?php
+        $src = ($tone === 'white' && $logoUrlWhite) ? $logoUrlWhite : $logoUrl;
+        $toneClass = $tone === 'white' ? 'admin-logo admin-logo--white' : 'admin-logo admin-logo--color';
+        ?>
+<img src="<?= htmlspecialchars($src) ?>"
+     alt="<?= $alt ?>"
+     class="<?= $s['img'] ?> <?= $rounded ?> object-contain shrink-0 <?= $toneClass ?> <?= $extra ?>">
+    <?php endif; ?>
 <?php else: ?>
 <div class="<?= $s['box'] ?> <?= $rounded ?> <?= $boxClass ?> flex items-center justify-center shrink-0">
     <svg class="<?= $s['icon'] ?>" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
@@ -34,3 +53,6 @@ $imgWrapClass = match ($logoBg) {
     </svg>
 </div>
 <?php endif; ?>
+<?php
+unset($size, $tone, $logoUrl, $logoUrlWhite, $sizes, $s, $rounded, $variant, $logoBg, $boxClass, $imgWrapClass, $alt, $extra, $src, $toneClass, $imgClass);
+?>

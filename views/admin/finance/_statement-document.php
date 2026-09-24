@@ -24,7 +24,7 @@ $generatedAt = $generatedAt ?? date('j F Y, g:i a');
 $refId = $refId ?? ('STMT-' . strtoupper($statement['view'] ?? 'M') . '-' . ($statement['year'] ?? $year) . '-' . date('YmdHis'));
 ?>
     <div id="finance-statement-document"
-         class="finance-statement finance-statement--watermarked">
+         class="finance-statement finance-statement--watermarked finance-statement--full">
         <img src="<?= htmlspecialchars($statementLogoUrl ?? '/images/kc-logo.png') ?>"
              alt=""
              class="finance-statement__watermark"
