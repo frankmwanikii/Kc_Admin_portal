@@ -2,13 +2,16 @@
 -- Kingdomcity Portal — COMPLETE database import for cPanel / phpMyAdmin
 -- =============================================================================
 --
--- IMPORT INTO: allthin2_portal  (main portal database)
+-- IMPORT INTO: allthin2_Admin  (or your portal database name)
 --
 -- WARNING: This file DROPS existing portal tables before recreating them.
---          All current data in allthin2_portal will be erased.
+--          All current data will be erased.
 --
--- Does NOT touch the forms database (allthin2_church). Import
--- shared-form-submissions.sql separately into that database if needed.
+-- Prefer the SAFE update (keeps members) if the DB already has live data:
+--   database/cpanel-update-allthin2.sql
+--
+-- Does NOT touch the forms database. Import shared-form-submissions.sql
+-- separately into that database if needed.
 --
 -- After import:
 --   1. Set APP_INSTALLED=true in .env
@@ -34,6 +37,8 @@ DROP TABLE IF EXISTS finance_collections;
 DROP TABLE IF EXISTS finance_collection_methods;
 DROP TABLE IF EXISTS finance_sunday_sessions;
 DROP TABLE IF EXISTS finance_weekly_categories;
+DROP TABLE IF EXISTS staff_member_images;
+DROP TABLE IF EXISTS staff_members;
 DROP TABLE IF EXISTS inventory_items;
 DROP TABLE IF EXISTS attendance_records;
 DROP TABLE IF EXISTS ministry_members;
@@ -123,7 +128,11 @@ CREATE TABLE household_children (
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     member_id INT,
+    username VARCHAR(80) NULL UNIQUE,
     email VARCHAR(150) NOT NULL UNIQUE,
+    phone VARCHAR(40) NULL,
+    display_name VARCHAR(150) NULL,
+    avatar_path VARCHAR(255) NULL,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(30) DEFAULT 'member',
     magic_link_token VARCHAR(64),
@@ -508,8 +517,60 @@ CREATE TABLE finance_expense_categories (
         ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE staff_members (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    role_title VARCHAR(150) NULL,
+    department VARCHAR(150) NULL,
+    phone VARCHAR(64) NULL,
+    email VARCHAR(255) NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'active',
+    notes TEXT NULL,
+    bio TEXT NULL,
+    staff_code VARCHAR(80) NULL,
+    gender VARCHAR(30) NULL,
+    date_of_birth DATE NULL,
+    national_id VARCHAR(80) NULL,
+    marital_status VARCHAR(40) NULL,
+    address VARCHAR(255) NULL,
+    city VARCHAR(120) NULL,
+    campus VARCHAR(50) NULL,
+    employment_type VARCHAR(40) NULL DEFAULT 'full_time',
+    hire_date DATE NULL,
+    end_date DATE NULL,
+    reports_to VARCHAR(150) NULL,
+    secondary_phone VARCHAR(64) NULL,
+    emergency_contact_name VARCHAR(150) NULL,
+    emergency_contact_phone VARCHAR(64) NULL,
+    emergency_contact_relation VARCHAR(80) NULL,
+    skills TEXT NULL,
+    ministries TEXT NULL,
+    education TEXT NULL,
+    languages VARCHAR(255) NULL,
+    work_schedule VARCHAR(255) NULL,
+    office_location VARCHAR(255) NULL,
+    photo_path VARCHAR(255) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_staff_status (status),
+    KEY idx_staff_department (department)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE staff_member_images (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    staff_id INT UNSIGNED NOT NULL,
+    path VARCHAR(255) NOT NULL,
+    caption VARCHAR(255) NULL,
+    is_primary TINYINT(1) NOT NULL DEFAULT 0,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_staff_images_staff (staff_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =============================================================================
--- SEED DATA (demo records + admin login)
+-- SEED DATA (aligned with allthin2_Admin dump + finance schema v3)
 -- Password for all accounts below: password123
 -- =============================================================================
 
@@ -525,23 +586,24 @@ INSERT INTO households (id, name, address, city, phone) VALUES
 (2, 'Ochieng Family', '12 River Road', 'Nairobi', '+254723456789'),
 (3, 'Wanjiku Family', '8 Hill View', 'Nairobi', '+254734567890');
 
+-- Members sorted by last_name, first_name (ids preserved for FKs)
 INSERT INTO members (id, household_id, first_name, last_name, email, phone, gender, date_of_birth, is_head_of_household, membership_status, joined_date, onboarding_completed) VALUES
-(1, 1, 'James', 'Kamau', 'james.kamau@email.com', '+254712345678', 'male', '1985-03-15', 1, 'active', '2020-01-12', 1),
-(2, 1, 'Grace', 'Kamau', 'grace.kamau@email.com', '+254712345679', 'female', '1988-07-22', 0, 'active', '2020-01-12', 1),
 (3, 1, 'David', 'Kamau', 'david.kamau@email.com', NULL, 'male', '2010-11-05', 0, 'active', '2020-01-12', 0),
-(4, 2, 'Peter', 'Ochieng', 'peter.ochieng@email.com', '+254723456789', 'male', '1978-09-30', 1, 'active', '2019-06-20', 1),
+(2, 1, 'Grace', 'Kamau', 'grace.kamau@email.com', '+254712345679', 'female', '1988-07-22', 0, 'active', '2020-01-12', 1),
+(1, 1, 'James', 'Kamau', 'james.kamau@email.com', '+254712345678', 'male', '1985-03-15', 1, 'active', '2020-01-12', 1),
 (5, 2, 'Mary', 'Ochieng', 'mary.ochieng@email.com', '+254723456790', 'female', '1982-12-14', 0, 'active', '2019-06-20', 1),
+(4, 2, 'Peter', 'Ochieng', 'peter.ochieng@email.com', '+254723456789', 'male', '1978-09-30', 1, 'active', '2019-06-20', 1),
 (6, 3, 'Faith', 'Wanjiku', 'faith.wanjiku@email.com', '+254734567890', 'female', '1990-05-08', 1, 'active', '2021-03-01', 1);
 
 UPDATE households SET head_member_id = 1 WHERE id = 1;
 UPDATE households SET head_member_id = 4 WHERE id = 2;
 UPDATE households SET head_member_id = 6 WHERE id = 3;
 
-INSERT INTO users (id, member_id, email, password, role, email_verified_at) VALUES
-(1, NULL, 'admin@kingdomcitychurchnanyuki.org', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'admin', NOW()),
-(2, 1, 'james.kamau@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW()),
-(3, 4, 'peter.ochieng@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW()),
-(4, 6, 'faith.wanjiku@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW());
+INSERT INTO users (id, member_id, username, email, password, role, email_verified_at) VALUES
+(1, NULL, 'Admin', 'admin@kingdomcitychurchnanyuki.org', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'admin', NOW()),
+(2, 1, 'james.kamau', 'james.kamau@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW()),
+(3, 4, 'peter.ochieng', 'peter.ochieng@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW()),
+(4, 6, 'faith.wanjiku', 'faith.wanjiku@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW());
 
 INSERT INTO ministries (id, name, description, leader_id, meeting_day) VALUES
 (1, 'Praise & Worship', 'Music ministry and worship team', 6, 'Thursday'),
@@ -595,3 +657,80 @@ INSERT INTO pledges (campaign_id, member_id, pledged_amount, amount_paid, pledge
 
 INSERT INTO onboarding_qr_codes (token, label, is_active) VALUES
 ('church-onboard-2026', 'Main Entrance QR', 1);
+
+INSERT INTO finance_collection_methods (id, slug, label, hint, is_system, sort_order) VALUES
+(1, 'paybill', 'M-Pesa Paybill', 'Paybill 176287', 1, 10),
+(2, 'cheque', 'Cheque', 'Bank cheque payments', 1, 20),
+(3, 'cash', 'Cash', 'Cash & envelopes', 1, 30);
+
+INSERT INTO finance_expense_departments (id, slug, label, expense_group, code_prefix, sort_order, is_system) VALUES
+(1, 'administration', 'Administration', 'admin_expenses', '001/2', 10, 1),
+(2, 'k_kids', 'K.Kids', 'ministry_departments', '001/1', 10, 1),
+(3, 'worship_services', 'Worship & Services', 'ministry_departments', '001/3', 20, 1),
+(4, 'discipleship_programmes', 'Discipleship Programes', 'ministry_departments', '001/4', 30, 1),
+(5, 'production_sound_lighting', 'Production, Sound & Lighting', 'ministry_departments', '001/5', 40, 1),
+(6, 'wages', 'Wages', 'ministry_departments', '001/6', 50, 1),
+(7, 'training_development', 'Training & Development', 'ministry_departments', '001/7', 60, 1),
+(8, 'pastoral_allowances_salaries', 'Pastoral Allowances/ Salaries', 'ministry_departments', '001/8', 70, 1),
+(9, 'pastoral_care', 'Pastoral Care', 'ministry_departments', '001/9', 80, 1),
+(10, 'missions_outreach', 'Missions & Outreach', 'ministry_departments', '001/10', 90, 1),
+(11, 'gpm_remittances', 'GPM Remittances', 'ministry_departments', '001/11', 100, 1),
+(12, 'honorarium_gifts', 'Honorarium & Gifts', 'ministry_departments', '001/12', 110, 1),
+(13, 'benevolent', 'Benovelent', 'ministry_departments', '001/13', 120, 1),
+(14, 'finance_costs', 'Finance Costs', 'finance_costs', '001/14', 130, 1);
+
+INSERT INTO finance_expense_categories (id, department_id, slug, label, account_code, sort_order, is_system) VALUES
+(1, 1, 'rent', 'Rent', '001/2/001', 10, 1),
+(2, 1, 'water', 'Water', '001/2/002', 20, 1),
+(3, 1, 'electricity', 'Electricity', '001/2/003', 30, 1),
+(4, 1, 'transport', 'Transport', '001/2/004', 40, 1),
+(5, 1, 'insurance', 'Insurance', '001/2/005', 50, 1),
+(6, 1, 'security', 'Security', '001/2/006', 60, 1),
+(7, 1, 'communication_telephone', 'Communication/Telephone', '001/2/007', 70, 1),
+(8, 1, 'stationery', 'Stationery', '001/2/008', 80, 1),
+(9, 1, 'refreshments', 'Refreshments', '001/2/009', 90, 1),
+(10, 1, 'health_safety_fumigation_f_extinguishers', 'Health & Safety (Fumigation/F.Extinguishers)', '001/2/010', 100, 1),
+(11, 1, 'hospitality', 'Hospitality', '001/2/011', 110, 1),
+(12, 1, 'detergents_toiletries', 'Detergents & Toiletries', '001/2/012', 120, 1),
+(13, 1, 'consultancy_fee', 'Consultancy Fee', '001/2/013', 130, 1),
+(14, 1, 'repair_maintenance', 'Repair & Maintenance', '001/2/014', 140, 1),
+(15, 1, 'licences', 'Licences', '001/2/015', 150, 1),
+(16, 1, 'audit_fees', 'Audit Fees', '001/2/016', 160, 1),
+(17, 2, 'k_kids', 'K.Kids', '001/1/001', 10, 1),
+(18, 3, 'worship_services', 'Worship & Services', '001/3/001', 10, 1),
+(19, 4, 'discipleship_programes', 'Discipleship Programes', '001/4/001', 10, 1),
+(20, 5, 'production_sound_lighting', 'Production, Sound & Lighting', '001/5/001', 10, 1),
+(21, 6, 'wages', 'Wages', '001/6/001', 10, 1),
+(22, 7, 'training_development', 'Training & Development', '001/7/001', 10, 1),
+(23, 8, 'pastoral_allowances_salaries', 'Pastoral Allowances/ Salaries', '001/8/001', 10, 1),
+(24, 9, 'pastoral_care', 'Pastoral Care', '001/9/001', 10, 1),
+(25, 10, 'missions_outreach', 'Missions & Outreach', '001/10/001', 10, 1),
+(26, 11, 'gpm_remittances', 'GPM Remittances', '001/11/001', 10, 1),
+(27, 12, 'honorarium_gifts', 'Honorarium & Gifts', '001/12/001', 10, 1),
+(28, 13, 'benovelent', 'Benovelent', '001/13/001', 10, 1),
+(29, 3, 'keyboardist', 'Keyboardist', '001/3/002', 20, 1),
+(30, 3, 'drummer', 'Drummer', '001/3/003', 30, 1),
+(31, 3, 'bassist', 'Bassist', '001/3/004', 40, 1),
+(32, 2, 'kids_teacher', 'Kids Teacher', '001/1/002', 20, 1),
+(33, 6, 'caretaker', 'Caretaker', '001/6/002', 20, 1),
+(34, 1, 'kplc_tokens', 'KPLC Tokens', '001/2/017', 170, 1),
+(36, 14, 'bank_charges', 'Bank charges', '001/14/001', 10, 1),
+(37, 14, 'mpesa_charges', 'Mpesa charges', '001/14/002', 20, 1);
+
+INSERT INTO finance_weekly_categories (id, slug, label, hint, department_id, expense_category_id, is_system, sort_order) VALUES
+(1, 'keyboardist', 'Keyboardist', 'Sunday allowance', 3, 29, 1, 10),
+(2, 'drummer', 'Drummer', 'Sunday allowance', 3, 30, 1, 20),
+(3, 'bassist', 'Bassist', 'Sunday allowance', 3, 31, 1, 30),
+(4, 'kids_teacher', 'Kids Teacher', 'Sunday allowance', 2, 32, 1, 40),
+(5, 'caretaker', 'Caretaker', 'Sunday allowance', 6, 33, 1, 50),
+(6, 'honorarium_gifts', 'Honorarium & Gifts', '', 12, 27, 1, 60),
+(7, 'kplc_tokens', 'KPLC Tokens', 'Weekly usage', 1, 34, 1, 70);
+
+INSERT INTO settings (setting_key, setting_value) VALUES
+('finance_schema_version', '3'),
+('finance_budget_schema_version', '1'),
+('church_name', 'Kingdomcity church Nanyuki'),
+('church_address', 'Nanyuki,Kenya'),
+('church_phone', ''),
+('church_logo_url', ''),
+('church_logo_path', 'uploads/branding/logo.png');

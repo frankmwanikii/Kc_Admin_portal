@@ -1,4 +1,6 @@
--- Seed data for Grace Church MIS (MySQL)
+-- Seed data for Kingdomcity church MIS (MySQL)
+-- Aligned with allthin2_Admin dump. Use INSERT IGNORE so re-runs are safe.
+-- Password for seeded logins: password123
 
 INSERT IGNORE INTO funds (id, name, code, description) VALUES
 (1, 'Tithe', 'TITHE', 'Regular tithe contributions'),
@@ -12,12 +14,13 @@ INSERT IGNORE INTO households (id, name, address, city, phone) VALUES
 (2, 'Ochieng Family', '12 River Road', 'Nairobi', '+254723456789'),
 (3, 'Wanjiku Family', '8 Hill View', 'Nairobi', '+254734567890');
 
+-- Members sorted by last_name, first_name (ids preserved)
 INSERT IGNORE INTO members (id, household_id, first_name, last_name, email, phone, gender, date_of_birth, is_head_of_household, membership_status, joined_date, onboarding_completed) VALUES
-(1, 1, 'James', 'Kamau', 'james.kamau@email.com', '+254712345678', 'male', '1985-03-15', 1, 'active', '2020-01-12', 1),
-(2, 1, 'Grace', 'Kamau', 'grace.kamau@email.com', '+254712345679', 'female', '1988-07-22', 0, 'active', '2020-01-12', 1),
 (3, 1, 'David', 'Kamau', 'david.kamau@email.com', NULL, 'male', '2010-11-05', 0, 'active', '2020-01-12', 0),
-(4, 2, 'Peter', 'Ochieng', 'peter.ochieng@email.com', '+254723456789', 'male', '1978-09-30', 1, 'active', '2019-06-20', 1),
+(2, 1, 'Grace', 'Kamau', 'grace.kamau@email.com', '+254712345679', 'female', '1988-07-22', 0, 'active', '2020-01-12', 1),
+(1, 1, 'James', 'Kamau', 'james.kamau@email.com', '+254712345678', 'male', '1985-03-15', 1, 'active', '2020-01-12', 1),
 (5, 2, 'Mary', 'Ochieng', 'mary.ochieng@email.com', '+254723456790', 'female', '1982-12-14', 0, 'active', '2019-06-20', 1),
+(4, 2, 'Peter', 'Ochieng', 'peter.ochieng@email.com', '+254723456789', 'male', '1978-09-30', 1, 'active', '2019-06-20', 1),
 (6, 3, 'Faith', 'Wanjiku', 'faith.wanjiku@email.com', '+254734567890', 'female', '1990-05-08', 1, 'active', '2021-03-01', 1);
 
 UPDATE households SET head_member_id = 1 WHERE id = 1;
@@ -25,10 +28,10 @@ UPDATE households SET head_member_id = 4 WHERE id = 2;
 UPDATE households SET head_member_id = 6 WHERE id = 3;
 
 INSERT IGNORE INTO users (id, member_id, username, email, password, role, email_verified_at) VALUES
-(1, NULL, 'Admin', 'admin@church.local', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', NOW()),
-(2, 1, 'james.kamau', 'james.kamau@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW()),
-(3, 4, 'peter.ochieng', 'peter.ochieng@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW()),
-(4, 6, 'faith.wanjiku', 'faith.wanjiku@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'member', NOW());
+(1, NULL, 'Admin', 'admin@kingdomcitychurchnanyuki.org', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'admin', NOW()),
+(2, 1, 'james.kamau', 'james.kamau@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW()),
+(3, 4, 'peter.ochieng', 'peter.ochieng@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW()),
+(4, 6, 'faith.wanjiku', 'faith.wanjiku@email.com', '$2y$10$u2w22R5Fd5nV52befQsRO.ig4yZNJklC8EzDTVJgwrufDRfKFDtjG', 'member', NOW());
 
 INSERT IGNORE INTO ministries (id, name, description, leader_id, meeting_day) VALUES
 (1, 'Praise & Worship', 'Music ministry and worship team', 6, 'Thursday'),
@@ -82,3 +85,17 @@ INSERT IGNORE INTO pledges (campaign_id, member_id, pledged_amount, amount_paid,
 
 INSERT IGNORE INTO onboarding_qr_codes (token, label, is_active) VALUES
 ('church-onboard-2026', 'Main Entrance QR', 1);
+
+INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
+('finance_schema_version', '3'),
+('finance_budget_schema_version', '1'),
+('church_name', 'Kingdomcity church Nanyuki'),
+('church_address', 'Nanyuki,Kenya'),
+('church_phone', ''),
+('church_logo_url', ''),
+('church_logo_path', 'uploads/branding/logo.png');
+
+INSERT IGNORE INTO finance_collection_methods (id, slug, label, hint, is_system, sort_order) VALUES
+(1, 'paybill', 'M-Pesa Paybill', 'Paybill 176287', 1, 10),
+(2, 'cheque', 'Cheque', 'Bank cheque payments', 1, 20),
+(3, 'cash', 'Cash', 'Cash & envelopes', 1, 30);
