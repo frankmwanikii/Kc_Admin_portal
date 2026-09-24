@@ -1688,7 +1688,6 @@ html.dark .staff-list-avatar--empty {
     html.dark .finance-statement__meta-label,
     html.dark .finance-position__title-asat,
     html.dark .finance-statement__subtitle,
-    html.dark .finance-statement__narrative,
     html.dark .finance-statement-true-picture__hint,
     html.dark .finance-statement-arrears__hint,
     html.dark .finance-statement__footer,
@@ -1697,6 +1696,13 @@ html.dark .staff-list-avatar--empty {
     html.dark .finance-statement__disclaimer,
     html.dark .finance-statement__signoff {
         color: var(--adm-muted) !important;
+    }
+
+    html.dark .finance-statement__narrative,
+    html.dark .finance-statement__narrative--true-picture {
+        background: rgba(53, 175, 230, 0.1) !important;
+        border-left-color: var(--adm-accent) !important;
+        color: var(--adm-text-secondary) !important;
     }
 
     html.dark .finance-statement-summary__item {
@@ -1715,6 +1721,11 @@ html.dark .staff-list-avatar--empty {
     html.dark .finance-statement-true-picture {
         background: var(--adm-surface-2) !important;
         border-color: var(--adm-border) !important;
+    }
+
+    html.dark .finance-statement-summary__item--arrears {
+        background: rgba(251, 191, 36, 0.12) !important;
+        border-color: rgba(251, 191, 36, 0.35) !important;
     }
 
     html.dark .finance-statement-table thead th,
