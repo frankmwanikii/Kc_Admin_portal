@@ -203,6 +203,14 @@
             window.Alpine.initTree(main);
         }
         window.lucide?.createIcons();
+
+        // Re-run page widgets that only boot on first script load (e.g. Chart.js).
+        try {
+            window.initFinanceOverviewCharts?.();
+        } catch (e) {
+            console.error(e);
+        }
+        document.dispatchEvent(new CustomEvent('admin:content-loaded', { detail: { main } }));
     }
 
     function updateSidebarActive(href) {

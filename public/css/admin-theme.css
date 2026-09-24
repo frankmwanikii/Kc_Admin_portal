@@ -551,9 +551,9 @@ html.dark .weekly-col-actions {
     left: auto !important;
     right: auto !important;
     z-index: auto !important;
-    min-width: 2.25rem !important;
-    width: 2.25rem !important;
-    max-width: 2.25rem !important;
+    min-width: 3.25rem !important;
+    width: 3.25rem !important;
+    max-width: 3.25rem !important;
     box-shadow: none !important;
 }
 

@@ -17,8 +17,18 @@
 }
 
 .admin-sidebar__brand {
-    padding: 1rem 0.85rem;
+    display: flex;
+    align-items: center;
+    height: 3.5rem;
+    padding: 0 0.85rem;
     border-bottom: 1px solid #e2e8f0;
+    box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+    .admin-sidebar__brand {
+        height: 4rem;
+    }
 }
 
 .admin-sidebar__brand-row {
@@ -26,6 +36,8 @@
     align-items: center;
     gap: 0.65rem;
     min-width: 0;
+    width: 100%;
+    height: 100%;
 }
 
 .admin-sidebar__brand-text {
@@ -132,7 +144,7 @@
     }
 
     .admin-app--sidebar-collapsed .admin-sidebar__brand {
-        padding: 0.85rem 0.5rem;
+        padding: 0 0.5rem;
     }
 
     .admin-app--sidebar-collapsed .admin-sidebar__brand-row {

@@ -2850,6 +2850,10 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => window.initFinanceOverviewCharts());
     } else {
-        window.initFinanceOverviewCharts();
+        // Defer so late-injected AJAX HTML (or scripts ordered before the fragment) is ready.
+        queueMicrotask(() => window.initFinanceOverviewCharts());
     }
+    document.addEventListener('admin:content-loaded', () => {
+        window.initFinanceOverviewCharts();
+    });
 })();
