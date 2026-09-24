@@ -102,4 +102,48 @@ class MemberController
         FormSubmissionService::delete((int) $id);
         View::redirect('/admin/members');
     }
+
+    public function downloadPdf(string $id): void
+    {
+        Auth::requireAdmin();
+        $member = $this->findMemberOrAbort($id);
+
+        $churchName = \App\Services\SettingsService::churchName() ?: 'Church';
+        $churchAddress = \App\Services\SettingsService::churchAddress();
+        $pdf = new \App\Services\PdfService();
+        $content = $pdf->generateMemberRegistration($member, $churchName, $churchAddress);
+        $filename = FormSubmissionService::memberExportFilename($member, 'pdf');
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo $content;
+        exit;
+    }
+
+    public function downloadCsv(string $id): void
+    {
+        Auth::requireAdmin();
+        $member = $this->findMemberOrAbort($id);
+
+        $csv = FormSubmissionService::memberToCsv($member);
+        $filename = FormSubmissionService::memberExportFilename($member, 'csv');
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo $csv;
+        exit;
+    }
+
+    /** @return array<string, mixed> */
+    private function findMemberOrAbort(string $id): array
+    {
+        $member = FormSubmissionService::find((int) $id);
+        if (!$member || !in_array($member['form_type'], FormSubmissionService::MEMBER_FORM_TYPES, true)) {
+            http_response_code(404);
+            View::render('errors/404', ['title' => 'Not Found']);
+            exit;
+        }
+
+        return $member;
+    }
 }

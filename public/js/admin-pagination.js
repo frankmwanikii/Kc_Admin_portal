@@ -30,15 +30,40 @@
                 return Math.min(p * perPage, list.length);
             },
 
-            paginationPages(list) {
+            paginationPages(list, pageKey) {
                 const n = this.paginationTotalPages(list);
-                return Array.from({ length: n }, (_, i) => i + 1);
+                const current = Math.min(Math.max(1, Number(this[pageKey]) || 1), n);
+                if (n <= 7) {
+                    return Array.from({ length: n }, (_, i) => i + 1);
+                }
+
+                const pages = [];
+                const push = (v) => {
+                    if (pages[pages.length - 1] !== v) pages.push(v);
+                };
+
+                push(1);
+                const windowStart = Math.max(2, current - 1);
+                const windowEnd = Math.min(n - 1, current + 1);
+                if (windowStart > 2) push('…');
+                for (let i = windowStart; i <= windowEnd; i += 1) push(i);
+                if (windowEnd < n - 1) push('…');
+                push(n);
+                return pages;
             },
 
             clampPage(pageKey, list) {
                 const max = this.paginationTotalPages(list);
                 if (this[pageKey] > max) this[pageKey] = max;
                 if (this[pageKey] < 1) this[pageKey] = 1;
+            },
+
+            firstPage(pageKey) {
+                this[pageKey] = 1;
+            },
+
+            lastPage(pageKey, list) {
+                this[pageKey] = this.paginationTotalPages(list);
             },
 
             prevPage(pageKey) {
@@ -50,9 +75,21 @@
             },
 
             goPage(pageKey, num, list) {
-                const p = Number(num);
+                const p = parseInt(String(num).replace(/\D/g, ''), 10);
                 const max = this.paginationTotalPages(list);
                 if (p >= 1 && p <= max) this[pageKey] = p;
+            },
+
+            setTablePerPage(n) {
+                const next = Number(n);
+                if (![10, 15, 25, 50].includes(next)) return;
+                this.tablePerPage = next;
+                ['page', 'arrearsPage', 'weeklyPage', 'collectionsPage'].forEach((key) => {
+                    if (Object.prototype.hasOwnProperty.call(this, key)) {
+                        this[key] = 1;
+                    }
+                });
+                this.$nextTick(() => window.lucide?.createIcons());
             },
 
             toggleMenu(id, event) {

@@ -424,4 +424,83 @@ class PdfService
 
         return $dompdf->output();
     }
+
+    /**
+     * @param array<string, mixed> $member Decoded form_submissions row
+     */
+    public function generateMemberRegistration(array $member, string $churchName, string $churchAddress = ''): string
+    {
+        $esc = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+        $name = (string) ($member['submitter_name'] ?? 'Member');
+        $formLabel = FormSubmissionService::formTypeLabel((string) ($member['form_type'] ?? 'join'));
+        $status = ucfirst((string) ($member['status'] ?? ''));
+        $campus = ucfirst((string) ($member['campus_id'] ?? ''));
+        $submitted = !empty($member['created_at'])
+            ? date('j F Y, g:i a', strtotime((string) $member['created_at']))
+            : '—';
+
+        $sectionsHtml = '';
+        $currentSection = null;
+        foreach (FormSubmissionService::exportRows($member) as $row) {
+            $section = (string) ($row['section'] ?? '');
+            if ($section !== $currentSection) {
+                if ($currentSection !== null) {
+                    $sectionsHtml .= '</tbody></table>';
+                }
+                $currentSection = $section;
+                $sectionsHtml .= '<h3>' . $esc($section) . '</h3><table class="data"><tbody>';
+            }
+            $sectionsHtml .= '<tr>'
+                . '<th>' . $esc((string) ($row['label'] ?? '')) . '</th>'
+                . '<td>' . nl2br($esc((string) ($row['value'] ?? ''))) . '</td>'
+                . '</tr>';
+        }
+        if ($currentSection !== null) {
+            $sectionsHtml .= '</tbody></table>';
+        }
+
+        $addressLine = $churchAddress !== ''
+            ? '<p class="sub">' . $esc($churchAddress) . '</p>'
+            : '';
+
+        $html = "<!DOCTYPE html><html><head><meta charset='utf-8'><style>
+            body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #0f172a; margin: 28px; }
+            .header { text-align: center; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 2px solid #0b486d; }
+            .header h1 { margin: 0; font-size: 18px; color: #0b486d; }
+            .header .sub { margin: 4px 0 0; color: #64748b; font-size: 10px; }
+            .header .doc-title { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: #1a7aab; }
+            .meta { margin: 0 0 16px; padding: 10px 12px; background: #f0f9ff; border: 1px solid #d6f0fa; border-radius: 6px; }
+            .meta p { margin: 3px 0; }
+            h3 { margin: 16px 0 6px; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #0b486d; }
+            table.data { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+            table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+            table.data th { width: 34%; text-align: left; font-weight: 600; color: #64748b; background: #f8fafc; }
+            table.data td { color: #0f172a; }
+            .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 9px; }
+        </style></head><body>
+            <div class='header'>
+                <h1>" . $esc($churchName) . "</h1>
+                {$addressLine}
+                <p class='doc-title'>Member registration</p>
+            </div>
+            <div class='meta'>
+                <p><strong>Name:</strong> " . $esc($name) . "</p>
+                <p><strong>Form:</strong> " . $esc($formLabel) . " · <strong>Status:</strong> " . $esc($status) . " · <strong>Campus:</strong> " . $esc($campus !== '' ? $campus : '—') . "</p>
+                <p><strong>Submitted:</strong> " . $esc($submitted) . " · <strong>Generated:</strong> " . $esc(date('j F Y, g:i a')) . "</p>
+            </div>
+            {$sectionsHtml}
+            <div class='footer'>
+                <p>" . $esc($churchName) . " · Administration · Generated electronically</p>
+            </div>
+        </body></html>";
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->output();
+    }
 }

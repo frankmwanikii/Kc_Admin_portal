@@ -105,6 +105,10 @@ $router->post('/admin/members', [MemberController::class, 'store']);
 
 $router->get('/admin/members/{id}', [MemberController::class, 'show']);
 
+$router->get('/admin/members/{id}/pdf', [MemberController::class, 'downloadPdf']);
+
+$router->get('/admin/members/{id}/csv', [MemberController::class, 'downloadCsv']);
+
 $router->post('/admin/members/{id}/status', [MemberController::class, 'updateStatus']);
 
 $router->post('/admin/members/{id}/delete', [MemberController::class, 'delete']);

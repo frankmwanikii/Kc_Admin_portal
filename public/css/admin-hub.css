@@ -899,6 +899,124 @@
     text-align: right;
 }
 
+.member-advanced-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding-top: 0.35rem !important;
+}
+
+.member-advanced-action-form {
+    margin: 0;
+}
+
+.member-advanced-action {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid #d6f0fa;
+    border-radius: 0.75rem;
+    background: #f8fcfe;
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.member-advanced-action:hover {
+    border-color: #7dd0ef;
+    background: #eef9fd;
+}
+
+.member-advanced-action__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 0.65rem;
+    background: rgba(53, 175, 230, 0.14);
+    color: #1a7aab;
+    flex-shrink: 0;
+}
+
+.member-advanced-action__icon i,
+.member-advanced-action__icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.member-advanced-action__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.member-advanced-action__copy strong {
+    font-size: 0.875rem;
+    font-weight: 650;
+    color: #0b486d;
+}
+
+.member-advanced-action__copy span {
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.35;
+}
+
+.member-advanced-action__chevron {
+    width: 1rem;
+    height: 1rem;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.member-danger-card {
+    padding: 1.15rem 1.25rem;
+    background: #fff;
+    border: 1px solid #fecaca;
+    border-radius: 0.875rem;
+    box-shadow: 0 1px 4px rgba(185, 28, 28, 0.06);
+}
+
+.member-danger-card__title {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #991b1b;
+}
+
+.member-danger-card__text {
+    margin: 0.35rem 0 0.9rem;
+    font-size: 0.8125rem;
+    color: #7f1d1d;
+    line-height: 1.45;
+}
+
+.member-danger-card__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid #fca5a5;
+    border-radius: 0.55rem;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 0.8125rem;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.member-danger-card__btn:hover {
+    background: #fee2e2;
+}
+
 /* Add member — full Connect form modal */
 .finance-modal--member {
     max-width: min(44rem, calc(100vw - 1.25rem));

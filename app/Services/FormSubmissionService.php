@@ -353,6 +353,88 @@ class FormSubmissionService
         return $stmt->rowCount() > 0;
     }
 
+    /**
+     * Flat rows for CSV / PDF export of one registration.
+     *
+     * @param array<string, mixed> $member
+     * @return list<array{section: string, label: string, value: string}>
+     */
+    public static function exportRows(array $member): array
+    {
+        $payload = is_array($member['payload'] ?? null) ? $member['payload'] : [];
+        $formType = (string) ($member['form_type'] ?? 'join');
+        $rows = [
+            ['section' => 'Summary', 'label' => 'Registration ID', 'value' => '#' . (int) ($member['id'] ?? 0)],
+            ['section' => 'Summary', 'label' => 'Full name', 'value' => (string) ($member['submitter_name'] ?? '')],
+            ['section' => 'Summary', 'label' => 'Email', 'value' => (string) ($member['submitter_email'] ?? '')],
+            ['section' => 'Summary', 'label' => 'Phone', 'value' => (string) ($member['submitter_phone'] ?? '')],
+            ['section' => 'Summary', 'label' => 'Form type', 'value' => self::formTypeLabel($formType)],
+            ['section' => 'Summary', 'label' => 'Campus', 'value' => ucfirst((string) ($member['campus_id'] ?? ''))],
+            ['section' => 'Summary', 'label' => 'Status', 'value' => ucfirst((string) ($member['status'] ?? ''))],
+            [
+                'section' => 'Summary',
+                'label' => 'Submitted',
+                'value' => !empty($member['created_at']) ? date('Y-m-d H:i:s', strtotime((string) $member['created_at'])) : '',
+            ],
+            [
+                'section' => 'Summary',
+                'label' => 'Last updated',
+                'value' => !empty($member['updated_at']) ? date('Y-m-d H:i:s', strtotime((string) $member['updated_at'])) : '',
+            ],
+            ['section' => 'Summary', 'label' => 'Portal notes', 'value' => (string) ($member['portal_notes'] ?? '')],
+        ];
+
+        foreach (self::joinProfileSections($payload) as $section) {
+            $title = (string) ($section['title'] ?? 'Details');
+            foreach ($section['rows'] ?? [] as $row) {
+                $rows[] = [
+                    'section' => $title,
+                    'label' => (string) ($row['label'] ?? ''),
+                    'value' => (string) ($row['value'] ?? ''),
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $member
+     */
+    public static function memberToCsv(array $member): string
+    {
+        $stream = fopen('php://temp', 'r+');
+        if ($stream === false) {
+            return '';
+        }
+
+        fprintf($stream, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        fputcsv($stream, ['Section', 'Field', 'Value']);
+        foreach (self::exportRows($member) as $row) {
+            fputcsv($stream, [$row['section'], $row['label'], $row['value']]);
+        }
+
+        rewind($stream);
+        $csv = stream_get_contents($stream);
+        fclose($stream);
+
+        return $csv !== false ? $csv : '';
+    }
+
+    /**
+     * @param array<string, mixed> $member
+     */
+    public static function memberExportFilename(array $member, string $ext): string
+    {
+        $name = (string) ($member['submitter_name'] ?? 'member');
+        $slug = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $name) ?? 'member');
+        $slug = trim($slug, '-') ?: 'member';
+        $id = (int) ($member['id'] ?? 0);
+        $ext = strtolower($ext) === 'pdf' ? 'pdf' : 'csv';
+
+        return sprintf('member-%d-%s-%s.%s', $id, $slug, date('Ymd'), $ext);
+    }
+
     public static function countByStatus(string $status = 'new'): int
     {
         self::ensureTable();

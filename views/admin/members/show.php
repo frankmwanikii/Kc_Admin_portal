@@ -83,6 +83,15 @@ $statusClass = match ($status) {
                 <i data-lucide="clipboard-check"></i>
                 Review
             </button>
+            <button type="button"
+                    role="tab"
+                    class="admin-profile-tabs__item"
+                    :class="tab === 'advanced' && 'admin-profile-tabs__item--active'"
+                    :aria-selected="tab === 'advanced'"
+                    @click="tab = 'advanced'; $nextTick(() => window.lucide?.createIcons())">
+                <i data-lucide="settings"></i>
+                Advanced
+            </button>
         </nav>
 
         <div class="admin-profile-tabs__panel" x-show="tab === 'registration'" role="tabpanel">
@@ -133,6 +142,75 @@ $statusClass = match ($status) {
                     <button type="submit" class="member-profile-save-btn">Save changes</button>
                 </div>
             </form>
+        </div>
+
+        <div class="admin-profile-tabs__panel member-profile-panel-stack" x-show="tab === 'advanced'" x-cloak role="tabpanel">
+            <div class="member-profile-card">
+                <div class="member-profile-card-header">
+                    <h2>Additional settings</h2>
+                    <p>Quick actions and record metadata for this registration.</p>
+                </div>
+                <div class="member-profile-form member-advanced-actions">
+                    <a href="/admin/members/<?= (int) $member['id'] ?>/pdf"
+                       class="member-advanced-action"
+                       download>
+                        <span class="member-advanced-action__icon"><i data-lucide="file-text"></i></span>
+                        <span class="member-advanced-action__copy">
+                            <strong>Download PDF</strong>
+                            <span>Export this registration as a printable PDF</span>
+                        </span>
+                        <i data-lucide="download" class="member-advanced-action__chevron"></i>
+                    </a>
+
+                    <a href="/admin/members/<?= (int) $member['id'] ?>/csv"
+                       class="member-advanced-action"
+                       download>
+                        <span class="member-advanced-action__icon"><i data-lucide="file-spreadsheet"></i></span>
+                        <span class="member-advanced-action__copy">
+                            <strong>Download CSV</strong>
+                            <span>Export fields as a spreadsheet-friendly CSV file</span>
+                        </span>
+                        <i data-lucide="download" class="member-advanced-action__chevron"></i>
+                    </a>
+
+                    <a href="/admin/communications?member=<?= (int) $member['id'] ?>" class="member-advanced-action">
+                        <span class="member-advanced-action__icon"><i data-lucide="send"></i></span>
+                        <span class="member-advanced-action__copy">
+                            <strong>Send message</strong>
+                            <span>Open Communications with this member selected</span>
+                        </span>
+                        <i data-lucide="chevron-right" class="member-advanced-action__chevron"></i>
+                    </a>
+
+                    <?php if ($status !== 'archived'): ?>
+                    <form method="post" action="/admin/members/<?= (int) $member['id'] ?>/status" class="member-advanced-action-form">
+                        <input type="hidden" name="status" value="archived">
+                        <input type="hidden" name="portal_notes" value="<?= htmlspecialchars($member['portal_notes'] ?? '') ?>">
+                        <button type="submit" class="member-advanced-action">
+                            <span class="member-advanced-action__icon"><i data-lucide="archive"></i></span>
+                            <span class="member-advanced-action__copy">
+                                <strong>Archive registration</strong>
+                                <span>Mark as archived without deleting the record</span>
+                            </span>
+                            <i data-lucide="chevron-right" class="member-advanced-action__chevron"></i>
+                        </button>
+                    </form>
+                    <?php else: ?>
+                    <form method="post" action="/admin/members/<?= (int) $member['id'] ?>/status" class="member-advanced-action-form">
+                        <input type="hidden" name="status" value="reviewed">
+                        <input type="hidden" name="portal_notes" value="<?= htmlspecialchars($member['portal_notes'] ?? '') ?>">
+                        <button type="submit" class="member-advanced-action">
+                            <span class="member-advanced-action__icon"><i data-lucide="rotate-ccw"></i></span>
+                            <span class="member-advanced-action__copy">
+                                <strong>Restore from archive</strong>
+                                <span>Set status back to reviewed</span>
+                            </span>
+                            <i data-lucide="chevron-right" class="member-advanced-action__chevron"></i>
+                        </button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+            </div>
 
             <div class="member-profile-card member-profile-card--muted">
                 <div class="member-profile-card-header">
@@ -142,6 +220,14 @@ $statusClass = match ($status) {
                     <div>
                         <dt>Registration ID</dt>
                         <dd>#<?= (int) $member['id'] ?></dd>
+                    </div>
+                    <div>
+                        <dt>Form type</dt>
+                        <dd><?= htmlspecialchars($formTypeLabel) ?></dd>
+                    </div>
+                    <div>
+                        <dt>Campus</dt>
+                        <dd><?= htmlspecialchars($campus) ?></dd>
                     </div>
                     <div>
                         <dt>Submitted</dt>
@@ -155,6 +241,21 @@ $statusClass = match ($status) {
                     <?php endif; ?>
                 </dl>
             </div>
+
+            <form method="post"
+                  action="/admin/members/<?= (int) $member['id'] ?>/delete"
+                  class="member-danger-card"
+                  data-confirm="Permanently delete this registration for <?= htmlspecialchars($name, ENT_QUOTES) ?>? This cannot be undone."
+                  data-confirm-title="Delete registration?"
+                  data-confirm-label="Delete registration"
+                  data-confirm-tone="danger">
+                <p class="member-danger-card__title">Danger zone</p>
+                <p class="member-danger-card__text">Permanently remove this member registration and all submitted form data.</p>
+                <button type="submit" class="member-danger-card__btn">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    Delete registration
+                </button>
+            </form>
         </div>
     </div>
 </div>
