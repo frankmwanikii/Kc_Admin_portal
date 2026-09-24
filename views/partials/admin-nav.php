@@ -105,6 +105,12 @@ $sections = [
     ],
     'System' => [
         [
+            'href' => '/admin/docs',
+            'label' => 'Docs',
+            'icon' => 'book-open',
+            'active' => str_starts_with($currentPath, '/admin/docs'),
+        ],
+        [
             'href' => '/admin/settings',
             'label' => 'Settings',
             'icon' => 'settings',

@@ -289,7 +289,8 @@
             await ensureAssets(data.styles || [], data.scripts || []);
             await injectMain(data.html);
 
-            const titleEl = document.querySelector('.admin-topbar h1');
+            const titleEl = document.querySelector('.admin-topbar__title')
+                || document.querySelector('.admin-topbar h1');
             if (titleEl) titleEl.textContent = data.title || '';
             if (data.documentTitle) document.title = data.documentTitle;
             else if (data.title) document.title = data.title;

@@ -44,6 +44,15 @@
     letter-spacing: 0.04em;
 }
 
+html.dark .app-copyright--admin {
+    border-top-color: rgba(148, 163, 184, 0.12);
+    background: #0b1c28;
+}
+
+html.dark .app-copyright--admin .app-copyright__text {
+    color: #64748b;
+}
+
 /* Member portal */
 .app-copyright--member {
     border-top: 1px solid #e2e8f0;

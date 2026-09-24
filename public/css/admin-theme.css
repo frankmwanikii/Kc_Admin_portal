@@ -1,0 +1,425 @@
+/* Admin dark / light theme — shell + common surfaces */
+
+html.dark {
+    color-scheme: dark;
+}
+
+html.dark body.admin-app {
+    background: #0b1c28;
+    color: #e2e8f0;
+}
+
+html.dark .admin-main {
+    background: #0b1c28;
+}
+
+html.dark .admin-main > main {
+    color: #e2e8f0;
+}
+
+html.dark .admin-topbar {
+    background: rgba(8, 53, 82, 0.92);
+    border-bottom-color: rgba(148, 163, 184, 0.18);
+    backdrop-filter: blur(16px);
+}
+
+html.dark .admin-topbar__title {
+    color: #f1f5f9;
+}
+
+html.dark .admin-topbar__menu-btn,
+html.dark .admin-topbar__icon-btn {
+    color: #cbd5e1;
+}
+
+html.dark .admin-topbar__menu-btn:hover,
+html.dark .admin-topbar__icon-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+html.dark .admin-topbar__search-input {
+    background: rgba(2, 20, 32, 0.65);
+    color: #f1f5f9;
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.22);
+}
+
+html.dark .admin-topbar__search-input::placeholder {
+    color: #64748b;
+}
+
+html.dark .admin-topbar__search-input:focus {
+    background: #083552;
+    box-shadow: inset 0 0 0 2px rgba(53, 175, 230, 0.45);
+}
+
+html.dark .admin-topbar__search-icon {
+    color: #64748b;
+}
+
+html.dark .admin-topbar__kbd {
+    background: #0b486d;
+    color: #94a3b8;
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+}
+
+html.dark .admin-topbar__search-panel {
+    background: #0b486d;
+    border-color: rgba(148, 163, 184, 0.22);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+html.dark .admin-topbar__search-item {
+    color: #e2e8f0;
+}
+
+html.dark .admin-topbar__search-item:hover,
+html.dark .admin-topbar__search-item--active {
+    background: rgba(53, 175, 230, 0.15);
+    color: #fff;
+}
+
+html.dark .admin-topbar__search-hint {
+    color: #94a3b8;
+    border-top-color: rgba(148, 163, 184, 0.15);
+}
+
+html.dark .admin-theme-toggle {
+    background: rgba(2, 20, 32, 0.7);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.22);
+}
+
+html.dark .admin-theme-toggle__thumb {
+    background: #35afe6;
+}
+
+html.dark .admin-theme-toggle__btn {
+    color: #64748b;
+}
+
+html.dark .admin-theme-toggle__btn--active {
+    color: #083552;
+}
+
+html.dark .admin-theme-toggle__btn:not(.admin-theme-toggle__btn--active):hover {
+    color: #cbd5e1;
+}
+
+html.dark .admin-topbar__badge {
+    background: #35afe6;
+    color: #fff;
+    box-shadow: 0 0 0 2px #083552;
+}
+
+html.dark .admin-profile__trigger {
+    background: transparent;
+    border-color: transparent;
+    color: #f1f5f9;
+}
+
+html.dark .admin-profile__trigger:hover,
+html.dark .admin-profile__trigger[aria-expanded="true"] {
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(53, 175, 230, 0.25);
+}
+
+html.dark .admin-profile__name {
+    color: #f1f5f9;
+}
+
+html.dark .admin-profile__role {
+    color: #94a3b8;
+}
+
+html.dark .admin-profile__menu {
+    background: #0b486d;
+    border-color: rgba(148, 163, 184, 0.22);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+html.dark .admin-profile__menu-head {
+    border-bottom-color: rgba(148, 163, 184, 0.15);
+}
+
+html.dark .admin-profile__menu-name {
+    color: #f8fafc;
+}
+
+html.dark .admin-profile__menu-email {
+    color: #94a3b8;
+}
+
+html.dark .admin-profile__item {
+    color: #e2e8f0;
+}
+
+html.dark .admin-profile__item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+html.dark .admin-profile__item--danger {
+    color: #fb7185;
+}
+
+html.dark .admin-profile__item--danger:hover {
+    background: rgba(251, 113, 133, 0.12);
+    color: #fda4af;
+}
+
+html.dark .admin-profile__divider {
+    background: rgba(148, 163, 184, 0.15);
+}
+
+html.dark .app-copyright--admin {
+    border-top-color: rgba(148, 163, 184, 0.12);
+    color: #64748b;
+}
+
+/* Common content surfaces */
+html.dark .admin-main .bg-white,
+html.dark .admin-main .bg-slate-50,
+html.dark .admin-main .bg-slate-50\/50 {
+    background-color: #0f2a3d !important;
+}
+
+html.dark .admin-main .border-slate-100,
+html.dark .admin-main .border-slate-200,
+html.dark .admin-main .border-slate-200\/80 {
+    border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+html.dark .admin-main .text-slate-900,
+html.dark .admin-main .text-slate-800,
+html.dark .admin-main .text-church-800 {
+    color: #f1f5f9 !important;
+}
+
+html.dark .admin-main .text-slate-700,
+html.dark .admin-main .text-slate-600 {
+    color: #cbd5e1 !important;
+}
+
+html.dark .admin-main .text-slate-500,
+html.dark .admin-main .text-slate-400 {
+    color: #94a3b8 !important;
+}
+
+html.dark .admin-main .hover\:bg-church-50\/30:hover,
+html.dark .admin-main .hover\:bg-church-50\/20:hover,
+html.dark .admin-main .hover\:bg-slate-100:hover {
+    background-color: rgba(53, 175, 230, 0.08) !important;
+}
+
+html.dark .admin-main .divide-slate-50 > :not([hidden]) ~ :not([hidden]),
+html.dark .admin-main .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(148, 163, 184, 0.12);
+}
+
+/* Hub / finance / settings cards */
+html.dark .settings-layout,
+html.dark .docs-layout,
+html.dark .admin-hub-page,
+html.dark .fin-hub,
+html.dark .arrears-page {
+    color: #e2e8f0;
+}
+
+html.dark .settings-nav,
+html.dark .docs-nav,
+html.dark .docs-panel,
+html.dark .settings-card,
+html.dark .arrears-card,
+html.dark .finance-table-card,
+html.dark .fin-panel,
+html.dark .fin-kpi,
+html.dark .fin-highlight,
+html.dark .fin-budget-editor,
+html.dark .admin-alert {
+    background: #0f2a3d;
+    border-color: rgba(148, 163, 184, 0.16);
+    color: #e2e8f0;
+}
+
+html.dark .settings-nav-btn,
+html.dark .docs-nav-btn {
+    color: #94a3b8;
+}
+
+html.dark .settings-nav-btn:hover,
+html.dark .docs-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+}
+
+html.dark .settings-nav-btn--active,
+html.dark .docs-nav-btn--active {
+    background: rgba(53, 175, 230, 0.14);
+    color: #7dd0ef;
+    box-shadow: inset 0 0 0 1px rgba(53, 175, 230, 0.28);
+}
+
+html.dark .docs-section-title,
+html.dark .arrears-title,
+html.dark .fin-hero__title,
+html.dark .fin-panel__title,
+html.dark .settings-card-header h3 {
+    color: #f1f5f9;
+}
+
+html.dark .docs-section-lead,
+html.dark .finance-tab-hint,
+html.dark .fin-hero__sub,
+html.dark .docs-block p,
+html.dark .docs-list,
+html.dark .settings-card-header p {
+    color: #94a3b8;
+}
+
+html.dark .docs-block h3,
+html.dark .docs-card h4,
+html.dark .docs-steps strong {
+    color: #f8fafc;
+}
+
+html.dark .docs-steps li,
+html.dark .docs-card,
+html.dark .docs-block {
+    border-color: rgba(148, 163, 184, 0.12);
+}
+
+html.dark .docs-steps li,
+html.dark .docs-card {
+    background: rgba(2, 20, 32, 0.45);
+    color: #cbd5e1;
+}
+
+html.dark .docs-callout {
+    background: rgba(53, 175, 230, 0.12);
+    border-color: rgba(53, 175, 230, 0.28);
+    color: #ade2f5;
+}
+
+html.dark .docs-callout--tip {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.28);
+    color: #6ee7b7;
+}
+
+html.dark .docs-link {
+    background: rgba(53, 175, 230, 0.12);
+    border-color: rgba(53, 175, 230, 0.28);
+    color: #7dd0ef;
+}
+
+html.dark .docs-link:hover {
+    background: rgba(53, 175, 230, 0.2);
+}
+
+html.dark .arrears-search,
+html.dark .arrears-year-select,
+html.dark .finance-label + input,
+html.dark .finance-label + select,
+html.dark .finance-label + textarea,
+html.dark input.arrears-search,
+html.dark select.arrears-year-select,
+html.dark .fin-hub input[type="text"],
+html.dark .fin-hub input[type="search"],
+html.dark .fin-hub input[type="number"],
+html.dark .fin-hub input[type="email"],
+html.dark .fin-hub input[type="date"],
+html.dark .fin-hub input[type="month"],
+html.dark .fin-hub select,
+html.dark .fin-hub textarea,
+html.dark .settings-form input,
+html.dark .settings-form select,
+html.dark .settings-form textarea {
+    background: rgba(2, 20, 32, 0.55) !important;
+    border-color: rgba(148, 163, 184, 0.22) !important;
+    color: #f1f5f9 !important;
+}
+
+html.dark .arrears-table,
+html.dark .fin-table,
+html.dark .finance-modal {
+    color: #e2e8f0;
+}
+
+html.dark .arrears-table thead th,
+html.dark .fin-table thead th {
+    background: rgba(2, 20, 32, 0.55);
+    color: #94a3b8;
+    border-color: rgba(148, 163, 184, 0.12);
+}
+
+html.dark .arrears-table td,
+html.dark .fin-table td {
+    border-color: rgba(148, 163, 184, 0.1);
+}
+
+html.dark .arrears-table tbody tr:hover,
+html.dark .fin-table tbody tr:hover {
+    background: rgba(53, 175, 230, 0.06);
+}
+
+html.dark .finance-modal,
+html.dark .finance-modal-header {
+    background: #0f2a3d;
+    border-color: rgba(148, 163, 184, 0.16);
+}
+
+html.dark .finance-modal-title,
+html.dark .finance-detail-value {
+    color: #f1f5f9;
+}
+
+html.dark .finance-modal-subtitle,
+html.dark .finance-detail-label {
+    color: #94a3b8;
+}
+
+html.dark .settings-switch-row,
+html.dark .settings-provider-card {
+    background: #0f2a3d;
+    border-color: rgba(148, 163, 184, 0.16);
+}
+
+html.dark .settings-provider-card--active {
+    background: rgba(53, 175, 230, 0.12);
+    border-color: #35afe6;
+}
+
+html.dark .settings-switch-row__copy strong,
+html.dark .settings-provider-card strong,
+html.dark .settings-switch__label {
+    color: #f1f5f9;
+}
+
+html.dark .settings-switch-row__copy span,
+html.dark .settings-provider-card span {
+    color: #94a3b8;
+}
+
+html.dark .admin-dashboard .bg-white {
+    background-color: #0f2a3d !important;
+}
+
+html.dark .fin-hero {
+    color: #e2e8f0;
+}
+
+html.dark .fin-hero__eyebrow {
+    color: #7dd0ef;
+}
+
+html.dark .fin-kpi__label,
+html.dark .fin-kpi__hint,
+html.dark .fin-highlight__label,
+html.dark .fin-highlight__formula {
+    color: #94a3b8;
+}
+
+html.dark .fin-kpi__value,
+html.dark .fin-highlight__value {
+    color: #f8fafc;
+}

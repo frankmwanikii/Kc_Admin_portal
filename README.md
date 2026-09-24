@@ -37,6 +37,8 @@ Open [http://localhost:8000](http://localhost:8000) — you'll be guided through
 
 Sign in with the admin email and password you chose during setup. Demo member accounts are seeded automatically (password: `password123`).
 
+In the admin sidebar under **System → Docs**, you'll find how-to guides for the **admin dashboard** and **finance** section (`/admin/docs`).
+
 ## QR Onboarding
 
 1. Admin → **QR Onboarding** to print/display the QR code

@@ -35,6 +35,7 @@ use App\Controllers\Admin\MinistryController;
 use App\Controllers\Admin\SettingsController;
 use App\Controllers\Admin\StaffController;
 use App\Controllers\Admin\ProfileController;
+use App\Controllers\Admin\DocsController;
 
 
 
@@ -192,6 +193,8 @@ $router->get('/admin/onboarding-qr', [OnboardingController::class, 'qrDisplay'])
 $router->get('/admin/settings', [SettingsController::class, 'index']);
 
 $router->post('/admin/settings', [SettingsController::class, 'update']);
+
+$router->get('/admin/docs', [DocsController::class, 'index']);
 
 $router->get('/admin/profile', [ProfileController::class, 'index']);
 $router->post('/admin/profile', [ProfileController::class, 'update']);

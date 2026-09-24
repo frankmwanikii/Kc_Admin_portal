@@ -269,6 +269,7 @@ $statCards = [
                     ['/admin/finance?tab=reports&sub=statement', 'Operating statement', 'file-bar-chart', 'text-emerald-600 bg-emerald-50'],
                     ['/admin/inventory', 'Inventory (' . (int) ($stats['inventory'] ?? 0) . ')', 'package', 'text-violet-600 bg-violet-50'],
                     ['/admin/communications', 'Communications', 'megaphone', 'text-amber-600 bg-amber-50'],
+                    ['/admin/docs', 'How-to docs', 'book-open', 'text-sky-600 bg-sky-50'],
                     ['/admin/settings', 'Settings', 'settings', 'text-slate-600 bg-slate-100'],
                 ];
                 foreach ($links as [$href, $label, $icon, $style]):
