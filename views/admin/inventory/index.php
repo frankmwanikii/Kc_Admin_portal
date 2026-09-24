@@ -66,12 +66,12 @@ $itemsJson = json_encode(array_values($items ?? []), JSON_HEX_TAG | JSON_HEX_APO
                             <td class="arrears-actions ft-td-actions"
                                 :class="openMenu == item.id && 'weekly-actions--open'">
                                 <button type="button"
-                                        class="arrears-view-btn"
+                                        class="arrears-view-btn arrears-view-btn--icon"
                                         @click.stop="toggleMenu(item.id, $event)"
                                         :aria-expanded="openMenu == item.id"
-                                        :aria-label="'Actions for ' + item.name">
-                                    Actions
-                                    <i data-lucide="chevron-down"></i>
+                                        :aria-label="'Actions for ' + item.name"
+                                        title="Actions">
+                                    <i data-lucide="ellipsis-vertical"></i>
                                 </button>
                             </td>
                         </tr>

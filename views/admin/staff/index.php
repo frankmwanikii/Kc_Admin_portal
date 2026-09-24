@@ -78,12 +78,12 @@ $staffJson = json_encode(array_values($staff ?? []), JSON_HEX_TAG | JSON_HEX_APO
                             <td class="arrears-actions ft-td-actions"
                                 :class="openMenu == person.id && 'weekly-actions--open'">
                                 <button type="button"
-                                        class="arrears-view-btn"
+                                        class="arrears-view-btn arrears-view-btn--icon"
                                         @click.stop="toggleMenu(person.id, $event)"
                                         :aria-expanded="openMenu == person.id"
-                                        :aria-label="'Actions for ' + person.name">
-                                    Actions
-                                    <i data-lucide="chevron-down"></i>
+                                        :aria-label="'Actions for ' + person.name"
+                                        title="Actions">
+                                    <i data-lucide="ellipsis-vertical"></i>
                                 </button>
                             </td>
                         </tr>

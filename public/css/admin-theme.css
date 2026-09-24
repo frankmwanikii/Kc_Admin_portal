@@ -1,230 +1,247 @@
-/* Admin dark / light theme — shell + common surfaces */
+/* Admin dark mode — readable church navy palette
+   Surfaces stay dark; text stays light; status colors stay vivid. */
 
 html.dark {
     color-scheme: dark;
+    --adm-bg: #071622;
+    --adm-surface: #0d2433;
+    --adm-surface-2: #123044;
+    --adm-elevated: #163a52;
+    --adm-border: rgba(125, 208, 239, 0.16);
+    --adm-border-strong: rgba(125, 208, 239, 0.28);
+    --adm-text: #f1f5f9;
+    --adm-text-secondary: #cbd5e1;
+    --adm-muted: #94a3b8;
+    --adm-accent: #7dd0ef;
+    --adm-accent-strong: #35afe6;
+    --adm-paid: #34d399;
+    --adm-partial: #fbbf24;
+    --adm-unpaid: #fb7185;
+    --adm-owing: #fda4af;
 }
 
 html.dark body.admin-app {
-    background: #0b1c28;
-    color: #e2e8f0;
+    background: var(--adm-bg);
+    color: var(--adm-text);
 }
 
 html.dark .admin-main {
-    background: #0b1c28;
+    background: var(--adm-bg);
 }
 
 html.dark .admin-main > main {
-    color: #e2e8f0;
+    color: var(--adm-text);
 }
 
+/* ── Top bar ─────────────────────────────────────────────────────────── */
 html.dark .admin-topbar {
-    background: rgba(8, 53, 82, 0.92);
-    border-bottom-color: rgba(148, 163, 184, 0.18);
+    background: rgba(8, 40, 62, 0.94) !important;
+    border-bottom-color: var(--adm-border) !important;
     backdrop-filter: blur(16px);
 }
 
 html.dark .admin-topbar__title {
-    color: #f1f5f9;
+    color: var(--adm-text) !important;
 }
 
 html.dark .admin-topbar__menu-btn,
 html.dark .admin-topbar__icon-btn {
-    color: #cbd5e1;
+    color: var(--adm-text-secondary);
 }
 
 html.dark .admin-topbar__menu-btn:hover,
 html.dark .admin-topbar__icon-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(53, 175, 230, 0.12);
     color: #fff;
 }
 
 html.dark .admin-topbar__search-input {
-    background: rgba(2, 20, 32, 0.65);
-    color: #f1f5f9;
-    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.22);
+    background: var(--adm-bg) !important;
+    color: var(--adm-text) !important;
+    box-shadow: inset 0 0 0 1px var(--adm-border) !important;
 }
 
 html.dark .admin-topbar__search-input::placeholder {
-    color: #64748b;
+    color: var(--adm-muted);
 }
 
 html.dark .admin-topbar__search-input:focus {
-    background: #083552;
-    box-shadow: inset 0 0 0 2px rgba(53, 175, 230, 0.45);
+    background: var(--adm-surface) !important;
+    box-shadow: inset 0 0 0 2px rgba(53, 175, 230, 0.5) !important;
 }
 
 html.dark .admin-topbar__search-icon {
-    color: #64748b;
+    color: var(--adm-muted);
 }
 
 html.dark .admin-topbar__kbd {
-    background: #0b486d;
-    color: #94a3b8;
-    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+    background: var(--adm-elevated);
+    color: var(--adm-muted);
+    box-shadow: inset 0 0 0 1px var(--adm-border);
 }
 
-html.dark .admin-topbar__search-panel {
-    background: #0b486d;
-    border-color: rgba(148, 163, 184, 0.22);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+html.dark .admin-topbar__search-panel,
+html.dark .admin-profile__menu {
+    background: var(--adm-surface-2) !important;
+    border-color: var(--adm-border-strong) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
 }
 
-html.dark .admin-topbar__search-item {
-    color: #e2e8f0;
+html.dark .admin-topbar__search-item,
+html.dark .admin-profile__item {
+    color: var(--adm-text-secondary);
 }
 
 html.dark .admin-topbar__search-item:hover,
-html.dark .admin-topbar__search-item--active {
-    background: rgba(53, 175, 230, 0.15);
+html.dark .admin-topbar__search-item--active,
+html.dark .admin-profile__item:hover {
+    background: rgba(53, 175, 230, 0.14);
     color: #fff;
 }
 
 html.dark .admin-topbar__search-hint {
-    color: #94a3b8;
-    border-top-color: rgba(148, 163, 184, 0.15);
+    color: var(--adm-muted);
+    border-top-color: var(--adm-border);
 }
 
 html.dark .admin-theme-toggle {
-    background: rgba(2, 20, 32, 0.7);
-    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.22);
+    background: var(--adm-bg);
+    box-shadow: inset 0 0 0 1px var(--adm-border);
 }
 
 html.dark .admin-theme-toggle__thumb {
-    background: #35afe6;
+    background: var(--adm-accent-strong);
 }
 
 html.dark .admin-theme-toggle__btn {
-    color: #64748b;
+    color: var(--adm-muted);
 }
 
 html.dark .admin-theme-toggle__btn--active {
     color: #083552;
 }
 
-html.dark .admin-theme-toggle__btn:not(.admin-theme-toggle__btn--active):hover {
-    color: #cbd5e1;
-}
-
 html.dark .admin-topbar__badge {
-    background: #35afe6;
+    background: var(--adm-accent-strong);
     color: #fff;
     box-shadow: 0 0 0 2px #083552;
 }
 
-html.dark .admin-profile__trigger {
-    background: transparent;
-    border-color: transparent;
-    color: #f1f5f9;
-}
-
-html.dark .admin-profile__trigger:hover,
-html.dark .admin-profile__trigger[aria-expanded="true"] {
-    border-color: transparent;
-    box-shadow: 0 0 0 3px rgba(53, 175, 230, 0.25);
-}
-
-html.dark .admin-profile__name {
-    color: #f1f5f9;
-}
-
-html.dark .admin-profile__role {
-    color: #94a3b8;
-}
-
-html.dark .admin-profile__menu {
-    background: #0b486d;
-    border-color: rgba(148, 163, 184, 0.22);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-}
-
-html.dark .admin-profile__menu-head {
-    border-bottom-color: rgba(148, 163, 184, 0.15);
-}
-
 html.dark .admin-profile__menu-name {
-    color: #f8fafc;
+    color: var(--adm-text);
 }
 
-html.dark .admin-profile__menu-email {
-    color: #94a3b8;
+html.dark .admin-profile__menu-email,
+html.dark .admin-profile__role {
+    color: var(--adm-muted);
 }
 
-html.dark .admin-profile__item {
-    color: #e2e8f0;
-}
-
-html.dark .admin-profile__item:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
+html.dark .admin-profile__menu-head,
+html.dark .admin-profile__divider {
+    border-color: var(--adm-border);
+    background-color: transparent;
 }
 
 html.dark .admin-profile__item--danger {
-    color: #fb7185;
+    color: var(--adm-unpaid);
 }
 
 html.dark .admin-profile__item--danger:hover {
-    background: rgba(251, 113, 133, 0.12);
-    color: #fda4af;
-}
-
-html.dark .admin-profile__divider {
-    background: rgba(148, 163, 184, 0.15);
+    background: rgba(251, 113, 133, 0.14);
+    color: #fecdd3;
 }
 
 html.dark .app-copyright--admin {
-    border-top-color: rgba(148, 163, 184, 0.12);
-    color: #64748b;
+    background: var(--adm-bg) !important;
+    border-top-color: var(--adm-border) !important;
 }
 
-/* Common content surfaces */
+html.dark .app-copyright--admin .app-copyright__text {
+    color: var(--adm-muted);
+}
+
+/* ── Remap finance / arrears design tokens ───────────────────────────── */
+html.dark .fin-hub,
+html.dark .fin-sunday-page,
+html.dark .arrears-page,
+html.dark .admin-hub-page,
+html.dark .settings-layout,
+html.dark .docs-layout {
+    --fin-bg: var(--adm-bg);
+    --fin-surface: var(--adm-surface);
+    --fin-border: var(--adm-border);
+    --fin-muted: var(--adm-muted);
+    --fin-text: var(--adm-text);
+    --fin-blue-soft: rgba(53, 175, 230, 0.1);
+    --fin-blue-mid: rgba(53, 175, 230, 0.2);
+    --fin-orange-soft: rgba(251, 191, 36, 0.12);
+    --fin-orange-mid: rgba(251, 191, 36, 0.22);
+    --fin-surplus: var(--adm-paid);
+    --fin-surplus-bg: rgba(52, 211, 153, 0.12);
+    --fin-deficit: var(--adm-unpaid);
+    --fin-deficit-bg: rgba(251, 113, 133, 0.12);
+    --fin-warning: var(--adm-partial);
+    --fin-shadow: 0 4px 24px rgba(0, 0, 0, 0.28);
+    --fin-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+
+    --arrears-accent: #e0f2fe;
+    --arrears-accent-hover: #7dd0ef;
+    --arrears-primary: #7dd0ef;
+    --arrears-primary-hover: #35afe6;
+    --arrears-sky: #35afe6;
+    --arrears-muted: #94a3b8;
+    --arrears-border: var(--adm-border);
+    --arrears-bg: var(--adm-bg);
+    --arrears-header-bg: var(--adm-surface-2);
+    --arrears-paid: var(--adm-paid);
+    --arrears-partial: var(--adm-partial);
+    --arrears-unpaid: var(--adm-unpaid);
+
+    color: var(--adm-text);
+    background: transparent;
+}
+
+/* ── Common Tailwind surfaces inside admin ───────────────────────────── */
 html.dark .admin-main .bg-white,
 html.dark .admin-main .bg-slate-50,
 html.dark .admin-main .bg-slate-50\/50 {
-    background-color: #0f2a3d !important;
+    background-color: var(--adm-surface) !important;
 }
 
 html.dark .admin-main .border-slate-100,
 html.dark .admin-main .border-slate-200,
 html.dark .admin-main .border-slate-200\/80 {
-    border-color: rgba(148, 163, 184, 0.16) !important;
+    border-color: var(--adm-border) !important;
 }
 
 html.dark .admin-main .text-slate-900,
 html.dark .admin-main .text-slate-800,
 html.dark .admin-main .text-church-800 {
-    color: #f1f5f9 !important;
+    color: var(--adm-text) !important;
 }
 
 html.dark .admin-main .text-slate-700,
 html.dark .admin-main .text-slate-600 {
-    color: #cbd5e1 !important;
+    color: var(--adm-text-secondary) !important;
 }
 
 html.dark .admin-main .text-slate-500,
 html.dark .admin-main .text-slate-400 {
-    color: #94a3b8 !important;
+    color: var(--adm-muted) !important;
 }
 
 html.dark .admin-main .hover\:bg-church-50\/30:hover,
 html.dark .admin-main .hover\:bg-church-50\/20:hover,
 html.dark .admin-main .hover\:bg-slate-100:hover {
-    background-color: rgba(53, 175, 230, 0.08) !important;
+    background-color: rgba(53, 175, 230, 0.1) !important;
 }
 
 html.dark .admin-main .divide-slate-50 > :not([hidden]) ~ :not([hidden]),
 html.dark .admin-main .divide-y > :not([hidden]) ~ :not([hidden]) {
-    border-color: rgba(148, 163, 184, 0.12);
+    border-color: var(--adm-border);
 }
 
-/* Hub / finance / settings cards */
-html.dark .settings-layout,
-html.dark .docs-layout,
-html.dark .admin-hub-page,
-html.dark .fin-hub,
-html.dark .arrears-page {
-    color: #e2e8f0;
-}
-
+/* ── Cards / panels ──────────────────────────────────────────────────── */
 html.dark .settings-nav,
 html.dark .docs-nav,
 html.dark .docs-panel,
@@ -235,36 +252,45 @@ html.dark .fin-panel,
 html.dark .fin-kpi,
 html.dark .fin-highlight,
 html.dark .fin-budget-editor,
-html.dark .admin-alert {
-    background: #0f2a3d;
-    border-color: rgba(148, 163, 184, 0.16);
-    color: #e2e8f0;
+html.dark .admin-alert,
+html.dark .fin-month-pulse,
+html.dark .comms-composer,
+html.dark .admin-dashboard .bg-white {
+    background: var(--adm-surface) !important;
+    border-color: var(--adm-border) !important;
+    color: var(--adm-text) !important;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+html.dark .finance-table-card {
+    border-color: var(--adm-border-strong) !important;
 }
 
 html.dark .settings-nav-btn,
 html.dark .docs-nav-btn {
-    color: #94a3b8;
+    color: var(--adm-muted);
 }
 
 html.dark .settings-nav-btn:hover,
 html.dark .docs-nav-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--adm-text);
 }
 
 html.dark .settings-nav-btn--active,
 html.dark .docs-nav-btn--active {
-    background: rgba(53, 175, 230, 0.14);
-    color: #7dd0ef;
-    box-shadow: inset 0 0 0 1px rgba(53, 175, 230, 0.28);
+    background: rgba(53, 175, 230, 0.16);
+    color: var(--adm-accent);
+    box-shadow: inset 0 0 0 1px rgba(53, 175, 230, 0.35);
 }
 
 html.dark .docs-section-title,
 html.dark .arrears-title,
 html.dark .fin-hero__title,
 html.dark .fin-panel__title,
-html.dark .settings-card-header h3 {
-    color: #f1f5f9;
+html.dark .settings-card-header h3,
+html.dark .finance-table-caption-label {
+    color: var(--adm-text) !important;
 }
 
 html.dark .docs-section-lead,
@@ -272,50 +298,47 @@ html.dark .finance-tab-hint,
 html.dark .fin-hero__sub,
 html.dark .docs-block p,
 html.dark .docs-list,
-html.dark .settings-card-header p {
-    color: #94a3b8;
+html.dark .settings-card-header p,
+html.dark .arrears-count {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .docs-steps li,
+html.dark .docs-card {
+    background: var(--adm-surface-2);
+    border-color: var(--adm-border);
+    color: var(--adm-text-secondary);
 }
 
 html.dark .docs-block h3,
 html.dark .docs-card h4,
 html.dark .docs-steps strong {
-    color: #f8fafc;
-}
-
-html.dark .docs-steps li,
-html.dark .docs-card,
-html.dark .docs-block {
-    border-color: rgba(148, 163, 184, 0.12);
-}
-
-html.dark .docs-steps li,
-html.dark .docs-card {
-    background: rgba(2, 20, 32, 0.45);
-    color: #cbd5e1;
+    color: var(--adm-text);
 }
 
 html.dark .docs-callout {
     background: rgba(53, 175, 230, 0.12);
-    border-color: rgba(53, 175, 230, 0.28);
-    color: #ade2f5;
+    border-color: rgba(53, 175, 230, 0.3);
+    color: #bae6fd;
 }
 
 html.dark .docs-callout--tip {
-    background: rgba(16, 185, 129, 0.12);
-    border-color: rgba(16, 185, 129, 0.28);
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.3);
     color: #6ee7b7;
 }
 
 html.dark .docs-link {
-    background: rgba(53, 175, 230, 0.12);
-    border-color: rgba(53, 175, 230, 0.28);
-    color: #7dd0ef;
+    background: rgba(53, 175, 230, 0.14);
+    border-color: rgba(53, 175, 230, 0.3);
+    color: var(--adm-accent);
 }
 
 html.dark .docs-link:hover {
-    background: rgba(53, 175, 230, 0.2);
+    background: rgba(53, 175, 230, 0.22);
 }
 
+/* ── Forms / controls ────────────────────────────────────────────────── */
 html.dark .arrears-search,
 html.dark .arrears-year-select,
 html.dark .finance-label + input,
@@ -333,93 +356,275 @@ html.dark .fin-hub select,
 html.dark .fin-hub textarea,
 html.dark .settings-form input,
 html.dark .settings-form select,
-html.dark .settings-form textarea {
-    background: rgba(2, 20, 32, 0.55) !important;
-    border-color: rgba(148, 163, 184, 0.22) !important;
-    color: #f1f5f9 !important;
+html.dark .settings-form textarea,
+html.dark .admin-hub-page input[type="search"],
+html.dark .admin-hub-page input[type="text"],
+html.dark .admin-hub-page select {
+    background: var(--adm-bg) !important;
+    border-color: var(--adm-border-strong) !important;
+    color: var(--adm-text) !important;
 }
 
-html.dark .arrears-table,
-html.dark .fin-table,
-html.dark .finance-modal {
-    color: #e2e8f0;
+html.dark .arrears-btn-new,
+html.dark .fin-btn--primary {
+    background: var(--adm-accent-strong) !important;
+    color: #041018 !important;
+    border-color: transparent !important;
 }
 
-html.dark .arrears-table thead th,
-html.dark .fin-table thead th {
-    background: rgba(2, 20, 32, 0.55);
-    color: #94a3b8;
-    border-color: rgba(148, 163, 184, 0.12);
-}
-
-html.dark .arrears-table td,
-html.dark .fin-table td {
-    border-color: rgba(148, 163, 184, 0.1);
-}
-
-html.dark .arrears-table tbody tr:hover,
-html.dark .fin-table tbody tr:hover {
-    background: rgba(53, 175, 230, 0.06);
-}
-
-html.dark .finance-modal,
-html.dark .finance-modal-header {
-    background: #0f2a3d;
-    border-color: rgba(148, 163, 184, 0.16);
-}
-
-html.dark .finance-modal-title,
-html.dark .finance-detail-value {
-    color: #f1f5f9;
-}
-
-html.dark .finance-modal-subtitle,
-html.dark .finance-detail-label {
-    color: #94a3b8;
+html.dark .arrears-btn-new:hover,
+html.dark .fin-btn--primary:hover {
+    background: #4dbfe9 !important;
 }
 
 html.dark .settings-switch-row,
 html.dark .settings-provider-card {
-    background: #0f2a3d;
-    border-color: rgba(148, 163, 184, 0.16);
+    background: var(--adm-surface);
+    border-color: var(--adm-border);
 }
 
 html.dark .settings-provider-card--active {
-    background: rgba(53, 175, 230, 0.12);
-    border-color: #35afe6;
+    background: rgba(53, 175, 230, 0.14);
+    border-color: var(--adm-accent-strong);
 }
 
 html.dark .settings-switch-row__copy strong,
 html.dark .settings-provider-card strong,
 html.dark .settings-switch__label {
-    color: #f1f5f9;
+    color: var(--adm-text);
 }
 
 html.dark .settings-switch-row__copy span,
 html.dark .settings-provider-card span {
-    color: #94a3b8;
+    color: var(--adm-muted);
 }
 
-html.dark .admin-dashboard .bg-white {
-    background-color: #0f2a3d !important;
+/* ── Bills / finance tables — high-contrast dark ─────────────────────── */
+html.dark .finance-table-caption {
+    background: var(--adm-surface-2) !important;
+    border-bottom-color: var(--adm-border) !important;
 }
 
+html.dark .finance-table-caption-badge {
+    background: rgba(53, 175, 230, 0.16) !important;
+    border-color: rgba(53, 175, 230, 0.3) !important;
+    color: var(--adm-accent) !important;
+}
+
+html.dark .arrears-table,
+html.dark .fin-table,
+html.dark .weekly-table {
+    color: var(--adm-text);
+}
+
+html.dark .arrears-table thead th,
+html.dark .fin-table thead th,
+html.dark .finance-table-card .arrears-table thead th {
+    background: linear-gradient(180deg, #0a3a56 0%, #0c4868 100%) !important;
+    color: #f8fafc !important;
+    border-color: transparent !important;
+}
+
+html.dark .finance-table-card .arrears-table thead th.ft-th-accent,
+html.dark .finance-table-card .weekly-table thead th.weekly-col-total,
+html.dark .finance-table-card .arrears-table thead th.ft-th-actions,
+html.dark .finance-table-card .weekly-table thead th.weekly-col-actions {
+    background: linear-gradient(180deg, #072f46 0%, #0a3f5c 100%) !important;
+    box-shadow: inset 1px 0 0 rgba(125, 208, 239, 0.12);
+}
+
+html.dark .arrears-table tbody td,
+html.dark .fin-table tbody td,
+html.dark .finance-table-card .arrears-table tbody td {
+    border-bottom-color: var(--adm-border) !important;
+    color: var(--adm-text-secondary) !important;
+    background: transparent;
+}
+
+/* Base row + zebra */
+html.dark .finance-table-card .arrears-table tbody .arrears-row {
+    background: var(--adm-surface) !important;
+}
+
+html.dark .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) {
+    background: var(--adm-surface-2) !important;
+}
+
+html.dark .finance-table-card .arrears-table tbody .ft-td-accent {
+    background: rgba(7, 34, 50, 0.55) !important;
+    box-shadow: inset 1px 0 0 var(--adm-border);
+}
+
+html.dark .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-accent,
+html.dark .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-actions.ft-td-actions--sticky {
+    background: rgba(10, 42, 62, 0.9) !important;
+}
+
+html.dark .finance-table-card .arrears-table tbody .ft-td-actions {
+    background: var(--adm-surface) !important;
+    box-shadow: inset 1px 0 0 var(--adm-border), -6px 0 14px rgba(0, 0, 0, 0.25);
+}
+
+html.dark .finance-table-card .arrears-table tbody .arrears-row:nth-child(even) .ft-td-actions {
+    background: var(--adm-surface-2) !important;
+}
+
+html.dark .finance-table-card .arrears-table tbody .arrears-row:hover,
+html.dark .finance-table-card .arrears-table tbody .arrears-row:hover .ft-td-actions {
+    background: rgba(53, 175, 230, 0.1) !important;
+}
+
+html.dark .finance-table-card .arrears-table tbody .arrears-row:hover .ft-td-accent {
+    background: rgba(53, 175, 230, 0.14) !important;
+}
+
+/* Cell text hierarchy */
+html.dark .arrears-accent {
+    color: #f8fafc !important;
+}
+
+html.dark .arrears-muted,
+html.dark .arrears-date-sub,
+html.dark .arrears-amount--muted {
+    color: #94a3b8 !important;
+}
+
+html.dark .arrears-date-main,
+html.dark .arrears-amount {
+    color: #e2e8f0 !important;
+}
+
+html.dark .arrears-amount--owing {
+    color: var(--adm-owing) !important;
+}
+
+html.dark .arrears-status--paid {
+    color: var(--adm-paid) !important;
+}
+
+html.dark .arrears-status--partial {
+    color: var(--adm-partial) !important;
+}
+
+html.dark .arrears-status--unpaid {
+    color: var(--adm-unpaid) !important;
+}
+
+html.dark .arrears-amount--editable:hover,
+html.dark .arrears-amount--editable:focus {
+    background: rgba(53, 175, 230, 0.12) !important;
+    border-color: rgba(53, 175, 230, 0.4) !important;
+    color: var(--adm-text) !important;
+}
+
+html.dark .arrears-view-btn {
+    background: var(--adm-elevated) !important;
+    border-color: var(--adm-border-strong) !important;
+    color: var(--adm-text) !important;
+}
+
+html.dark .arrears-view-btn--icon {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: var(--adm-text-secondary) !important;
+}
+
+html.dark .arrears-view-btn:hover,
+html.dark .arrears-view-btn[aria-expanded="true"] {
+    background: rgba(53, 175, 230, 0.18) !important;
+    border-color: var(--adm-accent-strong) !important;
+    color: #fff !important;
+}
+
+html.dark .arrears-view-btn--icon:hover,
+html.dark .arrears-view-btn--icon[aria-expanded="true"] {
+    background: rgba(53, 175, 230, 0.16) !important;
+    border-color: rgba(53, 175, 230, 0.35) !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 3px rgba(53, 175, 230, 0.12);
+}
+
+html.dark .arrears-empty {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .arrears-table-scroll {
+    scrollbar-color: rgba(53, 175, 230, 0.35) transparent;
+}
+
+/* KPIs / highlights */
 html.dark .fin-hero {
-    color: #e2e8f0;
+    color: #fff;
 }
 
 html.dark .fin-hero__eyebrow {
-    color: #7dd0ef;
+    color: rgba(224, 242, 254, 0.8);
 }
 
 html.dark .fin-kpi__label,
 html.dark .fin-kpi__hint,
 html.dark .fin-highlight__label,
-html.dark .fin-highlight__formula {
-    color: #94a3b8;
+html.dark .fin-highlight__formula,
+html.dark .fin-chart-panel__sub {
+    color: var(--adm-muted) !important;
 }
 
 html.dark .fin-kpi__value,
 html.dark .fin-highlight__value {
-    color: #f8fafc;
+    color: var(--adm-text) !important;
+}
+
+html.dark .fin-link {
+    color: var(--adm-accent) !important;
+}
+
+html.dark .fin-badge--surplus {
+    color: var(--adm-paid);
+}
+
+html.dark .fin-badge--deficit {
+    color: var(--adm-unpaid);
+}
+
+/* Modals */
+html.dark .finance-modal,
+html.dark .finance-modal-header,
+html.dark .finance-modal-body,
+html.dark .finance-modal-footer {
+    background: var(--adm-surface) !important;
+    border-color: var(--adm-border) !important;
+    color: var(--adm-text);
+}
+
+html.dark .finance-modal-title,
+html.dark .finance-detail-value {
+    color: var(--adm-text) !important;
+}
+
+html.dark .finance-modal-subtitle,
+html.dark .finance-detail-label,
+html.dark .finance-label {
+    color: var(--adm-muted) !important;
+}
+
+/* Weekly / sundays tables */
+html.dark .weekly-table tbody tr:nth-child(even),
+html.dark .fin-table tbody tr:nth-child(even) {
+    background: var(--adm-surface-2);
+}
+
+html.dark .weekly-table tbody td,
+html.dark .fin-table tbody td {
+    color: var(--adm-text-secondary);
+    border-color: var(--adm-border);
+}
+
+html.dark .fin-sundays-table,
+html.dark .fin-amount-grid .fin-amt-row:nth-child(even) {
+    background: var(--adm-surface-2);
+}
+
+html.dark .fin-amount-grid .fin-amt-row {
+    border-color: var(--adm-border);
+    color: var(--adm-text-secondary);
 }

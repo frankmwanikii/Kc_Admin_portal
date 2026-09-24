@@ -89,12 +89,12 @@ $formsDbStatus = $formsDbStatus ?? [];
                             <td class="arrears-actions ft-td-actions"
                                 :class="openMenu === m.id && 'weekly-actions--open'">
                                 <button type="button"
-                                        class="arrears-view-btn"
+                                        class="arrears-view-btn arrears-view-btn--icon"
                                         @click.stop="toggleMenu(m.id, $event)"
                                         :aria-expanded="openMenu === m.id"
-                                        :aria-label="'Actions for ' + (m.submitter_name || 'member')">
-                                    View
-                                    <i data-lucide="chevron-down"></i>
+                                        :aria-label="'Actions for ' + (m.submitter_name || 'member')"
+                                        title="Actions">
+                                    <i data-lucide="ellipsis-vertical"></i>
                                 </button>
                             </td>
                         </tr>

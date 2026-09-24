@@ -179,12 +179,12 @@ if ($tabReports) {
                                 <td class="arrears-actions ft-td-actions ft-td-actions--sticky"
                                     :class="openMenu === row.id && 'weekly-actions--open'">
                                     <button type="button"
-                                            class="arrears-view-btn"
+                                            class="arrears-view-btn arrears-view-btn--icon"
                                             @click.stop="toggleMenu(row.id, $event)"
                                             :aria-expanded="openMenu === row.id"
-                                            :aria-label="'View options for ' + row.expense_item">
-                                        View
-                                        <i data-lucide="chevron-down"></i>
+                                            :aria-label="'Actions for ' + row.expense_item"
+                                            title="Actions">
+                                        <i data-lucide="ellipsis-vertical"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -909,12 +909,12 @@ if ($tabReports) {
                                 <td class="arrears-actions weekly-col-actions"
                                     :class="weeklyMenu === row.slug && 'weekly-actions--open'">
                                     <button type="button"
-                                            class="arrears-view-btn"
+                                            class="arrears-view-btn arrears-view-btn--icon"
                                             @click.stop="toggleWeeklyMenu(row.slug, $event)"
                                             :aria-expanded="weeklyMenu === row.slug"
-                                            :aria-label="'Actions for ' + row.label">
-                                        View
-                                        <i data-lucide="chevron-down"></i>
+                                            :aria-label="'Actions for ' + row.label"
+                                            title="Actions">
+                                        <i data-lucide="ellipsis-vertical"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -1039,12 +1039,12 @@ if ($tabReports) {
                                 <td class="arrears-actions weekly-col-actions"
                                     :class="collectionMenu === row.method && 'weekly-actions--open'">
                                     <button type="button"
-                                            class="arrears-view-btn"
+                                            class="arrears-view-btn arrears-view-btn--icon"
                                             @click.stop="toggleCollectionMenu(row.method, $event)"
                                             :aria-expanded="collectionMenu === row.method"
-                                            :aria-label="'Actions for ' + row.label">
-                                        View
-                                        <i data-lucide="chevron-down"></i>
+                                            :aria-label="'Actions for ' + row.label"
+                                            title="Actions">
+                                        <i data-lucide="ellipsis-vertical"></i>
                                     </button>
                                 </td>
                             </tr>

@@ -130,7 +130,6 @@ $jumpLinksJson = json_encode($jumpLinks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNES
                             aria-label="Open navigation">
                         <i data-lucide="menu" class="w-5 h-5"></i>
                     </button>
-                    <h1 class="admin-topbar__title m-0 truncate text-lg font-semibold tracking-tight text-church-800 dark:text-slate-100"><?= htmlspecialchars($title ?? '') ?></h1>
                 </div>
 
                 <div class="admin-topbar__center hidden sm:flex w-full min-w-0 justify-self-center">
