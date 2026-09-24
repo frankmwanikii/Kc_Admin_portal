@@ -328,6 +328,7 @@ html.dark .settings-nav,
 html.dark .docs-nav,
 html.dark .docs-panel,
 html.dark .settings-card,
+html.dark .settings-panel-card.member-profile-card,
 html.dark .arrears-card,
 html.dark .finance-table-card,
 html.dark .fin-panel,
@@ -371,6 +372,8 @@ html.dark .arrears-title,
 html.dark .fin-hero__title,
 html.dark .fin-panel__title,
 html.dark .settings-card-header h3,
+html.dark .settings-logo-current__title,
+html.dark .settings-provider-panel__title,
 html.dark .finance-table-caption-label {
     color: var(--adm-text) !important;
 }
@@ -381,6 +384,7 @@ html.dark .fin-hero__sub,
 html.dark .docs-block p,
 html.dark .docs-list,
 html.dark .settings-card-header p,
+html.dark .settings-logo-current__hint,
 html.dark .arrears-count {
     color: var(--adm-muted) !important;
 }
@@ -512,6 +516,35 @@ html.dark .settings-switch__label {
 html.dark .settings-switch-row__copy span,
 html.dark .settings-provider-card span {
     color: var(--adm-muted);
+}
+
+html.dark .settings-logo-current,
+html.dark .settings-provider-panel {
+    background: var(--adm-surface-2) !important;
+    border-color: var(--adm-border) !important;
+}
+
+html.dark .settings-logo-current__media img {
+    background: var(--adm-elevated) !important;
+    border-color: var(--adm-border-strong) !important;
+}
+
+html.dark .settings-logo-url__toggle {
+    color: var(--adm-accent) !important;
+}
+
+html.dark .settings-logo-url__toggle:hover {
+    color: #bae6fd !important;
+}
+
+html.dark .settings-provider-badge {
+    background: rgba(53, 175, 230, 0.14) !important;
+    border-color: rgba(53, 175, 230, 0.3) !important;
+    color: var(--adm-accent) !important;
+}
+
+html.dark .settings-provider-panel__title {
+    color: var(--adm-text) !important;
 }
 
 /* ── Bills / finance tables — high-contrast dark ─────────────────────── */
@@ -857,11 +890,61 @@ html.dark .fin-month-picker__panel {
     background: var(--adm-surface-2) !important;
     border-color: var(--adm-border-strong) !important;
     color: var(--adm-text);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
 }
 
-html.dark .fin-month-picker__year-label,
-html.dark .fin-month-picker__year-btn {
+html.dark .fin-month-picker__year-label {
     color: var(--adm-text) !important;
+}
+
+html.dark .fin-month-picker__year-btn {
+    background: var(--adm-elevated) !important;
+    border-color: var(--adm-border-strong) !important;
+    color: var(--adm-text) !important;
+}
+
+html.dark .fin-month-picker__year-btn:hover {
+    background: var(--adm-surface) !important;
+    border-color: var(--adm-accent) !important;
+    color: var(--adm-accent) !important;
+}
+
+html.dark .fin-month-picker__year-btn i,
+html.dark .fin-month-picker__year-btn svg {
+    color: inherit !important;
+    stroke: currentColor !important;
+}
+
+html.dark .fin-month-picker__month {
+    background: var(--adm-elevated) !important;
+    border-color: transparent !important;
+    color: var(--adm-text) !important;
+}
+
+html.dark .fin-month-picker__month:hover {
+    background: var(--adm-surface) !important;
+    border-color: var(--adm-accent) !important;
+    color: var(--adm-accent) !important;
+}
+
+html.dark .fin-month-picker__month--active,
+html.dark .fin-month-picker__month--active:hover {
+    background: var(--adm-accent-strong) !important;
+    border-color: var(--adm-accent-strong) !important;
+    color: #071622 !important;
+    box-shadow: 0 6px 14px rgba(53, 175, 230, 0.28);
+}
+
+html.dark .fin-month-picker__footer {
+    border-top-color: var(--adm-border) !important;
+}
+
+html.dark .fin-month-picker__link {
+    color: var(--adm-accent) !important;
+}
+
+html.dark .fin-month-picker__link:hover {
+    color: #bae6fd !important;
 }
 
 /* Modals */
@@ -901,6 +984,26 @@ html.dark .arrears-btn-outline:hover {
     background: rgba(53, 175, 230, 0.14) !important;
     border-color: var(--adm-accent-strong) !important;
     color: #fff !important;
+}
+
+html.dark .collections-method {
+    background: rgba(53, 175, 230, 0.16) !important;
+    color: var(--adm-accent) !important;
+}
+
+html.dark .collections-method--paybill {
+    background: rgba(53, 175, 230, 0.18) !important;
+    color: #7dd0ef !important;
+}
+
+html.dark .collections-method--cheque {
+    background: rgba(167, 139, 250, 0.18) !important;
+    color: #c4b5fd !important;
+}
+
+html.dark .collections-method--cash {
+    background: rgba(52, 211, 153, 0.16) !important;
+    color: #6ee7b7 !important;
 }
 
 html.dark .weekly-table,

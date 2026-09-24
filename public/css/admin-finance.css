@@ -2712,6 +2712,24 @@
     border-bottom: 1px solid #d6f0fa;
 }
 
+.finance-table-caption--centered {
+    position: relative;
+    justify-content: center;
+    align-items: center;
+}
+
+.finance-table-caption--centered .finance-table-caption-label {
+    text-align: center;
+}
+
+.finance-table-caption--centered .finance-table-caption-scroll-hint {
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 0;
+}
+
 .finance-table-caption-label {
     font-size: 0.9375rem;
     font-weight: 700;
@@ -3276,6 +3294,8 @@
     font-weight: 600;
     padding: 0.2rem 0.55rem;
     border-radius: 0.375rem;
+    color: var(--arrears-accent);
+    background: #eef9fd;
 }
 
 .collections-method--paybill {

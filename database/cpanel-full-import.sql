@@ -31,6 +31,7 @@ DROP TABLE IF EXISTS finance_expense_arrears;
 DROP TABLE IF EXISTS finance_weekly_expenses;
 DROP TABLE IF EXISTS finance_weekly_collections;
 DROP TABLE IF EXISTS finance_collections;
+DROP TABLE IF EXISTS finance_collection_methods;
 DROP TABLE IF EXISTS finance_sunday_sessions;
 DROP TABLE IF EXISTS finance_weekly_categories;
 DROP TABLE IF EXISTS inventory_items;
@@ -394,10 +395,23 @@ CREATE TABLE finance_weekly_categories (
     KEY idx_weekly_expense_category_id (expense_category_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE finance_collection_methods (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    slug VARCHAR(50) NOT NULL,
+    label VARCHAR(120) NOT NULL,
+    hint VARCHAR(255) NULL DEFAULT '',
+    is_system TINYINT(1) NOT NULL DEFAULT 0,
+    sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 100,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE finance_collections (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     collection_date DATE NOT NULL,
-    payment_method ENUM('paybill', 'cheque', 'cash') NOT NULL,
+    payment_method VARCHAR(50) NOT NULL,
     amount DECIMAL(12,2) NOT NULL DEFAULT 0,
     reference VARCHAR(255) NULL,
     fund_type VARCHAR(100) NULL,
@@ -414,7 +428,7 @@ CREATE TABLE finance_collections (
 CREATE TABLE finance_weekly_collections (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     week_date DATE NOT NULL COMMENT 'Sunday service date',
-    payment_method ENUM('paybill', 'cheque', 'cash') NOT NULL,
+    payment_method VARCHAR(50) NOT NULL,
     amount DECIMAL(12,2) NOT NULL DEFAULT 0,
     notes VARCHAR(255) NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

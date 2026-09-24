@@ -74,7 +74,7 @@ $jumpLinksJson = json_encode($jumpLinks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNES
            class="admin-sidebar fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 transform lg:translate-x-0 transition-[width,transform] duration-200 flex flex-col shrink-0">
         <div class="admin-sidebar__brand shrink-0">
             <div class="admin-sidebar__brand-row">
-                <?php $size = 'md'; $logoBg = 'white'; require __DIR__ . '/../partials/church-logo.php'; ?>
+                <?php $size = 'lg'; $logoBg = 'none'; $rounded = 'rounded-none'; require __DIR__ . '/../partials/church-logo.php'; ?>
                 <div class="admin-sidebar__brand-text min-w-0">
                     <p class="admin-sidebar__brand-name font-semibold text-sm leading-tight truncate"><?= htmlspecialchars(\App\Services\SettingsService::churchName()) ?></p>
                     <p class="admin-sidebar__brand-sub text-xs">Administration</p>

@@ -847,9 +847,8 @@ if ($tabReports) {
         </div>
 
         <div class="arrears-card finance-table-card">
-            <div class="finance-table-caption">
+            <div class="finance-table-caption finance-table-caption--centered">
                 <span class="finance-table-caption-label">Weekly expenses</span>
-                <span class="finance-table-caption-badge" x-text="monthLabel"><?= htmlspecialchars($monthLabel) ?></span>
                 <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
             </div>
             <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Weekly expenses — scroll horizontally on small screens">
@@ -962,7 +961,7 @@ if ($tabReports) {
 
     <div class="arrears-page collections-page fin-section" x-show="ledgerSub === 'collections'" x-cloak>
         <h2 class="arrears-title">Sunday collections</h2>
-        <p class="finance-tab-hint">Giving received each Sunday by payment method.</p>
+        <p class="finance-tab-hint">Giving received each Sunday by category.</p>
 
         <div class="arrears-toolbar-row">
             <div class="arrears-toolbar-left">
@@ -986,9 +985,8 @@ if ($tabReports) {
         </div>
 
         <div class="arrears-card finance-table-card">
-            <div class="finance-table-caption">
+            <div class="finance-table-caption finance-table-caption--centered">
                 <span class="finance-table-caption-label">Sunday collections</span>
-                <span class="finance-table-caption-badge" x-text="monthLabel"><?= htmlspecialchars($monthLabel) ?></span>
                 <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
             </div>
             <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Weekly collections grid">

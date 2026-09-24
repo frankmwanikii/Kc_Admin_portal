@@ -779,6 +779,93 @@
                 form.remove();
             },
 
+            openCollectionCategoryForm() {
+                this.collectionMenu = null;
+                this.newCollectionCategory = {
+                    label: '',
+                    hint: '',
+                };
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            openCollectionCategoryEdit(method) {
+                const row = this.weeklyCollectionRows.find((r) => r.method === method);
+                if (!row) return;
+                this.collectionMenu = null;
+                this.collectionCategoryEditRow = {
+                    method: row.method,
+                    label: row.label || '',
+                    hint: row.desc || '',
+                };
+                this.$nextTick(() => window.lucide?.createIcons());
+            },
+
+            async submitNewCollectionCategory(event) {
+                event.preventDefault();
+                if (!this.newCollectionCategory) return;
+                const label = String(this.newCollectionCategory.label || '').trim();
+                if (!label) {
+                    await window.AdminDialog?.alert({
+                        title: 'Name required',
+                        message: 'Enter a category name.',
+                        tone: 'warning',
+                    });
+                    return;
+                }
+                await this.postAjax(event.target, {
+                    onSuccess: () => {
+                        this.newCollectionCategory = null;
+                    },
+                });
+            },
+
+            async submitCollectionCategoryEdit(event) {
+                event.preventDefault();
+                if (!this.collectionCategoryEditRow) return;
+                const label = String(this.collectionCategoryEditRow.label || '').trim();
+                if (!label) {
+                    await window.AdminDialog?.alert({
+                        title: 'Name required',
+                        message: 'Enter a category name.',
+                        tone: 'warning',
+                    });
+                    return;
+                }
+                await this.postAjax(event.target, {
+                    onSuccess: () => {
+                        this.collectionCategoryEditRow = null;
+                    },
+                });
+            },
+
+            async deleteCollectionCategoryAjax(method) {
+                if (!method) return;
+                const ok = await window.AdminDialog?.confirm({
+                    title: 'Delete category?',
+                    message: 'Delete this category and all its collection entries?',
+                    confirmLabel: 'Delete category',
+                    tone: 'danger',
+                });
+                if (!ok) return;
+                this.collectionMenu = null;
+                const form = document.createElement('form');
+                form.method = 'post';
+                form.action = '/admin/finance/collections/methods/' + encodeURIComponent(method) + '/delete';
+                const monthInput = document.createElement('input');
+                monthInput.type = 'hidden';
+                monthInput.name = 'month';
+                monthInput.value = this.weeklyMonth || '';
+                form.appendChild(monthInput);
+                document.body.appendChild(form);
+                const result = await this.postAjax(form);
+                form.remove();
+                if (result) {
+                    this.collectionCategoryEditRow = null;
+                    this.collectionViewRow = null;
+                    this.collectionEditRow = null;
+                }
+            },
+
             async submitNewWeeklyCategory(event) {
                 if (!this.newCategory || !(await this.validateWeeklyCategory(this.newCategory))) {
                     event.preventDefault();

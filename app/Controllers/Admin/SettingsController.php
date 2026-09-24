@@ -73,7 +73,7 @@ class SettingsController
         }
         SettingsService::set('church_logo_url', $logoUrl);
 
-        if (isset($_POST['remove_logo'])) {
+        if (isset($_POST['remove_logo']) && empty($_FILES['church_logo']['name'])) {
             $this->removeUploadedLogo();
             SettingsService::set('church_logo_path', null);
         }

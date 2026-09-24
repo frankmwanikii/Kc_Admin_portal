@@ -66,9 +66,8 @@ $formsDbStatus = $formsDbStatus ?? [];
     </div>
 
     <div class="arrears-card finance-table-card">
-            <div class="finance-table-caption">
+            <div class="finance-table-caption finance-table-caption--centered">
                 <span class="finance-table-caption-label">Member registrations</span>
-                <span class="finance-table-caption-badge">Connect forms</span>
                 <span class="finance-table-caption-scroll-hint" aria-hidden="true">Swipe →</span>
             </div>
             <div class="arrears-table-scroll" tabindex="0" role="region" aria-label="Members — scroll horizontally on small screens">
