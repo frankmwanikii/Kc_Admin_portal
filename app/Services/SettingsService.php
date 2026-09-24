@@ -178,6 +178,22 @@ class SettingsService
         $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
         imagefilledrectangle($dst, 0, 0, $w, $h, $transparent);
 
+        // Detect solid backdrop from corners (black/white plate behind the mark).
+        $corners = [
+            imagecolorat($src, 0, 0),
+            imagecolorat($src, max(0, $w - 1), 0),
+            imagecolorat($src, 0, max(0, $h - 1)),
+            imagecolorat($src, max(0, $w - 1), max(0, $h - 1)),
+        ];
+        $bgSamples = [];
+        foreach ($corners as $rgba) {
+            $a = ($rgba & 0x7F000000) >> 24;
+            if ($a >= 120) {
+                continue;
+            }
+            $bgSamples[] = [($rgba >> 16) & 0xFF, ($rgba >> 8) & 0xFF, $rgba & 0xFF];
+        }
+
         for ($y = 0; $y < $h; $y++) {
             for ($x = 0; $x < $w; $x++) {
                 $rgba = imagecolorat($src, $x, $y);
@@ -185,6 +201,26 @@ class SettingsService
                 if ($a >= 127) {
                     continue;
                 }
+                $r = ($rgba >> 16) & 0xFF;
+                $g = ($rgba >> 8) & 0xFF;
+                $b = $rgba & 0xFF;
+
+                $isBackdrop = false;
+                foreach ($bgSamples as [$br, $bg, $bb]) {
+                    if (abs($r - $br) <= 28 && abs($g - $bg) <= 28 && abs($b - $bb) <= 28) {
+                        $isBackdrop = true;
+                        break;
+                    }
+                }
+                $luma = (0.2126 * $r) + (0.7152 * $g) + (0.0722 * $b);
+                $chroma = max($r, $g, $b) - min($r, $g, $b);
+                if ($chroma < 18 && ($luma <= 28 || $luma >= 235)) {
+                    $isBackdrop = true;
+                }
+                if ($isBackdrop) {
+                    continue;
+                }
+
                 $color = imagecolorallocatealpha($dst, 255, 255, 255, $a);
                 imagesetpixel($dst, $x, $y, $color);
             }
