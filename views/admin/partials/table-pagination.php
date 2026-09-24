@@ -6,9 +6,7 @@
 $perPageKey = $perPageKey ?? 'tablePerPage';
 $perPageOptions = $perPageOptions ?? [10, 15, 25, 50];
 ?>
-<div class="finance-pagination"
-     x-data="{ gotoDraft: '' }"
-     x-init="gotoDraft = String(<?= $pageKey ?>).padStart(2, '0'); $watch('<?= $pageKey ?>', (v) => { gotoDraft = String(v).padStart(2, '0'); })">
+<div class="finance-pagination">
     <nav class="finance-pagination-nav" aria-label="<?= htmlspecialchars($navLabel) ?>">
         <button type="button"
                 class="finance-pagination-btn finance-pagination-btn--icon"
@@ -71,9 +69,9 @@ $perPageOptions = $perPageOptions ?? [10, 15, 25, 50];
             <input type="text"
                    inputmode="numeric"
                    class="finance-pagination-goto-input"
-                   x-model="gotoDraft"
-                   @keydown.enter.prevent="goPage('<?= $pageKey ?>', gotoDraft, <?= $listKey ?>); gotoDraft = String(<?= $pageKey ?>).padStart(2, '0')"
-                   @blur="goPage('<?= $pageKey ?>', gotoDraft, <?= $listKey ?>); gotoDraft = String(<?= $pageKey ?>).padStart(2, '0')"
+                   :value="String(<?= $pageKey ?>).padStart(2, '0')"
+                   @keydown.enter.prevent="goPage('<?= $pageKey ?>', $event.target.value, <?= $listKey ?>); $event.target.value = String(<?= $pageKey ?>).padStart(2, '0')"
+                   @blur="goPage('<?= $pageKey ?>', $event.target.value, <?= $listKey ?>); $event.target.value = String(<?= $pageKey ?>).padStart(2, '0')"
                    aria-label="Go to page">
             <span class="finance-pagination-of">
                 of <span x-text="String(paginationTotalPages(<?= $listKey ?>)).padStart(2, '0')"></span>

@@ -442,9 +442,42 @@ html.dark .settings-form textarea,
 html.dark .admin-hub-page input[type="search"],
 html.dark .admin-hub-page input[type="text"],
 html.dark .admin-hub-page select {
-    background: var(--adm-bg) !important;
+    background-color: var(--adm-bg) !important;
     border-color: var(--adm-border-strong) !important;
     color: var(--adm-text) !important;
+}
+
+/* Keep custom chevrons visible on dark selects (background shorthand would wipe them) */
+html.dark select.finance-input,
+html.dark .finance-select,
+html.dark select.fin-input--select,
+html.dark .fin-sunday-date-field__select,
+html.dark .fin-report-bar__select,
+html.dark .finance-pagination-select,
+html.dark .arrears-year-select,
+html.dark .fin-hub select,
+html.dark .settings-form select,
+html.dark .admin-hub-page select,
+html.dark .finance-label + select,
+html.dark .member-profile-form select.finance-input,
+html.dark .admin-profile-form select.finance-input,
+html.dark .inv-card select.finance-input,
+html.dark .staff-card select.finance-input {
+    background-color: var(--adm-surface-2) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237dd0ef' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.85rem center !important;
+    background-size: 1rem !important;
+    color: var(--adm-text) !important;
+}
+
+html.dark .fin-report-bar__select {
+    background-position: right 0.65rem center !important;
+    background-size: 0.75rem !important;
+}
+
+html.dark .finance-pagination-select {
+    background-position: right 0.55rem center !important;
 }
 
 html.dark .arrears-btn-new,
@@ -989,6 +1022,165 @@ html.dark .fin-subtabs__item--active .members-form-tabs__count {
     color: var(--adm-accent);
 }
 
+/* Member / shared profile cards (registration fields, review, advanced) */
+html.dark .member-profile-back {
+    color: var(--adm-accent);
+}
+
+html.dark .member-profile-card,
+html.dark .inv-card,
+html.dark .staff-card {
+    background: var(--adm-surface);
+    border-color: var(--adm-border);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.28);
+}
+
+html.dark .member-profile-card--muted {
+    background: var(--adm-surface-2);
+}
+
+html.dark .member-profile-card-header {
+    background: linear-gradient(180deg, var(--adm-surface-2) 0%, var(--adm-surface) 100%);
+    border-bottom-color: var(--adm-border);
+}
+
+html.dark .member-profile-card-header h2 {
+    color: var(--adm-text);
+}
+
+html.dark .member-profile-card-header p {
+    color: var(--adm-muted);
+}
+
+html.dark .member-profile-section {
+    border-bottom-color: var(--adm-border);
+}
+
+html.dark .member-profile-section-title {
+    color: var(--adm-accent);
+    background: var(--adm-surface-2);
+}
+
+html.dark .member-profile-detail-row {
+    border-bottom-color: var(--adm-border);
+}
+
+html.dark .member-profile-detail-label {
+    color: var(--adm-muted);
+}
+
+html.dark .member-profile-detail-value {
+    color: var(--adm-text);
+}
+
+html.dark .member-profile-empty {
+    color: var(--adm-muted);
+}
+
+html.dark .member-profile-meta-list div {
+    border-bottom-color: var(--adm-border);
+}
+
+html.dark .member-profile-meta-list dt {
+    color: var(--adm-muted);
+}
+
+html.dark .member-profile-meta-list dd {
+    color: var(--adm-text);
+}
+
+html.dark .member-profile-meta {
+    color: rgba(224, 242, 254, 0.75);
+}
+
+html.dark .member-profile-chip {
+    background: rgba(53, 175, 230, 0.14);
+    border-color: rgba(53, 175, 230, 0.28);
+    color: var(--adm-text-secondary);
+}
+
+html.dark .member-advanced-action {
+    background: var(--adm-surface-2);
+    border-color: var(--adm-border);
+    color: var(--adm-text);
+}
+
+html.dark .member-advanced-action:hover {
+    background: var(--adm-elevated);
+    border-color: var(--adm-accent-strong);
+}
+
+html.dark .member-advanced-action__icon {
+    background: rgba(53, 175, 230, 0.18);
+    color: var(--adm-accent);
+}
+
+html.dark .member-advanced-action__copy strong {
+    color: var(--adm-text);
+}
+
+html.dark .member-advanced-action__copy span {
+    color: var(--adm-muted);
+}
+
+html.dark .member-advanced-action__chevron {
+    color: var(--adm-muted);
+}
+
+html.dark .member-danger-card {
+    background: var(--adm-surface);
+    border-color: rgba(248, 113, 113, 0.35);
+}
+
+html.dark .member-danger-card__title {
+    color: #fda4af;
+}
+
+html.dark .member-danger-card__text {
+    color: #fb7185;
+}
+
+html.dark .member-danger-card__btn {
+    background: rgba(248, 113, 113, 0.14);
+    border-color: rgba(248, 113, 113, 0.4);
+    color: #fecdd3;
+}
+
+html.dark .member-danger-card__btn:hover {
+    background: rgba(248, 113, 113, 0.22);
+}
+
+html.dark .member-profile-form .finance-input,
+html.dark .member-profile-form .finance-textarea,
+html.dark .admin-profile-form .finance-input,
+html.dark .admin-profile-form .finance-textarea,
+html.dark .inv-card .finance-input,
+html.dark .inv-card .finance-textarea,
+html.dark .staff-card .finance-input,
+html.dark .staff-card .finance-textarea {
+    background-color: var(--adm-surface-2);
+    border-color: var(--adm-border-strong);
+    color: var(--adm-text);
+}
+
+html.dark .member-profile-form .finance-input::placeholder,
+html.dark .member-profile-form .finance-textarea::placeholder,
+html.dark .admin-profile-form .finance-input::placeholder,
+html.dark .admin-profile-form .finance-textarea::placeholder,
+html.dark .inv-card .finance-input::placeholder,
+html.dark .inv-card .finance-textarea::placeholder,
+html.dark .staff-card .finance-input::placeholder,
+html.dark .staff-card .finance-textarea::placeholder {
+    color: var(--adm-muted);
+}
+
+html.dark .member-profile-form .finance-label,
+html.dark .admin-profile-form .finance-label,
+html.dark .inv-card .finance-label,
+html.dark .staff-card .finance-label {
+    color: var(--adm-muted);
+}
+
 html.dark .fin-table tbody tr:nth-child(even),
 html.dark .weekly-table tbody tr:nth-child(even) {
     background: var(--adm-surface-2);
@@ -1009,56 +1201,63 @@ html.dark .fin-amount-grid .fin-amt-row {
     color: var(--adm-text-secondary);
 }
 
-/* Table pagination footer */
+/* Table pagination footer — Nanyuki Now style (admin-pagination.css) */
 html.dark .finance-pagination,
 html.dark .weekly-pagination {
     background: var(--adm-surface) !important;
     border-top-color: var(--adm-border) !important;
 }
 
-html.dark .finance-pagination-info,
-html.dark .weekly-pagination-info {
-    color: var(--adm-muted) !important;
-}
-
-html.dark .finance-pagination-info span,
-html.dark .weekly-pagination-info span {
-    color: var(--adm-accent) !important;
-}
-
 html.dark .finance-pagination-btn,
-html.dark .weekly-pagination-btn {
+html.dark .finance-pagination-page,
+html.dark .weekly-pagination-btn,
+html.dark .weekly-pagination-page {
     color: var(--adm-text-secondary) !important;
     background: var(--adm-surface-2) !important;
     border-color: var(--adm-border-strong) !important;
 }
 
 html.dark .finance-pagination-btn:hover:not(:disabled),
-html.dark .weekly-pagination-btn:hover:not(:disabled) {
+html.dark .finance-pagination-page:hover:not(:disabled) {
     color: var(--adm-accent) !important;
     background: var(--adm-elevated) !important;
     border-color: var(--adm-accent-strong) !important;
 }
 
-html.dark .finance-pagination-page,
-html.dark .weekly-pagination-page {
-    color: var(--adm-muted) !important;
-}
-
-html.dark .finance-pagination-page:hover,
-html.dark .weekly-pagination-page:hover {
-    background: var(--adm-elevated) !important;
-    color: var(--adm-text) !important;
-}
-
 html.dark .finance-pagination-page--active,
-html.dark .weekly-pagination-page--active,
-html.dark .finance-pagination-page--active:hover,
-html.dark .weekly-pagination-page--active:hover {
-    color: #fff !important;
+html.dark .finance-pagination-page--active:hover:not(:disabled) {
+    color: #0b1c28 !important;
     background: var(--adm-accent-strong) !important;
     border-color: var(--adm-accent-strong) !important;
     box-shadow: 0 2px 8px rgba(53, 175, 230, 0.35) !important;
+}
+
+html.dark .finance-pagination-range,
+html.dark .finance-pagination-label,
+html.dark .finance-pagination-of {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .finance-pagination-range span {
+    color: var(--adm-accent) !important;
+}
+
+html.dark .finance-pagination-goto-input,
+html.dark .finance-pagination-select {
+    background-color: var(--adm-surface-2) !important;
+    border-color: var(--adm-border-strong) !important;
+    color: var(--adm-text) !important;
+}
+
+html.dark .finance-pagination-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237dd0ef' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.55rem center !important;
+    background-size: 0.9rem !important;
+}
+
+html.dark .finance-pagination-divider {
+    background: var(--adm-border) !important;
 }
 
 /* Inventory profile */

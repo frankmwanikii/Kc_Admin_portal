@@ -261,7 +261,7 @@ class FinanceController
             'churchName' => SettingsService::churchName() ?: ($churchConfig['site_name'] ?? 'Church'),
             'statementLogoUrl' => FinanceReconciliationService::statementLogoUrl(),
             'statementDisclaimer' => FinanceReconciliationService::STATEMENT_DISCLAIMER,
-        ], $sundayForm, $this->financePageAssets(['/css/admin-pagination.css'])), 'layouts/admin');
+        ], $sundayForm, $this->financePageAssets()), 'layouts/admin');
     }
 
     /**
@@ -1086,7 +1086,10 @@ class FinanceController
     private function financePageAssets(array $extraStyles = []): array
     {
         return [
-            'pageStyles' => array_merge(['/css/admin-finance.css'], $extraStyles),
+            'pageStyles' => array_merge(
+                ['/css/admin-finance.css', '/css/admin-pagination.css'],
+                $extraStyles
+            ),
             'pageScripts' => [
                 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
                 '/js/admin-finance.js',

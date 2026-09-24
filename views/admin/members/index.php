@@ -9,7 +9,7 @@ $formsDbStatus = $formsDbStatus ?? [];
 
 <div class="admin-hub-page" x-data="memberTable(<?= htmlspecialchars($membersJson, ENT_QUOTES) ?>, <?= htmlspecialchars($formTypeLabelsJson, ENT_QUOTES) ?>)">
     <h2 class="arrears-title">Members</h2>
-    <p class="finance-tab-hint">Connect submissions by type — Members (Join us), Visitors (Visiting us?), New beginnings, and Kingdom groups. You can also add people manually.</p>
+    <p class="finance-tab-hint">Connect submissions!</p>
 
     <?php if (!empty($success)): ?>
     <div class="admin-alert admin-alert--success mb-4">Member added successfully.</div>
