@@ -181,13 +181,73 @@
     padding: 0 1.25rem 1.35rem;
 }
 
+.settings-fields > .finance-field {
+    margin-top: 0;
+}
+
+.settings-fields > .finance-field + .finance-field {
+    margin-top: 0;
+}
+
 .settings-fields--grid {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.1rem;
+    align-items: start;
     padding: 0;
+}
+
+.settings-fields--grid > .finance-field {
+    margin-top: 0;
+}
+
+.settings-fields--grid > .finance-field + .finance-field {
+    margin-top: 0;
 }
 
 .settings-fields__full {
     grid-column: 1 / -1;
+}
+
+.settings-provider-panel .settings-fields--grid {
+    margin: 0;
+}
+
+/* Modern settings fields — sentence-case labels, cleaner inputs */
+.settings-panel-card .finance-label {
+    margin-bottom: 0.4rem;
+    font-size: 0.8125rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: #334155;
+}
+
+.settings-panel-card .finance-input {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #0f172a;
+    background: #fff;
+    border: 1px solid #d5e4ef;
+    border-radius: 0.625rem;
+    box-shadow: 0 1px 2px rgba(11, 72, 109, 0.03);
+}
+
+.settings-panel-card .finance-input:hover {
+    border-color: #b7d3e6;
+}
+
+.settings-panel-card .finance-input:focus {
+    background: #fff;
+    border-color: #35afe6;
+    box-shadow: 0 0 0 3px rgba(53, 175, 230, 0.16);
+}
+
+.settings-panel-card .finance-field-hint {
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    color: #94a3b8;
 }
 
 .settings-panel-card > .admin-dropzone-form--embed {
@@ -204,9 +264,9 @@
 
 .settings-logo-current {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 1rem;
-    padding: 1rem 1.1rem;
+    padding: 0.9rem 1rem;
     border-radius: 0.875rem;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -220,17 +280,29 @@
 }
 
 .settings-logo-current__media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.25rem;
+    height: 4.25rem;
     flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 0.65rem;
+    background: transparent;
 }
 
 .settings-logo-current__media img {
-    width: 4.5rem;
-    height: 4.5rem;
-    border-radius: 0.85rem;
+    display: block;
+    width: auto !important;
+    height: auto !important;
+    max-width: 4.25rem !important;
+    max-height: 4.25rem !important;
     object-fit: contain;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    padding: 0.35rem;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 
 .settings-logo-current__body {
@@ -293,6 +365,27 @@
     border: none;
     background: transparent;
     box-shadow: none;
+}
+
+.settings-panel-card .admin-dropzone.has-files {
+    min-height: 0;
+    padding: 1rem;
+}
+
+.settings-panel-card .admin-dropzone__previews {
+    grid-template-columns: minmax(0, 7.5rem);
+    justify-content: start;
+}
+
+.settings-panel-card .admin-dropzone__preview {
+    max-width: 7.5rem;
+    background: transparent;
+    border-color: #d6e4ef;
+}
+
+.settings-panel-card .admin-dropzone__preview img {
+    object-fit: contain;
+    background: transparent;
 }
 
 .settings-provider-panel__title {

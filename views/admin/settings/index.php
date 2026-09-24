@@ -84,8 +84,8 @@ $sectionDefault = in_array(($_GET['tab'] ?? ''), ['branding', 'details', 'messag
 
                 <?php if ($hasLogo): ?>
                 <div class="settings-logo-current" :class="removeLogo && 'settings-logo-current--removing'">
-                    <div class="settings-logo-current__media">
-                        <img src="<?= htmlspecialchars($currentLogo) ?>" alt="Current church logo">
+                    <div class="settings-logo-current__media" aria-hidden="true">
+                        <img src="<?= htmlspecialchars($currentLogo) ?>" alt="">
                     </div>
                     <div class="settings-logo-current__body">
                         <p class="settings-logo-current__title">Current logo</p>
@@ -311,8 +311,9 @@ $sectionDefault = in_array(($_GET['tab'] ?? ''), ['branding', 'details', 'messag
                     <?php $formsDbStatus = $formsDbStatus ?? []; ?>
                     <?php if (!empty($formsDbStatus['connected']) && empty($formsDbStatus['warning']) && empty($formsDbStatus['error'])): ?>
                     <div class="admin-alert admin-alert--success">
-                        Connected to <strong><?= htmlspecialchars($formsDbStatus['database'] ?? '') ?></strong>
-                        — <?= (int) ($formsDbStatus['member_submissions'] ?? 0) ?> connect submission(s) found.
+                        Connected<?= isset($formsDbStatus['member_submissions'])
+                            ? ' — ' . (int) $formsDbStatus['member_submissions'] . ' connect submission(s) found'
+                            : '' ?>.
                     </div>
                     <?php elseif (!empty($formsDbStatus['warning'])): ?>
                     <div class="admin-alert admin-alert--error"><?= htmlspecialchars($formsDbStatus['warning']) ?></div>

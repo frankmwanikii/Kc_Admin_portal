@@ -524,9 +524,29 @@ html.dark .settings-provider-panel {
     border-color: var(--adm-border) !important;
 }
 
+html.dark .settings-logo-current__media {
+    background: transparent !important;
+}
+
 html.dark .settings-logo-current__media img {
-    background: var(--adm-elevated) !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+html.dark .settings-panel-card .finance-label {
+    color: var(--adm-muted) !important;
+}
+
+html.dark .settings-panel-card .finance-input {
+    background: var(--adm-surface-2) !important;
     border-color: var(--adm-border-strong) !important;
+    color: var(--adm-text) !important;
+    box-shadow: none !important;
+}
+
+html.dark .settings-panel-card .finance-input:focus {
+    border-color: var(--adm-accent-strong) !important;
+    box-shadow: 0 0 0 3px rgba(53, 175, 230, 0.2) !important;
 }
 
 html.dark .settings-logo-url__toggle {
