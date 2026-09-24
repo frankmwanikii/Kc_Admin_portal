@@ -91,7 +91,7 @@ class FinanceController
         }
 
         $churchConfig = $this->churchConfig();
-        $paymentMethods = FinanceReconciliationService::PAYMENT_METHODS;
+        $paymentMethods = FinanceReconciliationService::allPaymentMethods();
         $sundays = $statementSundays;
 
         $dashboard = [];
@@ -298,7 +298,7 @@ class FinanceController
                 'standard' => FinanceReconciliationService::SUNDAY_PRESET_STANDARD,
                 'full' => FinanceReconciliationService::SUNDAY_PRESET_FULL,
             ],
-            'sundayPaymentMethods' => FinanceReconciliationService::PAYMENT_METHODS,
+            'sundayPaymentMethods' => FinanceReconciliationService::allPaymentMethods(),
         ];
     }
 
@@ -492,7 +492,7 @@ class FinanceController
         }
 
         $collectionAmounts = [];
-        foreach (array_keys(FinanceReconciliationService::PAYMENT_METHODS) as $method) {
+        foreach (array_keys(FinanceReconciliationService::allPaymentMethods()) as $method) {
             $collectionAmounts[$method] = $_POST['collections'][$method] ?? 0;
         }
 
@@ -698,7 +698,7 @@ class FinanceController
         Auth::requireAdmin();
         $weekDate = $_POST['week_date'] ?? '';
         $amounts = [];
-        foreach (array_keys(FinanceReconciliationService::PAYMENT_METHODS) as $method) {
+        foreach (array_keys(FinanceReconciliationService::allPaymentMethods()) as $method) {
             $amounts[$method] = $_POST['amounts'][$method] ?? 0;
         }
         FinanceReconciliationService::saveWeeklyCollectionEntry($weekDate, $amounts);
@@ -773,6 +773,73 @@ class FinanceController
         $this->respondMutation(
             '/admin/finance?tab=ledger&sub=collections&year=' . $year . '&month=' . urlencode($month),
             array_merge(['ok' => true, 'message' => 'Amounts cleared.'], $this->ledgerAjaxPayload($month))
+        );
+    }
+
+    public function storeCollectionMethod(): void
+    {
+        Auth::requireAdmin();
+        $month = $_POST['month'] ?? date('Y-m');
+        try {
+            FinanceReconciliationService::addCollectionMethod(
+                trim((string) ($_POST['label'] ?? '')),
+                trim((string) ($_POST['hint'] ?? $_POST['desc'] ?? ''))
+            );
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=ledger&sub=collections&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not add category.'],
+                422
+            );
+        }
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=collections&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Category added.'], $this->ledgerAjaxPayload($month))
+        );
+    }
+
+    public function updateCollectionMethodMeta(string $method): void
+    {
+        Auth::requireAdmin();
+        $month = $_POST['month'] ?? date('Y-m');
+        try {
+            $ok = FinanceReconciliationService::updateCollectionMethod(
+                $method,
+                trim((string) ($_POST['label'] ?? '')),
+                trim((string) ($_POST['hint'] ?? $_POST['desc'] ?? ''))
+            );
+            if (!$ok) {
+                throw new \InvalidArgumentException('Category not found.');
+            }
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=ledger&sub=collections&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not update category.'],
+                422
+            );
+        }
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=collections&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Category updated.'], $this->ledgerAjaxPayload($month))
+        );
+    }
+
+    public function deleteCollectionMethod(string $method): void
+    {
+        Auth::requireAdmin();
+        $month = $_POST['month'] ?? date('Y-m');
+        try {
+            FinanceReconciliationService::deleteCollectionMethod($method);
+        } catch (\InvalidArgumentException $e) {
+            $this->respondMutation(
+                '/admin/finance?tab=ledger&sub=collections&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+                ['ok' => false, 'message' => $e->getMessage() ?: 'Could not delete category.'],
+                422
+            );
+        }
+        $this->respondMutation(
+            '/admin/finance?tab=ledger&sub=collections&year=' . (int) substr($month, 0, 4) . '&month=' . urlencode($month),
+            array_merge(['ok' => true, 'message' => 'Category deleted.'], $this->ledgerAjaxPayload($month))
         );
     }
 
@@ -1124,7 +1191,7 @@ class FinanceController
             'sundaySessionsByDate' => FinanceReconciliationService::sundaySessionsForDates($sundays),
             'sundayFormBase' => [
                 'weekDate' => FinanceReconciliationService::suggestedSundayDate($month),
-                'methods' => array_keys(FinanceReconciliationService::PAYMENT_METHODS),
+                'methods' => array_keys(FinanceReconciliationService::allPaymentMethods()),
                 'categories' => array_keys(FinanceReconciliationService::allWeeklyCategories()),
                 'presets' => $presets,
                 'presetTotals' => [
@@ -1132,6 +1199,7 @@ class FinanceController
                     'full' => array_sum($presets['full']),
                 ],
             ],
+            'paymentMethods' => FinanceReconciliationService::allPaymentMethods(),
         ];
     }
 

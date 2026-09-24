@@ -966,7 +966,7 @@ if ($tabReports) {
 
         <div class="arrears-toolbar-row">
             <div class="arrears-toolbar-left">
-                <span class="arrears-count" x-text="weeklyCollectionRows.length + ' methods'"></span>
+                <span class="arrears-count" x-text="weeklyCollectionRows.length + (weeklyCollectionRows.length === 1 ? ' category' : ' categories')"></span>
                 <form method="get" class="inline-flex items-center gap-2" @submit.prevent>
                     <input type="hidden" name="tab" value="ledger">
                     <input type="hidden" name="sub" :value="ledgerSub" value="collections">
@@ -978,8 +978,11 @@ if ($tabReports) {
                     ?>
                 </form>
             </div>
-            <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month ?? date('Y-m')) ?>&amp;panel=collections&amp;return_tab=ledger&amp;return_sub=collections"
-               class="arrears-btn-new">Record Sunday</a>
+            <div class="weekly-toolbar-actions">
+                <a href="/admin/finance/sunday?month=<?= htmlspecialchars($month ?? date('Y-m')) ?>&amp;panel=collections&amp;return_tab=ledger&amp;return_sub=collections"
+                   class="arrears-btn-new">Record Sunday</a>
+                <button type="button" @click="openCollectionCategoryForm()" class="arrears-btn-outline">Add category</button>
+            </div>
         </div>
 
         <div class="arrears-card finance-table-card">
@@ -992,7 +995,7 @@ if ($tabReports) {
                 <table class="arrears-table weekly-table">
                     <thead>
                         <tr>
-                            <th class="weekly-col-category">Method</th>
+                            <th class="weekly-col-category">Category</th>
                             <template x-for="(sun, index) in weeklyCollectionSundays" :key="sun">
                                 <th class="weekly-col-sunday">
                                     <span class="weekly-sun-head-date" x-text="formatSundayShort(sun)"></span>
@@ -1247,11 +1250,23 @@ if ($tabReports) {
                             class="arrears-dropdown-item">
                         Edit in Record Sunday
                     </button>
+                    <button type="button"
+                            @click="openCollectionCategoryEdit(collectionMenuRow.method)"
+                            class="arrears-dropdown-item">
+                        Edit category
+                    </button>
                     <form :action="'/admin/finance/collections/weekly/methods/' + encodeURIComponent(collectionMenuRow.method) + '/clear'"
                           method="post"
                           @submit.prevent="clearCollectionMethodAjax(collectionMenuRow.method)">
                         <input type="hidden" name="month" :value="weeklyMonth">
-                        <button type="submit" class="arrears-dropdown-item arrears-dropdown-item--danger">Delete</button>
+                        <button type="submit" class="arrears-dropdown-item">Clear amounts</button>
+                    </form>
+                    <form x-show="!collectionMenuRow.is_system"
+                          :action="'/admin/finance/collections/methods/' + encodeURIComponent(collectionMenuRow.method) + '/delete'"
+                          method="post"
+                          @submit.prevent="deleteCollectionCategoryAjax(collectionMenuRow.method)">
+                        <input type="hidden" name="month" :value="weeklyMonth">
+                        <button type="submit" class="arrears-dropdown-item arrears-dropdown-item--danger">Delete category</button>
                     </form>
                 </div>
             </template>
@@ -1472,6 +1487,124 @@ if ($tabReports) {
                             <button type="submit" class="finance-btn-primary">
                                 <i data-lucide="check" class="w-4 h-4"></i>
                                 Save changes
+                            </button>
+                        </div>
+                    </footer>
+                </form>
+            </template>
+        </div>
+    </div>
+
+    <!-- New collection category modal -->
+    <div x-show="newCollectionCategory"
+         x-cloak
+         class="finance-modal-overlay"
+         @keydown.escape.window="newCollectionCategory = null">
+        <div class="finance-modal-backdrop" @click="newCollectionCategory = null"></div>
+        <div class="finance-modal" x-transition>
+            <template x-if="newCollectionCategory">
+                <form method="post" action="/admin/finance/collections/methods" @submit="submitNewCollectionCategory($event)">
+                    <input type="hidden" name="month" :value="weeklyMonth">
+                    <header class="finance-modal-header">
+                        <div class="finance-modal-header-text">
+                            <p class="finance-modal-eyebrow">Sunday collections</p>
+                            <h4 class="finance-modal-title">Add category</h4>
+                        </div>
+                        <button type="button"
+                                @click="newCollectionCategory = null"
+                                class="finance-modal-close"
+                                aria-label="Close">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </header>
+                    <div class="finance-modal-body">
+                        <p class="finance-modal-intro">Add a new giving category to the Sunday collections grid.</p>
+                        <div class="finance-field">
+                            <label class="finance-label" for="new-collection-category-label">Category name</label>
+                            <input type="text"
+                                   id="new-collection-category-label"
+                                   name="label"
+                                   required
+                                   class="finance-input"
+                                   x-model="newCollectionCategory.label"
+                                   placeholder="e.g. Bank transfer">
+                        </div>
+                        <div class="finance-field">
+                            <label class="finance-label" for="new-collection-category-hint">Description <span class="finance-label-optional">(optional)</span></label>
+                            <input type="text"
+                                   id="new-collection-category-hint"
+                                   name="hint"
+                                   class="finance-input"
+                                   x-model="newCollectionCategory.hint"
+                                   placeholder="e.g. Direct bank deposits">
+                            <p class="finance-field-hint">Shown under the category name in the table.</p>
+                        </div>
+                    </div>
+                    <footer class="finance-modal-footer">
+                        <div class="finance-modal-actions finance-modal-actions--end">
+                            <button type="button" @click="newCollectionCategory = null" class="finance-btn-secondary">Cancel</button>
+                            <button type="submit" class="finance-btn-primary">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Add category
+                            </button>
+                        </div>
+                    </footer>
+                </form>
+            </template>
+        </div>
+    </div>
+
+    <!-- Edit collection category modal -->
+    <div x-show="collectionCategoryEditRow"
+         x-cloak
+         class="finance-modal-overlay"
+         @keydown.escape.window="collectionCategoryEditRow = null">
+        <div class="finance-modal-backdrop" @click="collectionCategoryEditRow = null"></div>
+        <div class="finance-modal" x-transition>
+            <template x-if="collectionCategoryEditRow">
+                <form method="post"
+                      :action="'/admin/finance/collections/methods/' + encodeURIComponent(collectionCategoryEditRow.method)"
+                      @submit="submitCollectionCategoryEdit($event)">
+                    <input type="hidden" name="month" :value="weeklyMonth">
+                    <header class="finance-modal-header">
+                        <div class="finance-modal-header-text">
+                            <p class="finance-modal-eyebrow">Sunday collections</p>
+                            <h4 class="finance-modal-title">Edit category</h4>
+                        </div>
+                        <button type="button"
+                                @click="collectionCategoryEditRow = null"
+                                class="finance-modal-close"
+                                aria-label="Close">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </header>
+                    <div class="finance-modal-body">
+                        <div class="finance-field">
+                            <label class="finance-label" for="edit-collection-category-label">Category name</label>
+                            <input type="text"
+                                   id="edit-collection-category-label"
+                                   name="label"
+                                   required
+                                   class="finance-input"
+                                   x-model="collectionCategoryEditRow.label"
+                                   placeholder="e.g. Bank transfer">
+                        </div>
+                        <div class="finance-field">
+                            <label class="finance-label" for="edit-collection-category-hint">Description <span class="finance-label-optional">(optional)</span></label>
+                            <input type="text"
+                                   id="edit-collection-category-hint"
+                                   name="hint"
+                                   class="finance-input"
+                                   x-model="collectionCategoryEditRow.hint"
+                                   placeholder="e.g. Direct bank deposits">
+                        </div>
+                    </div>
+                    <footer class="finance-modal-footer">
+                        <div class="finance-modal-actions finance-modal-actions--end">
+                            <button type="button" @click="collectionCategoryEditRow = null" class="finance-btn-secondary">Cancel</button>
+                            <button type="submit" class="finance-btn-primary">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                                Save category
                             </button>
                         </div>
                     </footer>

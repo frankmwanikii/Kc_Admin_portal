@@ -5,6 +5,8 @@
         return {
             newArrear: null,
             newCategory: null,
+            newCollectionCategory: null,
+            collectionCategoryEditRow: null,
             weeklyMenu: null,
             weeklyEditRow: null,
             weeklyViewRow: null,
@@ -270,6 +272,12 @@
                 if (Array.isArray(data.weeklySundays)) this.weeklySundays = data.weeklySundays;
                 if (Array.isArray(data.weeklyCollectionRows)) this.weeklyCollectionRows = data.weeklyCollectionRows;
                 if (Array.isArray(data.weeklyCollectionSundays)) this.weeklyCollectionSundays = data.weeklyCollectionSundays;
+                if (data.paymentMethods && typeof data.paymentMethods === 'object') {
+                    this.paymentMethods = data.paymentMethods;
+                    if (this.sundayFormBase) {
+                        this.sundayFormBase.methods = Object.keys(data.paymentMethods);
+                    }
+                }
                 if (Array.isArray(data.expenseGroups)) this.expenseGroups = data.expenseGroups;
                 if (Array.isArray(data.arrears)) this.arrears = data.arrears;
                 if (data.arrearsTotals) this.arrearsTotals = data.arrearsTotals;

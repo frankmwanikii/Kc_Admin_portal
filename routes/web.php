@@ -180,6 +180,9 @@ $router->post('/admin/finance/collections/weekly', [FinanceController::class, 's
 $router->post('/admin/finance/collections/weekly/cell', [FinanceController::class, 'saveWeeklyCollectionCell']);
 $router->post('/admin/finance/collections/weekly/methods/{method}', [FinanceController::class, 'updateWeeklyCollectionMethod']);
 $router->post('/admin/finance/collections/weekly/methods/{method}/clear', [FinanceController::class, 'clearWeeklyCollectionMethod']);
+$router->post('/admin/finance/collections/methods', [FinanceController::class, 'storeCollectionMethod']);
+$router->post('/admin/finance/collections/methods/{method}', [FinanceController::class, 'updateCollectionMethodMeta']);
+$router->post('/admin/finance/collections/methods/{method}/delete', [FinanceController::class, 'deleteCollectionMethod']);
 
 $router->post('/admin/finance/collections', [FinanceController::class, 'storeCollection']);
 $router->post('/admin/finance/collections/{id}/delete', [FinanceController::class, 'deleteCollection']);

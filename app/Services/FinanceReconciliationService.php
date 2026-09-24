@@ -9,7 +9,7 @@ use PDO;
 
 class FinanceReconciliationService
 {
-    private const SCHEMA_VERSION = 2;
+    private const SCHEMA_VERSION = 3;
 
     /**
      * Hard ceiling for a single Sunday line item (KES).
@@ -22,6 +22,9 @@ class FinanceReconciliationService
 
     /** @var array<string, array{label: string, hint: string, department: string}>|null */
     private static ?array $weeklyCategoriesCache = null;
+
+    /** @var array<string, array{label: string, desc: string, is_system: bool, id: int}>|null */
+    private static ?array $collectionMethodsCache = null;
 
     /** @var list<array<string, mixed>>|null */
     private static ?array $expenseCatalogCache = null;
@@ -127,6 +130,8 @@ class FinanceReconciliationService
             self::ensureFinanceCostsCatalog();
             self::seedWeeklyCategoriesIfEmpty();
             self::migrateWeeklyCategoryDepartments();
+            self::migrateCollectionMethodsSchema();
+            self::seedCollectionMethodsIfEmpty();
             SettingsService::set('finance_schema_version', (string) self::SCHEMA_VERSION);
         }
 
@@ -136,10 +141,201 @@ class FinanceReconciliationService
     private static function clearRuntimeCaches(): void
     {
         self::$weeklyCategoriesCache = null;
+        self::$collectionMethodsCache = null;
         self::$expenseCatalogCache = null;
         self::$departmentIdMapCache = null;
         self::$yearActivityCache = null;
         self::$yearActivityCacheYear = null;
+    }
+
+    private static function migrateCollectionMethodsSchema(): void
+    {
+        $db = Database::connection();
+        try {
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS finance_collection_methods (
+                    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    slug VARCHAR(50) NOT NULL,
+                    label VARCHAR(120) NOT NULL,
+                    hint VARCHAR(255) NULL DEFAULT '',
+                    is_system TINYINT(1) NOT NULL DEFAULT 0,
+                    sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 100,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    UNIQUE KEY uk_slug (slug)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        } catch (\Throwable) {
+            return;
+        }
+
+        foreach (['finance_weekly_collections', 'finance_collections'] as $table) {
+            try {
+                $col = $db->query("SHOW COLUMNS FROM {$table} LIKE 'payment_method'")->fetch(PDO::FETCH_ASSOC);
+                if (!$col) {
+                    continue;
+                }
+                $type = strtolower((string) ($col['Type'] ?? ''));
+                if (str_starts_with($type, 'enum')) {
+                    $db->exec("ALTER TABLE {$table} MODIFY payment_method VARCHAR(50) NOT NULL");
+                }
+            } catch (\Throwable) {
+                // table may not exist yet
+            }
+        }
+    }
+
+    private static function seedCollectionMethodsIfEmpty(): void
+    {
+        $db = Database::connection();
+        try {
+            $db->query('SELECT 1 FROM finance_collection_methods LIMIT 1')->fetchColumn();
+        } catch (\Throwable) {
+            return;
+        }
+
+        $order = 10;
+        $insert = $db->prepare('
+            INSERT INTO finance_collection_methods (slug, label, hint, is_system, sort_order)
+            VALUES (?, ?, ?, 1, ?)
+        ');
+        $exists = $db->prepare('SELECT id FROM finance_collection_methods WHERE slug = ?');
+        $maxOrder = (int) $db->query('SELECT COALESCE(MAX(sort_order), 0) FROM finance_collection_methods')->fetchColumn();
+        if ($maxOrder > 0) {
+            $order = $maxOrder + 10;
+        }
+
+        foreach (self::PAYMENT_METHODS as $slug => $meta) {
+            $exists->execute([$slug]);
+            if ($exists->fetch()) {
+                continue;
+            }
+            $insert->execute([$slug, $meta['label'], $meta['desc'], $order]);
+            $order += 10;
+        }
+    }
+
+    /**
+     * @return array<string, array{label: string, desc: string, is_system: bool, id: int}>
+     */
+    public static function allPaymentMethods(): array
+    {
+        if (self::$collectionMethodsCache !== null) {
+            return self::$collectionMethodsCache;
+        }
+
+        self::ensureTables();
+        $out = [];
+        try {
+            $stmt = Database::connection()->query('
+                SELECT id, slug, label, hint, is_system
+                FROM finance_collection_methods
+                ORDER BY sort_order ASC, id ASC
+            ');
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $out[$row['slug']] = [
+                    'id' => (int) $row['id'],
+                    'label' => (string) $row['label'],
+                    'desc' => (string) ($row['hint'] ?? ''),
+                    'is_system' => (int) $row['is_system'] === 1,
+                ];
+            }
+        } catch (\Throwable) {
+            $out = [];
+        }
+
+        if ($out === []) {
+            foreach (self::PAYMENT_METHODS as $slug => $meta) {
+                $out[$slug] = [
+                    'id' => 0,
+                    'label' => $meta['label'],
+                    'desc' => $meta['desc'],
+                    'is_system' => true,
+                ];
+            }
+        }
+
+        return self::$collectionMethodsCache = $out;
+    }
+
+    public static function addCollectionMethod(string $label, string $desc = ''): string
+    {
+        self::ensureTables();
+        $label = trim($label);
+        if ($label === '') {
+            throw new \InvalidArgumentException('Category name is required.');
+        }
+
+        $db = Database::connection();
+        $base = self::slugify($label);
+        $slug = $base;
+        $n = 1;
+        while (true) {
+            $stmt = $db->prepare('SELECT id FROM finance_collection_methods WHERE slug = ?');
+            $stmt->execute([$slug]);
+            if (!$stmt->fetch()) {
+                break;
+            }
+            $slug = $base . '_' . $n++;
+        }
+
+        $maxOrder = (int) $db->query('SELECT COALESCE(MAX(sort_order), 0) FROM finance_collection_methods')->fetchColumn();
+        $db->prepare('
+            INSERT INTO finance_collection_methods (slug, label, hint, is_system, sort_order)
+            VALUES (?, ?, ?, 0, ?)
+        ')->execute([$slug, $label, trim($desc), $maxOrder + 10]);
+
+        self::clearRuntimeCaches();
+
+        return $slug;
+    }
+
+    public static function updateCollectionMethod(string $slug, string $label, string $desc = ''): bool
+    {
+        self::ensureTables();
+        $label = trim($label);
+        if ($label === '') {
+            throw new \InvalidArgumentException('Category name is required.');
+        }
+
+        $db = Database::connection();
+        $stmt = $db->prepare('SELECT id FROM finance_collection_methods WHERE slug = ?');
+        $stmt->execute([$slug]);
+        if (!$stmt->fetch()) {
+            return false;
+        }
+
+        $db->prepare('
+            UPDATE finance_collection_methods
+            SET label = ?, hint = ?, updated_at = NOW()
+            WHERE slug = ?
+        ')->execute([$label, trim($desc), $slug]);
+
+        self::clearRuntimeCaches();
+
+        return true;
+    }
+
+    public static function deleteCollectionMethod(string $slug): bool
+    {
+        self::ensureTables();
+        $methods = self::allPaymentMethods();
+        if (!isset($methods[$slug])) {
+            return false;
+        }
+        if (!empty($methods[$slug]['is_system'])) {
+            throw new \InvalidArgumentException('System collection categories cannot be deleted.');
+        }
+
+        $db = Database::connection();
+        $db->prepare('DELETE FROM finance_weekly_collections WHERE payment_method = ?')->execute([$slug]);
+        $db->prepare('DELETE FROM finance_collections WHERE payment_method = ?')->execute([$slug]);
+        $db->prepare('DELETE FROM finance_collection_methods WHERE slug = ?')->execute([$slug]);
+
+        self::clearRuntimeCaches();
+
+        return true;
     }
 
     /** @return array<string, int> */
@@ -1211,7 +1407,7 @@ class FinanceReconciliationService
     public static function saveWeeklyCollectionAmount(string $weekDate, string $method, float $amount): void
     {
         self::ensureTables();
-        if (!isset(self::PAYMENT_METHODS[$method])) {
+        if (!isset(self::allPaymentMethods()[$method])) {
             throw new \InvalidArgumentException('Unknown payment method.');
         }
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $weekDate)) {
@@ -1243,7 +1439,7 @@ class FinanceReconciliationService
             SELECT payment_method, amount FROM finance_weekly_collections WHERE week_date = ?
         ');
         $stmt->execute([$weekDate]);
-        $out = array_fill_keys(array_keys(self::PAYMENT_METHODS), 0.0);
+        $out = array_fill_keys(array_keys(self::allPaymentMethods()), 0.0);
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $out[$row['payment_method']] = (float) $row['amount'];
         }
@@ -1259,6 +1455,7 @@ class FinanceReconciliationService
     public static function weeklyCollectionsGrid(string $yearMonth): array
     {
         self::ensureTables();
+        $methods = self::allPaymentMethods();
         $sundays = self::sundaysInMonth($yearMonth);
         $amounts = [];
 
@@ -1276,15 +1473,16 @@ class FinanceReconciliationService
         }
 
         $weekTotals = array_fill_keys($sundays, 0.0);
-        $methodTotals = array_fill_keys(array_keys(self::PAYMENT_METHODS), 0.0);
+        $methodTotals = array_fill_keys(array_keys($methods), 0.0);
         $rows = [];
         $monthTotal = 0.0;
 
-        foreach (self::PAYMENT_METHODS as $method => $meta) {
+        foreach ($methods as $method => $meta) {
             $row = [
                 'method' => $method,
                 'label' => $meta['label'],
                 'desc' => $meta['desc'],
+                'is_system' => !empty($meta['is_system']),
                 'amounts' => [],
                 'total' => 0.0,
             ];
@@ -1316,7 +1514,7 @@ class FinanceReconciliationService
     public static function saveCollectionMethodMonth(string $method, string $yearMonth, array $amountsByDate): void
     {
         self::ensureTables();
-        if (!isset(self::PAYMENT_METHODS[$method])) {
+        if (!isset(self::allPaymentMethods()[$method])) {
             throw new \InvalidArgumentException('Unknown payment method.');
         }
 
@@ -1345,7 +1543,7 @@ class FinanceReconciliationService
     public static function clearCollectionMethodMonth(string $method, string $yearMonth): void
     {
         self::ensureTables();
-        if (!isset(self::PAYMENT_METHODS[$method])) {
+        if (!isset(self::allPaymentMethods()[$method])) {
             throw new \InvalidArgumentException('Unknown payment method.');
         }
 
@@ -1369,7 +1567,7 @@ class FinanceReconciliationService
         self::ensureTables();
         $db = Database::connection();
 
-        foreach (self::PAYMENT_METHODS as $method => $_meta) {
+        foreach (self::allPaymentMethods() as $method => $_meta) {
             $amount = self::normalizeWeeklyLineAmount((float) ($methodAmounts[$method] ?? 0));
             if ($amount <= 0) {
                 $db->prepare('DELETE FROM finance_weekly_collections WHERE week_date = ? AND payment_method = ?')
@@ -1619,7 +1817,7 @@ class FinanceReconciliationService
 
         $collectionLines = [];
         $collectionsTotal = 0.0;
-        foreach (self::PAYMENT_METHODS as $method => $meta) {
+        foreach (self::allPaymentMethods() as $method => $meta) {
             $amt = round((float) ($collectionAmounts[$method] ?? 0), 2);
             $collectionLines[] = ['label' => $meta['label'], 'amount' => $amt];
             $collectionsTotal += $amt;
@@ -1750,7 +1948,7 @@ class FinanceReconciliationService
         $summary = self::statementSummary($collectionsTotal, $expensesTotal);
 
         $collectionLines = [];
-        foreach (self::PAYMENT_METHODS as $method => $meta) {
+        foreach (self::allPaymentMethods() as $method => $meta) {
             $methodTotal = 0.0;
             for ($m = 1; $m <= 12; $m++) {
                 $grid = self::weeklyCollectionsGrid(sprintf('%04d-%02d', $year, $m));
@@ -2218,7 +2416,7 @@ class FinanceReconciliationService
 
         $rows[] = ['type' => 'section', 'label' => 'INCOME'];
         $incomeByYear = array_fill_keys($columnYears, 0.0);
-        foreach (self::PAYMENT_METHODS as $method => $meta) {
+        foreach (self::allPaymentMethods() as $method => $meta) {
             $lineByYear = [];
             foreach ($columnYears as $y) {
                 $amt = round((float) ($totalsByYear[$y]['income_lines'][$method] ?? 0), 2);
@@ -2486,7 +2684,7 @@ class FinanceReconciliationService
         $end = sprintf('%04d-01-01', $year + 1);
         $db = Database::connection();
 
-        $incomeLines = array_fill_keys(array_keys(self::PAYMENT_METHODS), 0.0);
+        $incomeLines = array_fill_keys(array_keys(self::allPaymentMethods()), 0.0);
         $colStmt = $db->prepare('
             SELECT payment_method, COALESCE(SUM(amount), 0) AS total
             FROM finance_weekly_collections
@@ -2498,9 +2696,10 @@ class FinanceReconciliationService
         foreach ($colStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $method = (string) $row['payment_method'];
             $amt = round((float) $row['total'], 2);
-            if (isset($incomeLines[$method])) {
-                $incomeLines[$method] = $amt;
+            if (!isset($incomeLines[$method])) {
+                $incomeLines[$method] = 0.0;
             }
+            $incomeLines[$method] = $amt;
             $collections = round($collections + $amt, 2);
         }
 
@@ -2715,7 +2914,7 @@ class FinanceReconciliationService
     {
         $lines = [];
         $note = $noteStart;
-        foreach (self::PAYMENT_METHODS as $method => $meta) {
+        foreach (self::allPaymentMethods() as $method => $meta) {
             $lines[] = [
                 'key' => $method,
                 'label' => $meta['label'],
@@ -2908,7 +3107,11 @@ class FinanceReconciliationService
             return $totals;
         }
 
-        $totals = ['paybill' => 0.0, 'cheque' => 0.0, 'cash' => 0.0, 'total' => 0.0, 'count' => 0];
+        $methods = self::allPaymentMethods();
+        $totals = array_merge(
+            array_fill_keys(array_keys($methods), 0.0),
+            ['total' => 0.0, 'count' => 0]
+        );
         $activity = self::yearActivitySummary($year);
         foreach ($activity['by_month'] as $summary) {
             if ($summary['collections'] <= 0 && $summary['expenses'] <= 0) {
@@ -2940,7 +3143,7 @@ class FinanceReconciliationService
 
     public static function paymentMethodLabel(string $method): string
     {
-        return self::PAYMENT_METHODS[$method]['label'] ?? ucfirst($method);
+        return self::allPaymentMethods()[$method]['label'] ?? ucfirst($method);
     }
 
     /** @param array<string, mixed> $data */
@@ -2948,7 +3151,7 @@ class FinanceReconciliationService
     {
         self::ensureTables();
         $method = $data['payment_method'] ?? 'cash';
-        if (!isset(self::PAYMENT_METHODS[$method])) {
+        if (!isset(self::allPaymentMethods()[$method])) {
             $method = 'cash';
         }
         $amount = (float) ($data['amount'] ?? 0);
@@ -3208,7 +3411,7 @@ class FinanceReconciliationService
         }
 
         $collectionByMethod = [];
-        foreach (self::PAYMENT_METHODS as $method => $meta) {
+        foreach (self::allPaymentMethods() as $method => $meta) {
             $collectionByMethod[$method] = ['label' => $meta['label'], 'amount' => 0.0];
         }
         $methodStmt = $db->prepare('
@@ -3353,7 +3556,7 @@ class FinanceReconciliationService
         $sessions = self::sundaySessionsForDates([$weekDate]);
 
         return $sessions[$weekDate] ?? [
-            'collections' => array_fill_keys(array_keys(self::PAYMENT_METHODS), 0.0),
+            'collections' => array_fill_keys(array_keys(self::allPaymentMethods()), 0.0),
             'expenses' => [],
             'notes' => '',
         ];
@@ -3373,7 +3576,7 @@ class FinanceReconciliationService
         }
 
         self::ensureTables();
-        $defaultCollections = array_fill_keys(array_keys(self::PAYMENT_METHODS), 0.0);
+        $defaultCollections = array_fill_keys(array_keys(self::allPaymentMethods()), 0.0);
         $sessions = [];
         foreach ($weekDates as $weekDate) {
             $sessions[$weekDate] = [
